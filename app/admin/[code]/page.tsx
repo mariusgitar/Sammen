@@ -1,4 +1,7 @@
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
+import { eq } from 'drizzle-orm';
+
+import { getDb } from '@/db';
+import { items, sessions } from '@/db/schema';
 
 type AdminPageProps = {
   params: {
@@ -6,39 +9,11 @@ type AdminPageProps = {
   };
 };
 
-type SessionPayload = {
-  session: {
-    title: string;
-    code: string;
-    mode: string;
-    status: string;
-  };
-  items: Array<{
-    id: string;
-    text: string;
-  }>;
-};
-
-async function getSession(code: string) {
-  const response = await fetch(`${baseUrl}/api/sessions/${code}`, {
-    cache: 'no-store',
-  });
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch session');
-  }
-
-  return (await response.json()) as SessionPayload;
-}
-
 export default async function AdminSessionPage({ params }: AdminPageProps) {
-  const data = await getSession(params.code);
+  const db = getDb();
+  const [session] = await db.select().from(sessions).where(eq(sessions.code, params.code)).limit(1);
 
-  if (!data) {
+  if (!session) {
     return (
       <main className="min-h-screen px-4 py-10 sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
@@ -49,34 +24,36 @@ export default async function AdminSessionPage({ params }: AdminPageProps) {
     );
   }
 
+  const sessionItems = await db.select().from(items).where(eq(items.sessionId, session.id));
+
   return (
     <main className="min-h-screen px-4 py-10 sm:px-6">
       <div className="mx-auto w-full max-w-lg space-y-6 rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">{data.session.title}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-white">{session.title}</h1>
           <p className="mt-2 text-sm text-slate-300">Dette er en enkel admin-visning for å bekrefte at sesjonen ble lagret.</p>
         </div>
 
         <dl className="space-y-3 text-sm text-slate-200">
           <div>
             <dt className="font-medium text-slate-400">Kode</dt>
-            <dd>{data.session.code}</dd>
+            <dd>{session.code}</dd>
           </div>
           <div>
             <dt className="font-medium text-slate-400">Modus</dt>
-            <dd>{data.session.mode}</dd>
+            <dd>{session.mode}</dd>
           </div>
           <div>
             <dt className="font-medium text-slate-400">Status</dt>
-            <dd>{data.session.status}</dd>
+            <dd>{session.status}</dd>
           </div>
         </dl>
 
         <section>
           <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Elementer</h2>
-          {data.items.length > 0 ? (
+          {sessionItems.length > 0 ? (
             <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-100">
-              {data.items.map((item) => (
+              {sessionItems.map((item) => (
                 <li key={item.id}>{item.text}</li>
               ))}
             </ul>
