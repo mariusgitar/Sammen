@@ -7,5 +7,4 @@ export default {
   dbCredentials: {
     url: process.env.DATABASE_URL ?? '',
   },
-  driver: 'neon-serverless',
 } satisfies Config;
