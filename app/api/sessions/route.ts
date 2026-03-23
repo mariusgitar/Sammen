@@ -65,37 +65,33 @@ export async function POST(request: NextRequest) {
     const code = await generateUniqueCode();
     const db = getDb();
 
-    const createdSession = await db.transaction(async (tx) => {
-      const [session] = await tx
-        .insert(sessions)
-        .values({
-          code,
-          title,
-          mode: body.mode,
-          tags,
-          allowNewItems: body.allow_new_items,
-        })
-        .returning({
-          id: sessions.id,
-          code: sessions.code,
-          title: sessions.title,
-          mode: sessions.mode,
-          status: sessions.status,
-          tags: sessions.tags,
-        });
+    const [createdSession] = await db
+      .insert(sessions)
+      .values({
+        code,
+        title,
+        mode: body.mode,
+        tags,
+        allowNewItems: body.allow_new_items,
+      })
+      .returning({
+        id: sessions.id,
+        code: sessions.code,
+        title: sessions.title,
+        mode: sessions.mode,
+        status: sessions.status,
+        tags: sessions.tags,
+      });
 
-      if (itemTexts.length > 0) {
-        await tx.insert(items).values(
-          itemTexts.map((text, orderIndex) => ({
-            sessionId: session.id,
-            text,
-            orderIndex,
-          }))
-        );
-      }
-
-      return session;
-    });
+    if (itemTexts.length > 0) {
+      await db.insert(items).values(
+        itemTexts.map((text, orderIndex) => ({
+          sessionId: createdSession.id,
+          text,
+          orderIndex,
+        }))
+      );
+    }
 
     return NextResponse.json({ session: createdSession }, { status: 201 });
   } catch (error) {
