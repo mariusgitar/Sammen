@@ -38,6 +38,7 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   const [participantId] = useState(() => crypto.randomUUID());
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [hoveredDot, setHoveredDot] = useState<{ itemId: string; value: number } | null>(null);
 
   const isDotVoting = session.votingType === 'dots' && session.dotBudget > 0;
   const allItemsVoted = useMemo(() => items.every((item) => typeof votes[item.id] === 'number'), [items, votes]);
@@ -47,18 +48,6 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   );
   const dotsRemaining = Math.max(0, session.dotBudget - dotsUsed);
   const canSubmit = isDotVoting ? dotsUsed === session.dotBudget : allItemsVoted;
-
-  function getDotLabel(value: number) {
-    if (value === 0) {
-      return '○';
-    }
-
-    if (value <= 5) {
-      return '●'.repeat(value);
-    }
-
-    return `●●●●● +${value - 5}`;
-  }
 
   function handleJoin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -169,14 +158,30 @@ export function StemmingView({ session, items }: StemmingViewProps) {
               <p className="mt-3 text-sm text-slate-200">
                 Fordel {session.dotBudget} prikker på kriteriene under.
               </p>
-              <p className="text-sm text-slate-400">
-                {session.allowMultipleDots
-                  ? 'Du kan gi flere prikker til samme kriterium.'
-                  : 'Du kan maksimalt gi én prikk per kriterium.'}
-              </p>
+              <p className="text-sm text-slate-400">Trykk på prikkene for å fordele budsjettet ditt.</p>
               <p className="mt-2 text-sm text-slate-100">
                 Brukt: {dotsUsed}/{session.dotBudget} · Gjenstår: {dotsRemaining}
               </p>
+              {session.dotBudget <= 10 ? (
+                <div className="mt-2 flex items-center gap-1.5" aria-hidden>
+                  {Array.from({ length: session.dotBudget }, (_, index) => {
+                    const isFilled = index < dotsUsed;
+
+                    return (
+                      <span
+                        key={index}
+                        className={`h-5 w-5 rounded-full ${
+                          isFilled
+                            ? 'bg-gradient-to-br from-indigo-500 to-violet-500'
+                            : 'border border-white/30 bg-transparent'
+                        }`}
+                      />
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-slate-400">Budsjett: {session.dotBudget} prikker</p>
+              )}
             </>
           ) : (
             <>
@@ -190,22 +195,25 @@ export function StemmingView({ session, items }: StemmingViewProps) {
           {items.map((item) => {
             const currentDots = votes[item.id] ?? 0;
             const remainingBudgetForItem = session.dotBudget - dotsUsed + currentDots;
-            const maxReachableByBudget = Math.min(session.dotBudget, currentDots + remainingBudgetForItem);
-            const maxDotsForItem = session.allowMultipleDots ? maxReachableByBudget : Math.min(1, maxReachableByBudget);
-            const dotOptions = Array.from({ length: Math.max(0, maxDotsForItem) + 1 }, (_, index) => index);
+            const maxVisibleDots = Math.min(session.dotBudget, currentDots + remainingBudgetForItem);
+            const visibleDots = Math.max(1, maxVisibleDots);
+            const hoveredValue = hoveredDot?.itemId === item.id ? hoveredDot.value : 0;
 
             return (
               <section key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
                 <p className="text-base text-slate-100">{item.text}</p>
                 {isDotVoting ? (
                   <div className="mt-4 flex flex-wrap gap-1.5">
-                    {dotOptions.map((value) => {
-                      const selected = currentDots === value;
+                    {Array.from({ length: visibleDots }, (_, index) => {
+                      const isFilled = index < currentDots;
+                      const isHovered = index < hoveredValue;
 
                       return (
                         <button
-                          key={value}
+                          key={index}
                           type="button"
+                          onMouseEnter={() => setHoveredDot({ itemId: item.id, value: index + 1 })}
+                          onMouseLeave={() => setHoveredDot(null)}
                           onClick={() => {
                             setVotes((current) => {
                               const currentValue = current[item.id] ?? 0;
@@ -214,31 +222,33 @@ export function StemmingView({ session, items }: StemmingViewProps) {
                                   sum + (currentItem.id === item.id ? 0 : (current[currentItem.id] ?? 0)),
                                 0,
                               );
-                              const boundedValue = session.allowMultipleDots ? value : Math.min(1, value);
+                              const requestedValue = index === currentValue - 1 ? 0 : index + 1;
 
-                              if (totalWithoutCurrent + boundedValue > session.dotBudget) {
+                              if (totalWithoutCurrent + requestedValue > session.dotBudget) {
                                 return current;
                               }
 
-                              if (currentValue === boundedValue) {
+                              if (currentValue === requestedValue) {
                                 return current;
                               }
 
                               return {
                                 ...current,
-                                [item.id]: boundedValue,
+                                [item.id]: requestedValue,
                               };
                             });
                           }}
-                          className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-medium transition ${
-                            selected
-                              ? 'border-indigo-500 bg-gradient-to-br from-indigo-500 to-violet-500 text-white'
-                              : 'border-white/30 text-white/60 hover:border-white/50 hover:text-white/90'
+                          className={`h-5 w-5 rounded-full transition ${
+                            hoveredValue > 0
+                              ? isHovered
+                                ? 'bg-gradient-to-br from-indigo-500/60 to-violet-500/60'
+                                : 'border border-white/30 bg-transparent'
+                              : isFilled
+                                ? 'bg-gradient-to-br from-indigo-500 to-violet-500'
+                                : 'border border-white/30 bg-transparent'
                           }`}
-                          aria-label={`${value} prikker`}
-                        >
-                          <span className="leading-none">{getDotLabel(value)}</span>
-                        </button>
+                          aria-label={`Sett ${index + 1} prikker`}
+                        />
                       );
                     })}
                   </div>
