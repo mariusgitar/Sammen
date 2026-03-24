@@ -5,6 +5,9 @@ import { items, sessions } from '@/db/schema';
 
 import { AdminPanel } from './AdminPanel';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 type AdminPageProps = {
   params: {
     code: string;
