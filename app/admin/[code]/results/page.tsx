@@ -5,6 +5,7 @@ import { getDb } from '@/db';
 import { items, responses, sessions } from '@/db/schema';
 
 import { ExportButton } from './ExportButton';
+import { KartleggingResults } from './KartleggingResults';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -16,15 +17,6 @@ type ResultsPageProps = {
 };
 
 type VoteDistribution = Record<'1' | '2' | '3' | '4' | '5', number>;
-
-function makeBar(count: number, total: number, width = 6) {
-  if (total <= 0) {
-    return '░'.repeat(width);
-  }
-
-  const filled = Math.round((count / total) * width);
-  return `${'█'.repeat(filled)}${'░'.repeat(Math.max(0, width - filled))}`;
-}
 
 export default async function ResultsPage({ params }: ResultsPageProps) {
   const db = getDb();
@@ -83,8 +75,6 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
     .where(eq(responses.sessionId, session.id));
 
   const includedItems = allItems.filter((item) => !item.excluded);
-  const participantItems = includedItems.filter((item) => item.isNew);
-  const facilitatorItems = includedItems.filter((item) => !item.isNew);
 
   const numericResponses = allResponses.filter((entry) => {
     const vote = Number(entry.value);
@@ -103,13 +93,6 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
     new Set(mappingResponses.map((entry) => entry.participantId)).size,
     new Set(allResponses.map((entry) => entry.participantId)).size,
   );
-
-  const mappingByItem = new Map<string, Record<string, number>>();
-  for (const response of mappingResponses) {
-    const existing = mappingByItem.get(response.itemId) ?? {};
-    existing[response.value] = (existing[response.value] ?? 0) + 1;
-    mappingByItem.set(response.itemId, existing);
-  }
 
   const votesByItem = new Map<string, number[]>();
   for (const response of numericResponses) {
@@ -177,46 +160,19 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
         </header>
 
         {hasKartlegging ? (
-          <section className="rounded-xl border border-slate-200 bg-white p-6">
-            <h2 className="text-xl font-semibold">Kartlegging-resultater</h2>
-
-            <div className="mt-4 space-y-4">
-              {facilitatorItems.map((item) => {
-                const counts = mappingByItem.get(item.id) ?? {};
-                const sortedCounts = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-
-                return (
-                  <article key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <p className="font-medium">{item.text}</p>
-                    <div className="mt-2 space-y-1 text-sm text-slate-700">
-                      {sortedCounts.length > 0 ? (
-                        sortedCounts.map(([tag, count]) => (
-                          <p key={`${item.id}-${tag}`}>
-                            {tag} {makeBar(count, mappingParticipantCount)} {count} av {mappingParticipantCount}
-                          </p>
-                        ))
-                      ) : (
-                        <p>Ingen tagger registrert.</p>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-
-            <div className="mt-8">
-              <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-600">Innspill fra deltakere</h3>
-              {participantItems.length > 0 ? (
-                <ul className="mt-3 list-disc space-y-1 pl-6 text-slate-800">
-                  {participantItems.map((item) => (
-                    <li key={item.id}>{item.text}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-2 text-sm text-slate-600">Ingen nye innspill fra deltakere.</p>
-              )}
-            </div>
-          </section>
+          <KartleggingResults
+            items={allItems.map((item) => ({
+              id: item.id,
+              text: item.text,
+              excluded: item.excluded,
+            }))}
+            responses={mappingResponses.map((entry) => ({
+              itemId: entry.itemId,
+              value: entry.value,
+            }))}
+            tags={session.tags}
+            participantCount={mappingParticipantCount}
+          />
         ) : null}
 
         {hasStemming ? (
