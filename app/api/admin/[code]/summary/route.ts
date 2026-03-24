@@ -15,6 +15,7 @@ type KartleggingSummaryItem = {
   text: string;
   is_new: boolean;
   created_by: string;
+  excluded: boolean;
   tagCounts: Record<string, number>;
   untaggedCount: number;
 };
@@ -24,6 +25,7 @@ type StemmingSummaryItem = {
   text: string;
   is_new: boolean;
   created_by: string;
+  excluded: boolean;
   averageScore: number;
   voteCount: number;
   distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
@@ -50,6 +52,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         text: items.text,
         is_new: items.isNew,
         created_by: items.createdBy,
+        excluded: items.excluded,
       })
       .from(items)
       .where(eq(items.sessionId, session.id))
@@ -57,9 +60,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
     const allResponses = await db
       .select({
-        item_id: responses.itemId,
+        itemId: responses.itemId,
         value: responses.value,
-        participant_id: responses.participantId,
+        participantId: responses.participantId,
       })
       .from(responses)
       .where(eq(responses.sessionId, session.id));
@@ -74,9 +77,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
           continue;
         }
 
-        const current = votesByItem.get(entry.item_id) ?? [];
+        const current = votesByItem.get(entry.itemId) ?? [];
         current.push(numericVote);
-        votesByItem.set(entry.item_id, current);
+        votesByItem.set(entry.itemId, current);
       }
 
       const summaryItems: StemmingSummaryItem[] = allItems
@@ -102,6 +105,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
             text: item.text,
             is_new: item.is_new,
             created_by: item.created_by,
+            excluded: item.excluded,
             averageScore,
             voteCount,
             distribution,
@@ -109,32 +113,35 @@ export async function GET(_request: Request, { params }: RouteContext) {
         });
 
       return NextResponse.json({
-        participantCount: new Set(allResponses.map((r) => r.participant_id)).size,
+        phase: session.phase,
+        participantCount: new Set(allResponses.map((r) => r.participantId)).size,
         items: summaryItems,
       });
     }
 
     const itemSummaries: KartleggingSummaryItem[] = allItems.map((item) => {
-      const itemResponses = allResponses.filter((r) => r.item_id === item.id);
+      const itemResponses = allResponses.filter((r) => r.itemId === item.id);
       const tagCounts: Record<string, number> = {};
       for (const r of itemResponses) {
         tagCounts[r.value] = (tagCounts[r.value] ?? 0) + 1;
       }
-      const uniqueParticipants = new Set(allResponses.map((r) => r.participant_id)).size;
-      const taggedCount = new Set(itemResponses.map((r) => r.participant_id)).size;
+      const uniqueParticipants = new Set(allResponses.map((r) => r.participantId)).size;
+      const taggedCount = new Set(itemResponses.map((r) => r.participantId)).size;
       return {
         id: item.id,
         text: item.text,
         is_new: item.is_new,
         created_by: item.created_by,
+        excluded: item.excluded,
         tagCounts,
         untaggedCount: uniqueParticipants - taggedCount,
       };
     });
 
-    const participantCount = new Set(allResponses.map((r) => r.participant_id)).size;
+    const participantCount = new Set(allResponses.map((r) => r.participantId)).size;
 
     return NextResponse.json({
+      phase: session.phase,
       participantCount,
       items: itemSummaries,
     });
