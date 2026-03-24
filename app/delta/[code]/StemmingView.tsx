@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 type SessionView = {
   id: string;
@@ -39,6 +39,9 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [hoveredDot, setHoveredDot] = useState<{ itemId: string; value: number } | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isToastVisible, setIsToastVisible] = useState(false);
+  const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isDotVoting = session.votingType === 'dots' && session.dotBudget > 0;
   const allItemsVoted = useMemo(() => items.every((item) => typeof votes[item.id] === 'number'), [items, votes]);
@@ -48,6 +51,28 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   );
   const dotsRemaining = Math.max(0, session.dotBudget - dotsUsed);
   const canSubmit = isDotVoting ? dotsUsed === session.dotBudget : allItemsVoted;
+
+  useEffect(() => {
+    return () => {
+      if (toastTimeout.current) {
+        clearTimeout(toastTimeout.current);
+      }
+    };
+  }, []);
+
+  function showToast(message: string) {
+    if (toastTimeout.current) {
+      clearTimeout(toastTimeout.current);
+    }
+
+    setToastMessage(message);
+    setIsToastVisible(true);
+
+    toastTimeout.current = setTimeout(() => {
+      setIsToastVisible(false);
+      setTimeout(() => setToastMessage(null), 200);
+    }, 2500);
+  }
 
   function handleJoin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -239,6 +264,15 @@ export function StemmingView({ session, items }: StemmingViewProps) {
                                   : 1;
 
                               if (totalWithoutCurrent + requestedValue > session.dotBudget) {
+                                const totalCurrent = Object.values(current).reduce((sum, value) => sum + value, 0);
+                                const currentRemainingBudget = session.dotBudget - totalCurrent;
+
+                                if (currentRemainingBudget === 0 && requestedValue > currentValue) {
+                                  showToast(
+                                    'Du har brukt alle prikkene dine. Fjern en prikk fra et annet element for å stemme her.',
+                                  );
+                                }
+
                                 return current;
                               }
 
@@ -309,6 +343,18 @@ export function StemmingView({ session, items }: StemmingViewProps) {
           Send inn stemmer
         </button>
       </div>
+
+      {toastMessage ? (
+        <div
+          className={`fixed bottom-6 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl bg-gray-800 px-4 py-3 text-sm text-white shadow-lg transition-all duration-200 ${
+            isToastVisible ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
+          }`}
+          role="status"
+          aria-live="polite"
+        >
+          {toastMessage}
+        </div>
+      ) : null}
     </main>
   );
 }
