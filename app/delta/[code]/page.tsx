@@ -22,6 +22,7 @@ type SessionResponse = {
     mode: string;
     votingType: 'scale' | 'dots';
     dotBudget: number;
+    allowMultipleDots: boolean;
     phase: SessionPhase;
     status: SessionStatus;
     tags: string[];
@@ -161,6 +162,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
           title: session.title,
           votingType: session.votingType,
           dotBudget: session.dotBudget,
+          allowMultipleDots: session.allowMultipleDots,
         }}
       />
     );

@@ -10,6 +10,7 @@ type CreateSessionBody = {
   mode: (typeof sessionModes)[number];
   voting_type?: (typeof votingTypes)[number];
   dot_budget?: number;
+  allow_multiple_dots?: boolean;
   items: string[];
   tags: string[];
   allow_new_items: boolean;
@@ -28,6 +29,7 @@ function isCreateSessionBody(body: unknown): body is CreateSessionBody {
     (typeof candidate.voting_type === 'undefined' ||
       votingTypes.includes(candidate.voting_type as (typeof votingTypes)[number])) &&
     (typeof candidate.dot_budget === 'undefined' || Number.isInteger(candidate.dot_budget)) &&
+    (typeof candidate.allow_multiple_dots === 'undefined' || typeof candidate.allow_multiple_dots === 'boolean') &&
     Array.isArray(candidate.items) &&
     candidate.items.every((item) => typeof item === 'string') &&
     Array.isArray(candidate.tags) &&
@@ -71,6 +73,7 @@ export async function POST(request: NextRequest) {
     const db = getDb();
     const votingType = body.voting_type ?? 'scale';
     const dotBudget = Math.max(3, Math.min(20, body.dot_budget ?? 5));
+    const allowMultipleDots = body.allow_multiple_dots ?? true;
 
     const [createdSession] = await db
       .insert(sessions)
@@ -81,6 +84,7 @@ export async function POST(request: NextRequest) {
         phase: body.mode === 'stemming' ? 'stemming' : 'kartlegging',
         votingType: body.mode === 'stemming' ? votingType : 'scale',
         dotBudget: body.mode === 'stemming' && votingType === 'dots' ? dotBudget : 5,
+        allowMultipleDots: body.mode === 'stemming' && votingType === 'dots' ? allowMultipleDots : true,
         tags,
         allowNewItems: body.allow_new_items,
       })
@@ -91,6 +95,7 @@ export async function POST(request: NextRequest) {
         mode: sessions.mode,
         votingType: sessions.votingType,
         dotBudget: sessions.dotBudget,
+        allowMultipleDots: sessions.allowMultipleDots,
         status: sessions.status,
         tags: sessions.tags,
       });
