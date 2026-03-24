@@ -42,6 +42,8 @@ export async function POST(request: Request) {
       .select({
         id: sessions.id,
         allowNewItems: sessions.allowNewItems,
+        status: sessions.status,
+        phase: sessions.phase,
       })
       .from(sessions)
       .where(eq(sessions.id, body.sessionId))
@@ -51,14 +53,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
+    if (session.status !== 'active' || session.phase !== 'kartlegging') {
+      return NextResponse.json({ error: 'Session is not open for new proposals' }, { status: 409 });
+    }
+
     if (!session.allowNewItems) {
       return NextResponse.json({ error: 'Session does not allow new items' }, { status: 400 });
     }
 
-    const [row] = await db
-      .select({ maxOrderIndex: max(items.orderIndex) })
-      .from(items)
-      .where(eq(items.sessionId, body.sessionId));
+    const [row] = await db.select({ maxOrderIndex: max(items.orderIndex) }).from(items).where(eq(items.sessionId, body.sessionId));
 
     const nextOrderIndex = (row?.maxOrderIndex ?? -1) + 1;
 
