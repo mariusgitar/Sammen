@@ -70,7 +70,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .from(responses)
       .where(eq(responses.sessionId, session.id));
 
-    const participantCount = new Set(allResponses.map((r) => r.participant_id)).size;
+    const participantCount = new Set(
+      allResponses.map((r) => r.participant_id),
+    ).size;
 
     if (session.phase === 'stemming') {
       const votesByItem = new Map<string, number[]>();
