@@ -109,6 +109,14 @@ export default async function HomePage() {
                     <Link href={`/delta/${session.code}`} className="font-medium text-slate-300 transition hover:text-slate-100">
                       Delta →
                     </Link>
+                    {session.status === 'closed' ? (
+                      <Link
+                        href={`/admin/${session.code}/results`}
+                        className="font-medium text-slate-300 transition hover:text-slate-100"
+                      >
+                        Se resultater →
+                      </Link>
+                    ) : null}
                   </div>
                 </article>
               ))}

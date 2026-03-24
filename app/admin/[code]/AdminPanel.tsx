@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
 
@@ -52,6 +53,35 @@ type AdminPanelProps = {
   session: SessionView;
   items: SessionItem[];
 };
+
+const tagBadgeClasses = [
+  'bg-cyan-500/15 text-cyan-200 border-cyan-500/30',
+  'bg-emerald-500/15 text-emerald-200 border-emerald-500/30',
+  'bg-violet-500/15 text-violet-200 border-violet-500/30',
+  'bg-amber-500/15 text-amber-200 border-amber-500/30',
+  'bg-rose-500/15 text-rose-200 border-rose-500/30',
+];
+
+function getScoreColorClass(score: number) {
+  if (score >= 4.0) {
+    return 'text-emerald-300';
+  }
+
+  if (score >= 2.5) {
+    return 'text-amber-300';
+  }
+
+  return 'text-rose-300';
+}
+
+function hasSplitVotes(item: KartleggingSummaryItem, participantCount: number) {
+  if (participantCount === 0) {
+    return false;
+  }
+
+  const highestTagCount = Object.values(item.tagCounts).reduce((max, count) => Math.max(max, count), 0);
+  return highestTagCount / participantCount <= 0.5;
+}
 
 export function AdminPanel({ session, items }: AdminPanelProps) {
   const [currentSession, setCurrentSession] = useState(session);
@@ -275,10 +305,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     [summary.items],
   );
 
-  const finalListItems = useMemo(
-    () => [...mainItems, ...proposedItems],
-    [mainItems, proposedItems],
-  );
+  const finalListItems = useMemo(() => [...mainItems, ...proposedItems], [mainItems, proposedItems]);
 
   const voteResults = useMemo(
     () =>
@@ -357,6 +384,15 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               Avslutt sesjon
             </button>
           ) : null}
+
+          {(sessionStatus === 'paused' || sessionStatus === 'closed') && (
+            <Link
+              href={`/admin/${currentSession.code}/results`}
+              className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
+            >
+              Se resultater →
+            </Link>
+          )}
         </div>
       </section>
 
@@ -405,9 +441,12 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         {sessionPhase === 'stemming' ? (
           <div className="mt-4 space-y-3">
             {voteResults.map((item) => (
-              <article key={item.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-100">
+              <article key={item.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 text-sm text-slate-100">
                 <p className="font-medium text-slate-50">{item.text}</p>
-                <p className="mt-2 text-2xl font-bold text-white">Snitt: {item.averageScore.toFixed(2)}</p>
+                <div className="mt-3 flex items-end gap-2">
+                  <p className={`text-4xl font-bold ${getScoreColorClass(item.averageScore)}`}>{item.averageScore.toFixed(1)}</p>
+                  <p className="pb-1 text-slate-400">i snitt</p>
+                </div>
                 <p className="text-slate-300">Antall stemmer: {item.voteCount}</p>
                 <p className="mt-1 text-slate-300">
                   1:{item.distribution['1']} &nbsp; 2:{item.distribution['2']} &nbsp; 3:{item.distribution['3']} &nbsp; 4:
@@ -419,17 +458,40 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         ) : (
           <>
             <div className="mt-4 space-y-3">
-              {mainItems.map((item) => (
-                <article key={item.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-100">
-                  <p className="font-medium text-slate-50">{item.text}</p>
-                  <p className="mt-2 text-slate-300">
-                    {Object.entries(item.tagCounts)
-                      .map(([tag, count]) => `${tag}: ${count}`)
-                      .join('  |  ') || 'Ingen tagger enda'}
-                    {'  |  '}(ingen tag): {item.untaggedCount}
-                  </p>
-                </article>
-              ))}
+              {mainItems.map((item) => {
+                const splitVotes = hasSplitVotes(item, summary.participantCount);
+                const tagEntries = [
+                  ...Object.entries(item.tagCounts),
+                  ...(item.untaggedCount > 0 ? ([['Ingen tag', item.untaggedCount]] as Array<[string, number]>) : []),
+                ];
+
+                return (
+                  <article key={item.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-3 text-sm text-slate-100">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-slate-50">{item.text}</p>
+                      {splitVotes ? (
+                        <span className="rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200">
+                          ⚠ Uenighet
+                        </span>
+                      ) : null}
+                    </div>
+                    {tagEntries.length > 0 ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {tagEntries.map(([tag, count], index) => (
+                          <span
+                            key={`${item.id}-${tag}`}
+                            className={`rounded-full border px-2.5 py-1 text-xs font-medium ${tagBadgeClasses[index % tagBadgeClasses.length]}`}
+                          >
+                            {tag}: {count}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-2 text-slate-300">Ingen tagger enda</p>
+                    )}
+                  </article>
+                );
+              })}
             </div>
 
             <div className="mt-6">
