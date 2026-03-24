@@ -67,11 +67,11 @@ export async function POST(request: Request) {
     }
 
     const validResponses = body.responses.filter(
-      (entry): entry is { itemId: string; value: string } => entry.value !== '' && entry.value !== null,
+      (r): r is { itemId: string; value: string } => Boolean(r.itemId && r.value && r.value !== ''),
     );
 
     if (validResponses.length === 0) {
-      return NextResponse.json({ ok: true });
+      return NextResponse.json({ ok: true, inserted: 0 });
     }
 
     const responseItemIds = validResponses.map((entry) => entry.itemId);
