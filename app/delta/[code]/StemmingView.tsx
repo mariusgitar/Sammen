@@ -47,23 +47,18 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   );
   const dotsRemaining = Math.max(0, session.dotBudget - dotsUsed);
   const canSubmit = isDotVoting ? dotsUsed === session.dotBudget : allItemsVoted;
-  const dotOptions = useMemo(() => {
-    if (!session.allowMultipleDots) {
-      return [0, 1];
+
+  function getDotLabel(value: number) {
+    if (value === 0) {
+      return '○';
     }
 
-    const budget = session.dotBudget;
-
-    if (budget <= 5) {
-      return Array.from(new Set([0, 1, 2, 3, 4, 5].filter((value) => value <= budget))).sort((a, b) => a - b);
+    if (value <= 5) {
+      return '●'.repeat(value);
     }
 
-    if (budget <= 10) {
-      return Array.from(new Set([0, 1, 2, 3, 5, 8, budget])).sort((a, b) => a - b);
-    }
-
-    return Array.from(new Set([0, 1, 2, 3, 5, 10, budget])).sort((a, b) => a - b);
-  }, [session.allowMultipleDots, session.dotBudget]);
+    return `●●●●● +${value - 5}`;
+  }
 
   function handleJoin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -192,82 +187,91 @@ export function StemmingView({ session, items }: StemmingViewProps) {
         </div>
 
         <div className="space-y-4">
-          {items.map((item) => (
-            <section key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="text-base text-slate-100">{item.text}</p>
-              {isDotVoting ? (
-                <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-7">
-                  {dotOptions.map((value) => {
-                    const selected = (votes[item.id] ?? 0) === value;
+          {items.map((item) => {
+            const currentDots = votes[item.id] ?? 0;
+            const remainingBudgetForItem = session.dotBudget - dotsUsed + currentDots;
+            const maxReachableByBudget = Math.min(session.dotBudget, currentDots + remainingBudgetForItem);
+            const maxDotsForItem = session.allowMultipleDots ? maxReachableByBudget : Math.min(1, maxReachableByBudget);
+            const dotOptions = Array.from({ length: Math.max(0, maxDotsForItem) + 1 }, (_, index) => index);
 
-                    return (
-                      <button
-                        key={value}
-                        type="button"
-                        onClick={() => {
-                          setVotes((current) => {
-                            const currentValue = current[item.id] ?? 0;
-                            const totalWithoutCurrent = items.reduce(
-                              (sum, currentItem) =>
-                                sum + (currentItem.id === item.id ? 0 : (current[currentItem.id] ?? 0)),
-                              0,
-                            );
-                            const boundedValue = session.allowMultipleDots ? value : Math.min(1, value);
+            return (
+              <section key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
+                <p className="text-base text-slate-100">{item.text}</p>
+                {isDotVoting ? (
+                  <div className="mt-4 flex flex-wrap gap-1.5">
+                    {dotOptions.map((value) => {
+                      const selected = currentDots === value;
 
-                            if (totalWithoutCurrent + boundedValue > session.dotBudget) {
-                              return current;
-                            }
+                      return (
+                        <button
+                          key={value}
+                          type="button"
+                          onClick={() => {
+                            setVotes((current) => {
+                              const currentValue = current[item.id] ?? 0;
+                              const totalWithoutCurrent = items.reduce(
+                                (sum, currentItem) =>
+                                  sum + (currentItem.id === item.id ? 0 : (current[currentItem.id] ?? 0)),
+                                0,
+                              );
+                              const boundedValue = session.allowMultipleDots ? value : Math.min(1, value);
 
-                            if (currentValue === boundedValue) {
-                              return current;
-                            }
+                              if (totalWithoutCurrent + boundedValue > session.dotBudget) {
+                                return current;
+                              }
 
-                            return {
+                              if (currentValue === boundedValue) {
+                                return current;
+                              }
+
+                              return {
+                                ...current,
+                                [item.id]: boundedValue,
+                              };
+                            });
+                          }}
+                          className={`flex h-8 w-8 items-center justify-center rounded-full border text-xs font-medium transition ${
+                            selected
+                              ? 'border-indigo-500 bg-gradient-to-br from-indigo-500 to-violet-500 text-white'
+                              : 'border-white/30 text-white/60 hover:border-white/50 hover:text-white/90'
+                          }`}
+                          aria-label={`${value} prikker`}
+                        >
+                          <span className="leading-none">{getDotLabel(value)}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {scoreOptions.map((score) => {
+                      const selected = votes[item.id] === score;
+
+                      return (
+                        <button
+                          key={score}
+                          type="button"
+                          onClick={() => {
+                            setVotes((current) => ({
                               ...current,
-                              [item.id]: boundedValue,
-                            };
-                          });
-                        }}
-                        className={`h-10 w-10 rounded-full border text-sm font-medium transition ${
-                          selected
-                            ? 'border-indigo-500 bg-indigo-500 text-white'
-                            : 'border-white/30 text-white/80 hover:border-white/50 hover:text-white'
-                        }`}
-                      >
-                        {value}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {scoreOptions.map((score) => {
-                    const selected = votes[item.id] === score;
-
-                    return (
-                      <button
-                        key={score}
-                        type="button"
-                        onClick={() => {
-                          setVotes((current) => ({
-                            ...current,
-                            [item.id]: score,
-                          }));
-                        }}
-                        className={`rounded-full border px-3 py-1 text-sm transition ${
-                          selected
-                            ? 'border-white bg-white text-black'
-                            : 'border-white/30 text-white/70 hover:border-white/50 hover:text-white'
-                        }`}
-                      >
-                        {score}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-          ))}
+                              [item.id]: score,
+                            }));
+                          }}
+                          className={`rounded-full border px-3 py-1 text-sm transition ${
+                            selected
+                              ? 'border-white bg-white text-black'
+                              : 'border-white/30 text-white/70 hover:border-white/50 hover:text-white'
+                          }`}
+                        >
+                          {score}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            );
+          })}
         </div>
 
         {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
