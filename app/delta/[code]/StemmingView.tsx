@@ -194,16 +194,16 @@ export function StemmingView({ session, items }: StemmingViewProps) {
         <div className="space-y-4">
           {items.map((item) => {
             const currentDots = votes[item.id] ?? 0;
-            const remainingBudgetForItem = session.dotBudget - dotsUsed + currentDots;
-            const maxVisibleDots = Math.min(session.dotBudget, currentDots + remainingBudgetForItem);
-            const visibleDots = Math.max(1, maxVisibleDots);
+            const totalUsed = Object.values(votes).reduce((sum, value) => sum + value, 0);
+            const remainingBudget = session.dotBudget - totalUsed;
+            const visibleDots = Math.max(1, Math.min(session.dotBudget, currentDots + remainingBudget));
             const hoveredValue = hoveredDot?.itemId === item.id ? hoveredDot.value : 0;
 
             return (
               <section key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
                 <p className="text-base text-slate-100">{item.text}</p>
                 {isDotVoting ? (
-                  <div className="mt-4 flex flex-wrap gap-1.5">
+                  <div className="mt-4 flex flex-wrap gap-1.5" onMouseLeave={() => setHoveredDot(null)}>
                     {Array.from({ length: visibleDots }, (_, index) => {
                       const isFilled = index < currentDots;
                       const isHovered = index < hoveredValue;
@@ -213,7 +213,6 @@ export function StemmingView({ session, items }: StemmingViewProps) {
                           key={index}
                           type="button"
                           onMouseEnter={() => setHoveredDot({ itemId: item.id, value: index + 1 })}
-                          onMouseLeave={() => setHoveredDot(null)}
                           onClick={() => {
                             setVotes((current) => {
                               const currentValue = current[item.id] ?? 0;
