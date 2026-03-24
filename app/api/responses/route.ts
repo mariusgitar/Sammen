@@ -6,7 +6,7 @@ import { items, responses, sessions } from '@/db/schema';
 
 type ResponseInput = {
   itemId: string;
-  value: string;
+  value: string | null;
 };
 
 type RequestBody = {
@@ -33,7 +33,7 @@ function isValidBody(candidate: unknown): candidate is RequestBody {
         entry &&
         typeof entry === 'object' &&
         typeof entry.itemId === 'string' &&
-        typeof entry.value === 'string',
+        (typeof entry.value === 'string' || entry.value === null),
     )
   );
 }
@@ -66,7 +66,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Session is not open for responses' }, { status: 409 });
     }
 
-    const validResponses = body.responses.filter((entry) => entry.value.trim().length > 0);
+    const validResponses = body.responses.filter(
+      (entry): entry is { itemId: string; value: string } => entry.value !== '' && entry.value !== null,
+    );
+
+    if (validResponses.length === 0) {
+      return NextResponse.json({ ok: true });
+    }
+
     const responseItemIds = validResponses.map((entry) => entry.itemId);
     const uniqueItemIds = [...new Set(responseItemIds)];
 
@@ -89,13 +96,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'One or more items are not open for voting' }, { status: 400 });
     }
 
-    for (const response of validResponses) {
-      await db.insert(responses).values({
-        sessionId: body.sessionId,
-        itemId: response.itemId,
-        participantId: body.participantId,
-        value: response.value.trim(),
-      });
+    try {
+      for (const response of validResponses) {
+        await db.insert(responses).values({
+          sessionId: body.sessionId,
+          itemId: response.itemId,
+          participantId: body.participantId,
+          value: response.value,
+        });
+      }
+    } catch (insertError) {
+      const message = insertError instanceof Error ? insertError.message : 'Unknown insert error';
+      return NextResponse.json({ error: message }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
