@@ -20,6 +20,8 @@ type SessionResponse = {
     code: string;
     title: string;
     mode: string;
+    votingType: 'scale' | 'dots';
+    dotBudget: number;
     phase: SessionPhase;
     status: SessionStatus;
     tags: string[];
@@ -157,6 +159,8 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
         session={{
           id: session.id,
           title: session.title,
+          votingType: session.votingType,
+          dotBudget: session.dotBudget,
         }}
       />
     );
