@@ -165,6 +165,8 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
               id: item.id,
               text: item.text,
               excluded: item.excluded,
+              is_new: item.isNew,
+              created_by: item.createdBy,
             }))}
             responses={mappingResponses.map((entry) => ({
               itemId: entry.itemId,

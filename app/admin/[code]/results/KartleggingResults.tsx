@@ -38,6 +38,12 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
 
   const includedItems = useMemo(() => items.filter((item) => !item.excluded), [items]);
 
+  console.log('[KartleggingResults] items.length:', items.length);
+  console.log(
+    '[KartleggingResults] item is_new values:',
+    items.map((item) => ({ id: item.id, is_new: item.is_new })),
+  );
+
   const countsByItem = useMemo(() => {
     const byItem = new Map<string, Record<string, number>>();
 
@@ -59,6 +65,7 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
     return includedItems.map((item) => {
       const counts = countsByItem.get(item.id) ?? {};
       const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+      const untagged = Math.max(0, participantCount - total);
       const maxCount = Object.values(counts).reduce((max, count) => Math.max(max, count), 0);
       const topTags = Object.entries(counts)
         .filter(([, count]) => count === maxCount && count > 0)
@@ -71,6 +78,7 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
         item,
         counts,
         total,
+        untagged,
         maxCount,
         topTags,
         disagreementScore,
@@ -98,26 +106,67 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
     return grouped;
   }, [itemStats, tags]);
 
-  const newItems = useMemo(() => includedItems.filter((item) => item.is_new), [includedItems]);
+  const newItems = useMemo(() => includedItems.filter((item) => item.is_new === true), [includedItems]);
+
+  const untaggedRows = useMemo(
+    () =>
+      itemStats
+        .filter((entry) => entry.untagged > 0)
+        .map((entry) => ({
+          itemId: entry.item.id,
+          text: entry.item.text,
+          count: entry.untagged,
+        }))
+        .sort((a, b) => b.count - a.count),
+    [itemStats],
+  );
+
+  const itemStatsById = useMemo(
+    () =>
+      new Map(
+        itemStats.map((entry) => [
+          entry.item.id,
+          {
+            counts: entry.counts,
+            untagged: entry.untagged,
+          },
+        ]),
+      ),
+    [itemStats],
+  );
 
   const disagreementSorted = useMemo(
     () => [...itemStats].sort((a, b) => b.disagreementScore - a.disagreementScore),
     [itemStats],
   );
 
-  const renderTagBreakdown = (counts: Record<string, number>) => (
+  const renderTagBreakdown = (counts: Record<string, number>, untagged: number) => (
     <div className="mt-2 space-y-1 text-sm text-slate-700">
       {allTags.length > 0 ? (
-        allTags.map((tag) => {
-          const count = counts[tag] ?? 0;
-          return (
-            <p key={tag}>
-              {tag} {makeBar(count, participantCount)} {count} av {participantCount}
+        <>
+          {allTags.map((tag) => {
+            const count = counts[tag] ?? 0;
+            return (
+              <p key={tag}>
+                {tag} {makeBar(count, participantCount)} {count} av {participantCount}
+              </p>
+            );
+          })}
+          {untagged > 0 ? (
+            <p className="text-slate-500">
+              Ingen tag: {untagged} av {participantCount}
             </p>
-          );
-        })
+          ) : null}
+        </>
       ) : (
-        <p>Ingen tagger registrert.</p>
+        <>
+          <p>Ingen tagger registrert.</p>
+          {untagged > 0 ? (
+            <p className="text-slate-500">
+              Ingen tag: {untagged} av {participantCount}
+            </p>
+          ) : null}
+        </>
       )}
     </div>
   );
@@ -183,7 +232,7 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
                   <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">Uenighet</span>
                 ) : null}
               </div>
-              {renderTagBreakdown(entry.counts)}
+              {renderTagBreakdown(entry.counts, entry.untagged)}
             </article>
           ))}
         </div>
@@ -213,6 +262,24 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
               </article>
             );
           })}
+
+          <article className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-500">Ingen tag</h3>
+            {untaggedRows.length > 0 ? (
+              <ul className="mt-2 space-y-2 text-sm text-slate-700">
+                {untaggedRows.map((row) => (
+                  <li key={`untagged-${row.itemId}`} className="rounded-md border border-slate-200 bg-white px-3 py-2">
+                    <p className="font-medium text-slate-800">{row.text}</p>
+                    <p className="text-slate-500">
+                      {row.count} av {participantCount}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-slate-500">Alle elementer har tagger.</p>
+            )}
+          </article>
         </div>
       ) : null}
 
@@ -241,7 +308,7 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
                   <p className="font-medium">{entry.item.text}</p>
                   <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${indicator.classes}`}>{indicator.text}</span>
                 </div>
-                {renderTagBreakdown(entry.counts)}
+                {renderTagBreakdown(entry.counts, entry.untagged)}
               </article>
             );
           })}
@@ -251,13 +318,16 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
       {view === 'nye' ? (
         <div className="mt-4 space-y-4">
           {newItems.length > 0 ? (
-            newItems.map((item) => (
-              <article key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                <p className="font-medium">{item.text}</p>
-                <p className="mt-1 text-sm text-slate-700">Foreslått av: {item.created_by ?? 'Ukjent'}</p>
-                {renderTagBreakdown(countsByItem.get(item.id) ?? {})}
-              </article>
-            ))
+            newItems.map((item) => {
+              const stats = itemStatsById.get(item.id);
+              return (
+                <article key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="font-medium">{item.text}</p>
+                  <p className="mt-1 text-sm text-slate-700">Foreslått av: {item.created_by ?? 'Ukjent'}</p>
+                  {renderTagBreakdown(stats?.counts ?? {}, stats?.untagged ?? participantCount)}
+                </article>
+              );
+            })
           ) : (
             <p className="text-sm text-slate-600">Ingen nye forslag i denne sesjonen.</p>
           )}
