@@ -10,13 +10,25 @@ type RouteContext = {
   };
 };
 
-type SummaryItem = {
+type KartleggingSummaryItem = {
   id: string;
   text: string;
   is_new: boolean;
   created_by: string;
+  excluded: boolean;
   tagCounts: Record<string, number>;
   untaggedCount: number;
+};
+
+type StemmingSummaryItem = {
+  id: string;
+  text: string;
+  is_new: boolean;
+  created_by: string;
+  excluded: boolean;
+  averageScore: number;
+  voteCount: number;
+  distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
 };
 
 export async function GET(_request: Request, { params }: RouteContext) {
@@ -25,7 +37,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     const code = params.code.toUpperCase();
 
     const [session] = await db
-      .select({ id: sessions.id })
+      .select({ id: sessions.id, phase: sessions.phase })
       .from(sessions)
       .where(eq(sessions.code, code))
       .limit(1);
@@ -47,6 +59,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         text: items.text,
         is_new: items.isNew,
         created_by: items.createdBy,
+        excluded: items.excluded,
       })
       .from(items)
       .where(eq(items.sessionId, session.id))
@@ -55,14 +68,64 @@ export async function GET(_request: Request, { params }: RouteContext) {
     const sessionResponses = await db
       .select({
         itemId: responses.itemId,
-        tag: responses.value,
+        value: responses.value,
         participantId: responses.participantId,
       })
       .from(responses)
       .where(eq(responses.sessionId, session.id));
 
-    console.log('Admin summary items raw result:', sessionItems);
-    console.log('Admin summary responses raw result:', sessionResponses);
+    if (session.phase === 'stemming') {
+      const votesByItem = new Map<string, number[]>();
+
+      for (const entry of sessionResponses) {
+        const numericVote = Number(entry.value);
+
+        if (!Number.isInteger(numericVote) || numericVote < 1 || numericVote > 5) {
+          continue;
+        }
+
+        const current = votesByItem.get(entry.itemId) ?? [];
+        current.push(numericVote);
+        votesByItem.set(entry.itemId, current);
+      }
+
+      const summaryItems: StemmingSummaryItem[] = sessionItems
+        .filter((item) => !item.excluded)
+        .map((item) => {
+          const itemVotes = votesByItem.get(item.id) ?? [];
+          const distribution: Record<'1' | '2' | '3' | '4' | '5', number> = {
+            '1': 0,
+            '2': 0,
+            '3': 0,
+            '4': 0,
+            '5': 0,
+          };
+
+          for (const vote of itemVotes) {
+            distribution[String(vote) as keyof typeof distribution] += 1;
+          }
+
+          const voteCount = itemVotes.length;
+          const averageScore = voteCount > 0 ? itemVotes.reduce((sum, vote) => sum + vote, 0) / voteCount : 0;
+
+          return {
+            id: item.id,
+            text: item.text,
+            is_new: item.is_new,
+            created_by: item.created_by,
+            excluded: item.excluded,
+            averageScore,
+            voteCount,
+            distribution,
+          };
+        });
+
+      return NextResponse.json({
+        phase: session.phase,
+        participantCount: Number(participantTotals?.participantCount ?? 0),
+        items: summaryItems,
+      });
+    }
 
     const tagsByItem = new Map<string, Record<string, number>>();
     const participantIdsByItem = new Map<string, Set<string>>();
@@ -70,7 +133,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
     for (const entry of sessionResponses) {
       const current = tagsByItem.get(entry.itemId) ?? {};
-      current[entry.tag] = (current[entry.tag] ?? 0) + 1;
+      current[entry.value] = (current[entry.value] ?? 0) + 1;
       tagsByItem.set(entry.itemId, current);
 
       const itemParticipants = participantIdsByItem.get(entry.itemId) ?? new Set<string>();
@@ -80,7 +143,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       allParticipantIds.add(entry.participantId);
     }
 
-    const summaryItems: SummaryItem[] = sessionItems.map((item) => {
+    const summaryItems: KartleggingSummaryItem[] = sessionItems.map((item) => {
       const tagCounts = tagsByItem.get(item.id) ?? {};
       const taggedParticipants = participantIdsByItem.get(item.id)?.size ?? 0;
       const totalParticipants = allParticipantIds.size;
@@ -90,12 +153,14 @@ export async function GET(_request: Request, { params }: RouteContext) {
         text: item.text,
         is_new: item.is_new,
         created_by: item.created_by,
+        excluded: item.excluded,
         tagCounts,
         untaggedCount: Math.max(0, totalParticipants - taggedParticipants),
       };
     });
 
     return NextResponse.json({
+      phase: session.phase,
       participantCount: Number(participantTotals?.participantCount ?? 0),
       items: summaryItems,
     });

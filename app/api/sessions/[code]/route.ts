@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { asc, eq } from 'drizzle-orm';
 
 import { getDb } from '@/db';
-import { items, sessionStatuses, sessions } from '@/db/schema';
+import { items, sessionPhases, sessionStatuses, sessions } from '@/db/schema';
 
 type RouteContext = {
   params: {
@@ -11,7 +11,8 @@ type RouteContext = {
 };
 
 type PatchBody = {
-  status: string;
+  status?: string;
+  phase?: string;
 };
 
 function isValidPatchBody(candidate: unknown): candidate is PatchBody {
@@ -20,7 +21,16 @@ function isValidPatchBody(candidate: unknown): candidate is PatchBody {
   }
 
   const body = candidate as Partial<PatchBody>;
-  return typeof body.status === 'string' && sessionStatuses.includes(body.status as (typeof sessionStatuses)[number]);
+
+  if (typeof body.status !== 'undefined' && !sessionStatuses.includes(body.status as (typeof sessionStatuses)[number])) {
+    return false;
+  }
+
+  if (typeof body.phase !== 'undefined' && !sessionPhases.includes(body.phase as (typeof sessionPhases)[number])) {
+    return false;
+  }
+
+  return typeof body.status !== 'undefined' || typeof body.phase !== 'undefined';
 }
 
 export async function GET(_request: Request, { params }: RouteContext) {
@@ -34,6 +44,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         code: sessions.code,
         title: sessions.title,
         mode: sessions.mode,
+        phase: sessions.phase,
         status: sessions.status,
         tags: sessions.tags,
         allowNewItems: sessions.allowNewItems,
@@ -54,6 +65,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         text: items.text,
         createdBy: items.createdBy,
         isNew: items.isNew,
+        excluded: items.excluded,
         orderIndex: items.orderIndex,
         createdAt: items.createdAt,
       })
@@ -81,13 +93,17 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
     const [updatedSession] = await db
       .update(sessions)
-      .set({ status: body.status as (typeof sessionStatuses)[number] })
+      .set({
+        ...(body.status ? { status: body.status as (typeof sessionStatuses)[number] } : {}),
+        ...(body.phase ? { phase: body.phase as (typeof sessionPhases)[number] } : {}),
+      })
       .where(eq(sessions.code, code))
       .returning({
         id: sessions.id,
         code: sessions.code,
         title: sessions.title,
         mode: sessions.mode,
+        phase: sessions.phase,
         status: sessions.status,
         tags: sessions.tags,
         allowNewItems: sessions.allowNewItems,
