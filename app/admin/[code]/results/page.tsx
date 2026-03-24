@@ -4,7 +4,7 @@ import { asc, eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { items, responses, sessions } from '@/db/schema';
 
-import { ExportListModal } from './ExportListModal';
+import { ExportButton } from './ExportButton';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -38,6 +38,8 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
       mode: sessions.mode,
       phase: sessions.phase,
       status: sessions.status,
+      tags: sessions.tags,
+      createdAt: sessions.createdAt,
     })
     .from(sessions)
     .where(eq(sessions.code, code))
@@ -62,6 +64,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
       id: items.id,
       text: items.text,
       isNew: items.isNew,
+      createdBy: items.createdBy,
       excluded: items.excluded,
       orderIndex: items.orderIndex,
       createdAt: items.createdAt,
@@ -144,7 +147,28 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
           <Link href={`/admin/${session.code}`} className="inline-flex text-sm font-medium text-slate-700 underline print:hidden">
             ← Tilbake til admin
           </Link>
-          <ExportListModal items={includedItems.map((item) => item.text)} />
+          <ExportButton
+            session={{
+              title: session.title,
+              code: session.code,
+              mode: session.mode,
+              phase: session.phase,
+              created_at: session.createdAt,
+            }}
+            items={allItems.map((item) => ({
+              id: item.id,
+              text: item.text,
+              is_new: item.isNew,
+              created_by: item.createdBy,
+              excluded: item.excluded,
+            }))}
+            responses={allResponses.map((entry) => ({
+              item_id: entry.itemId,
+              participant_id: entry.participantId,
+              value: entry.value,
+            }))}
+            tags={session.tags}
+          />
         </div>
 
         <header className="rounded-xl border border-slate-200 bg-white p-6">
