@@ -38,6 +38,7 @@ type AdminPanelProps = {
 
 export function AdminPanel({ session, items }: AdminPanelProps) {
   const [currentSession, setCurrentSession] = useState(session);
+  const [sessionStatus, setSessionStatus] = useState<SessionView['status']>(session.status);
   const [summary, setSummary] = useState<SummaryResponse>({
     participantCount: 0,
     items: items.map((item) => ({
@@ -54,10 +55,11 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
   async function fetchSummary() {
     try {
-      const response = await fetch(`/api/admin/${currentSession.code}/summary`, {
+      const response = await fetch(`/api/admin/${session.code}/summary`, {
         cache: 'no-store',
       });
       const data = (await response.json()) as SummaryResponse | { error: string };
+      console.log('Admin summary poll result:', data);
 
       if (!response.ok || !('items' in data)) {
         setError('error' in data ? data.error : 'Kunne ikke hente oppsummering.');
@@ -78,7 +80,9 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     }, 10_000);
 
     return () => clearInterval(timer);
-  }, [currentSession.code]);
+    // We intentionally run this only once on mount for initial fetch + polling.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function updateSessionStatus(status: SessionView['status']) {
     setIsUpdatingStatus(true);
@@ -105,6 +109,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       }
 
       setCurrentSession(data.session);
+      setSessionStatus(data.session.status);
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : 'Kunne ikke oppdatere status.');
     } finally {
@@ -146,7 +151,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Sesjonsinfo</h2>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">{currentSession.title}</h1>
         <p className="mt-2 text-slate-300">Modus: {currentSession.mode}</p>
-        <p className="text-slate-300">Status: {currentSession.status}</p>
+        <p className="text-slate-300">Status: {sessionStatus}</p>
         <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950 p-4">
           <p className="text-sm text-slate-400">Sesjonskode</p>
           <p className="mt-1 text-3xl font-bold tracking-[0.2em] text-white">{currentSession.code}</p>
@@ -157,7 +162,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Sesjonskontroller</h2>
         <div className="mt-4 flex flex-wrap gap-3">
-          {currentSession.status === 'setup' ? (
+          {sessionStatus === 'setup' ? (
             <button
               type="button"
               onClick={() => updateSessionStatus('active')}
@@ -168,7 +173,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
             </button>
           ) : null}
 
-          {currentSession.status === 'active' ? (
+          {sessionStatus === 'active' ? (
             <button
               type="button"
               onClick={() => updateSessionStatus('paused')}
@@ -179,7 +184,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
             </button>
           ) : null}
 
-          {currentSession.status === 'paused' ? (
+          {sessionStatus === 'paused' ? (
             <>
               <button
                 type="button"
