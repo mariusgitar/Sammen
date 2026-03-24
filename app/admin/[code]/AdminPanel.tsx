@@ -42,6 +42,7 @@ type StemmingSummaryItem = {
 
 type SummaryResponse = {
   phase: 'kartlegging' | 'stemming';
+  status: 'setup' | 'active' | 'paused' | 'closed';
   participantCount: number;
   items: Array<KartleggingSummaryItem | StemmingSummaryItem>;
 };
@@ -57,6 +58,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const [sessionPhase, setSessionPhase] = useState<SessionView['phase']>(session.phase);
   const [summary, setSummary] = useState<SummaryResponse>({
     phase: session.phase,
+    status: session.status,
     participantCount: 0,
     items: items.map((item) => ({
       id: item.id,
@@ -89,6 +91,12 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
       setSummary(data);
       setSessionPhase(data.phase);
+      setSessionStatus(data.status);
+      setCurrentSession((current) => ({
+        ...current,
+        phase: data.phase,
+        status: data.status,
+      }));
       setIncludeMap((current) => {
         const next = { ...current };
 

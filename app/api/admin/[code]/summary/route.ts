@@ -40,7 +40,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     const code = params.code.toUpperCase();
 
     const [session] = await db
-      .select({ id: sessions.id, phase: sessions.phase })
+      .select({ id: sessions.id, phase: sessions.phase, status: sessions.status })
       .from(sessions)
       .where(eq(sessions.code, code))
       .limit(1);
@@ -118,6 +118,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
       return NextResponse.json({
         phase: session.phase,
+        status: session.status,
         participantCount,
         items: summaryItems,
       });
@@ -146,6 +147,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
     return NextResponse.json({
       phase: session.phase,
+      status: session.status,
       participantCount,
       items: itemSummaries,
     });
