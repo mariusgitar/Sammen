@@ -1,7 +1,8 @@
+import { and, eq, inArray } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { getDb } from '@/db';
-import { responses } from '@/db/schema';
+import { items, responses, sessions } from '@/db/schema';
 
 type ResponseInput = {
   itemId: string;
@@ -27,6 +28,7 @@ function isValidBody(candidate: unknown): candidate is RequestBody {
     typeof body.participantId === 'string' &&
     typeof body.nickname === 'string' &&
     Array.isArray(body.responses) &&
+    body.responses.length > 0 &&
     body.responses.every(
       (entry) =>
         entry &&
@@ -47,6 +49,43 @@ export async function POST(request: Request) {
     }
 
     const db = getDb();
+
+    const [session] = await db
+      .select({
+        id: sessions.id,
+        status: sessions.status,
+        phase: sessions.phase,
+      })
+      .from(sessions)
+      .where(eq(sessions.id, body.sessionId))
+      .limit(1);
+
+    if (!session) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    if (session.status !== 'active') {
+      return NextResponse.json({ error: 'Session is not open for responses' }, { status: 409 });
+    }
+
+    const responseItemIds = body.responses.map((entry) => entry.itemId);
+    const uniqueItemIds = [...new Set(responseItemIds)];
+
+    const sessionItems = await db
+      .select({
+        id: items.id,
+        excluded: items.excluded,
+      })
+      .from(items)
+      .where(and(eq(items.sessionId, session.id), inArray(items.id, uniqueItemIds)));
+
+    if (sessionItems.length !== uniqueItemIds.length) {
+      return NextResponse.json({ error: 'One or more items are invalid for this session' }, { status: 400 });
+    }
+
+    if (session.phase === 'stemming' && sessionItems.some((item) => item.excluded)) {
+      return NextResponse.json({ error: 'One or more items are not open for voting' }, { status: 400 });
+    }
 
     for (const response of body.responses) {
       await db.insert(responses).values({
