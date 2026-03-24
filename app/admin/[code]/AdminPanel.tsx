@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import QRCode from 'qrcode.react';
 
 type SessionView = {
   id: string;
@@ -76,6 +77,11 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     Object.fromEntries(items.map((item) => [item.id, !item.excluded])),
   );
   const [error, setError] = useState('');
+  const [origin, setOrigin] = useState('');
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   async function fetchSummary() {
     try {
@@ -267,6 +273,8 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     [summary.items],
   );
 
+  const participantUrl = origin ? `${origin}/delta/${currentSession.code}` : '';
+
   return (
     <div className="space-y-6">
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
@@ -279,6 +287,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
           <p className="text-sm text-slate-400">Sesjonskode</p>
           <p className="mt-1 text-3xl font-bold tracking-[0.2em] text-white">{currentSession.code}</p>
           <p className="mt-2 text-xs text-slate-500">Sesjonskode: {currentSession.code}</p>
+          {participantUrl ? (
+            <div className="mt-4 flex flex-col items-start gap-3">
+              <div className="rounded-lg bg-white p-2">
+                <QRCode value={participantUrl} size={180} bgColor="#ffffff" fgColor="#000000" />
+              </div>
+              <p className="text-xs text-slate-400">samen-alene.vercel.app/delta/{currentSession.code}</p>
+            </div>
+          ) : null}
         </div>
       </section>
 
