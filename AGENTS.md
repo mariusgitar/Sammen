@@ -17,7 +17,8 @@ Tailwind CSS. Deployed on Vercel at samen-alene.vercel.app.
 ## Database schema
 sessions:
   id, code, title, mode, status, tags, allow_new_items,
-  phase, dot_budget, voting_type, allow_multiple_dots, created_at
+  phase, dot_budget, voting_type, allow_multiple_dots,
+  results_visible, created_at
 
 items:
   id, session_id, text, created_by, is_new, order_index, 
@@ -60,6 +61,7 @@ Phase controls which view participants see:
 - /api/items POST, PATCH
 - /api/responses POST
 - /api/admin/[code]/summary GET
+- /api/delta/[code]/results GET
 
 ## Recurring bugs to avoid
 - Empty array insert: always guard before db insert

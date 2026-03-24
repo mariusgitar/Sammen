@@ -25,6 +25,7 @@ type SessionResponse = {
     allowMultipleDots: boolean;
     phase: SessionPhase;
     status: SessionStatus;
+    resultsVisible: boolean;
     tags: string[];
     allowNewItems: boolean;
   };
@@ -160,6 +161,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
         session={{
           id: session.id,
           title: session.title,
+          code: session.code,
           votingType: session.votingType,
           dotBudget: session.dotBudget,
           allowMultipleDots: session.allowMultipleDots,
@@ -173,6 +175,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
       items={items}
       session={{
         id: session.id,
+        code: session.code,
         title: session.title,
         tags: session.tags,
         allowNewItems: session.allowNewItems,

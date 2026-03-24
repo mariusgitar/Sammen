@@ -13,6 +13,7 @@ type RouteContext = {
 type PatchBody = {
   status?: string;
   phase?: string;
+  results_visible?: boolean;
 };
 
 function isValidPatchBody(candidate: unknown): candidate is PatchBody {
@@ -30,7 +31,15 @@ function isValidPatchBody(candidate: unknown): candidate is PatchBody {
     return false;
   }
 
-  return typeof body.status !== 'undefined' || typeof body.phase !== 'undefined';
+  if (typeof body.results_visible !== 'undefined' && typeof body.results_visible !== 'boolean') {
+    return false;
+  }
+
+  return (
+    typeof body.status !== 'undefined' ||
+    typeof body.phase !== 'undefined' ||
+    typeof body.results_visible !== 'undefined'
+  );
 }
 
 export async function GET(_request: Request, { params }: RouteContext) {
@@ -49,6 +58,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         allowMultipleDots: sessions.allowMultipleDots,
         phase: sessions.phase,
         status: sessions.status,
+        resultsVisible: sessions.resultsVisible,
         tags: sessions.tags,
         allowNewItems: sessions.allowNewItems,
         createdAt: sessions.createdAt,
@@ -99,11 +109,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       .set({
         ...(body.status ? { status: body.status as (typeof sessionStatuses)[number] } : {}),
         ...(body.phase ? { phase: body.phase as (typeof sessionPhases)[number] } : {}),
+        ...(typeof body.results_visible === 'boolean' ? { resultsVisible: body.results_visible } : {}),
       })
       .where(eq(sessions.code, code))
       .returning({
         phase: sessions.phase,
         status: sessions.status,
+        resultsVisible: sessions.resultsVisible,
       });
 
     if (!updatedSession) {

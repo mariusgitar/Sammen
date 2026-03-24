@@ -6,6 +6,7 @@ ALTER TABLE sessions ADD COLUMN phase text NOT NULL DEFAULT 'kartlegging';
 ALTER TABLE sessions ADD COLUMN dot_budget integer NOT NULL DEFAULT 5;
 ALTER TABLE sessions ADD COLUMN voting_type text NOT NULL DEFAULT 'scale';
 ALTER TABLE sessions ADD COLUMN allow_multiple_dots boolean NOT NULL DEFAULT true;
+ALTER TABLE sessions ADD COLUMN results_visible boolean NOT NULL DEFAULT false;
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -66,6 +67,7 @@ export const sessions = pgTable('sessions', {
   votingType: text('voting_type').$type<VotingType>().notNull().default('scale'),
   dotBudget: integer('dot_budget').notNull().default(5),
   allowMultipleDots: boolean('allow_multiple_dots').notNull().default(true),
+  resultsVisible: boolean('results_visible').notNull().default(false),
   tags: text('tags').array().notNull().default([]),
   allowNewItems: boolean('allow_new_items').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),

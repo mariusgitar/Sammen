@@ -11,6 +11,7 @@ type SessionView = {
   mode: string;
   phase: 'kartlegging' | 'stemming';
   status: 'setup' | 'active' | 'paused' | 'closed';
+  resultsVisible: boolean;
 };
 
 type SessionItem = {
@@ -87,6 +88,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const [currentSession, setCurrentSession] = useState(session);
   const [sessionStatus, setSessionStatus] = useState<SessionView['status']>(session.status);
   const [sessionPhase, setSessionPhase] = useState<SessionView['phase']>(session.phase);
+  const [resultsVisible, setResultsVisible] = useState(session.resultsVisible);
   const [summary, setSummary] = useState<SummaryResponse>({
     phase: session.phase,
     status: session.status,
@@ -179,7 +181,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
       const data = (await response.json()) as
         | {
-            session: Pick<SessionView, 'status' | 'phase'>;
+            session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible'>;
           }
         | { error: string };
 
@@ -194,9 +196,51 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         ...current,
         status: data.session.status,
         phase: data.session.phase,
+        resultsVisible: data.session.resultsVisible,
       }));
+      setResultsVisible(data.session.resultsVisible);
     } catch {
       setError('Kunne ikke oppdatere sesjonen. Prøv igjen.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  }
+
+  async function toggleResultsVisibility() {
+    setIsUpdatingStatus(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/sessions/${currentSession.code}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ results_visible: !resultsVisible }),
+      });
+
+      const data = (await response.json()) as
+        | {
+            session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible'>;
+          }
+        | { error: string };
+
+      if (!response.ok || !('session' in data)) {
+        setError('Kunne ikke oppdatere resultatvisning. Prøv igjen.');
+        return;
+      }
+
+      setSessionStatus(data.session.status);
+      setSessionPhase(data.session.phase);
+      setResultsVisible(data.session.resultsVisible);
+      setCurrentSession((current) => ({
+        ...current,
+        status: data.session.status,
+        phase: data.session.phase,
+        resultsVisible: data.session.resultsVisible,
+      }));
+    } catch {
+      setError('Kunne ikke oppdatere resultatvisning. Prøv igjen.');
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -276,7 +320,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       });
 
       const data = (await sessionResponse.json()) as
-        | { session: Pick<SessionView, 'status' | 'phase'> }
+        | { session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible'> }
         | { error: string };
 
       if (!sessionResponse.ok || !('session' in data)) {
@@ -290,7 +334,9 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         ...current,
         status: data.session.status,
         phase: data.session.phase,
+        resultsVisible: data.session.resultsVisible,
       }));
+      setResultsVisible(data.session.resultsVisible);
       await fetchSummary();
     } catch (openError) {
       setError(openError instanceof Error ? openError.message : 'Kunne ikke åpne for stemming.');
@@ -359,53 +405,66 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         </div>
       </section>
 
-      {sessionStatus === 'closed' ? null : (
-        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-          <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Sesjonskontroller</h2>
-          <div className="mt-4 flex flex-wrap gap-3">
-            {sessionStatus === 'setup' ? (
+      <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Sesjonskontroller</h2>
+        <div className="mt-4 flex flex-wrap gap-3">
+          {sessionStatus === 'setup' ? (
+            <button
+              type="button"
+              onClick={() => updateSessionStatus('active')}
+              disabled={isUpdatingStatus}
+              className="rounded bg-emerald-200 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-70"
+            >
+              Åpne for deltakere
+            </button>
+          ) : null}
+
+          {sessionStatus === 'active' ? (
+            <button
+              type="button"
+              onClick={() => updateSessionStatus('paused')}
+              disabled={isUpdatingStatus}
+              className="rounded bg-amber-200 px-4 py-2 text-sm font-medium text-amber-950 transition hover:bg-amber-100 disabled:opacity-70"
+            >
+              Avslutt innsamling
+            </button>
+          ) : null}
+
+          {sessionStatus === 'paused' ? (
+            <>
               <button
                 type="button"
-                onClick={() => updateSessionStatus('active')}
+                onClick={() => updateSessionStatus('closed')}
                 disabled={isUpdatingStatus}
-                className="rounded bg-emerald-200 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-70"
+                className="rounded bg-rose-200 px-4 py-2 text-sm font-medium text-rose-950 transition hover:bg-rose-100 disabled:opacity-70"
               >
-                Åpne for deltakere
+                Avslutt sesjon
               </button>
-            ) : null}
-
-            {sessionStatus === 'active' ? (
-              <button
-                type="button"
-                onClick={() => updateSessionStatus('paused')}
-                disabled={isUpdatingStatus}
-                className="rounded bg-amber-200 px-4 py-2 text-sm font-medium text-amber-950 transition hover:bg-amber-100 disabled:opacity-70"
+              <Link
+                href={`/admin/${currentSession.code}/results`}
+                className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
               >
-                Avslutt innsamling
-              </button>
-            ) : null}
+                Se resultater →
+              </Link>
+            </>
+          ) : null}
 
-            {sessionStatus === 'paused' ? (
-              <>
-                <button
-                  type="button"
-                  onClick={() => updateSessionStatus('closed')}
-                  disabled={isUpdatingStatus}
-                  className="rounded bg-rose-200 px-4 py-2 text-sm font-medium text-rose-950 transition hover:bg-rose-100 disabled:opacity-70"
-                >
-                  Avslutt sesjon
-                </button>
-                <Link
-                  href={`/admin/${currentSession.code}/results`}
-                  className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
-                >
-                  Se resultater →
-                </Link>
-              </>
-            ) : null}
-          </div>
-        </section>
-      )}
+          {(sessionStatus === 'paused' || sessionStatus === 'closed') ? (
+            <button
+              type="button"
+              onClick={toggleResultsVisibility}
+              disabled={isUpdatingStatus}
+              className={`rounded border px-4 py-2 text-sm font-medium transition disabled:opacity-70 ${
+                resultsVisible
+                  ? 'border-slate-400 text-slate-200 hover:border-slate-300 hover:text-slate-100'
+                  : 'border-emerald-400 text-emerald-300 hover:border-emerald-300 hover:text-emerald-200'
+              }`}
+            >
+              {resultsVisible ? 'Skjul resultater' : 'Vis resultater for deltakere'}
+            </button>
+          ) : null}
+        </div>
+      </section>
 
       {sessionStatus === 'paused' && sessionPhase === 'kartlegging' ? (
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
