@@ -77,7 +77,9 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     Object.fromEntries(items.map((item) => [item.id, !item.excluded])),
   );
   const [error, setError] = useState('');
+  const [summaryError, setSummaryError] = useState('');
   const [origin, setOrigin] = useState('');
+  const [copyConfirmed, setCopyConfirmed] = useState(false);
 
   useEffect(() => {
     setOrigin(window.location.origin);
@@ -91,10 +93,11 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       const data = (await response.json()) as SummaryResponse | { error: string };
 
       if (!response.ok || !('items' in data)) {
-        setError('error' in data ? data.error : 'Kunne ikke hente oppsummering.');
+        setSummaryError('Feil ved henting av data');
         return;
       }
 
+      setSummaryError('');
       setSummary(data);
       setSessionPhase(data.phase);
       setSessionStatus(data.status);
@@ -114,8 +117,8 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
         return next;
       });
-    } catch (fetchError) {
-      setError(fetchError instanceof Error ? fetchError.message : 'Kunne ikke hente oppsummering.');
+    } catch {
+      setSummaryError('Feil ved henting av data');
     }
   }
 
@@ -151,17 +154,29 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         | { error: string };
 
       if (!response.ok || !('session' in data)) {
-        setError('error' in data ? data.error : 'Kunne ikke oppdatere status.');
+        setError('Kunne ikke oppdatere sesjonen. Prøv igjen.');
         return;
       }
 
       setCurrentSession(data.session);
       setSessionStatus(data.session.status);
       setSessionPhase(data.session.phase);
-    } catch (updateError) {
-      setError(updateError instanceof Error ? updateError.message : 'Kunne ikke oppdatere status.');
+    } catch {
+      setError('Kunne ikke oppdatere sesjonen. Prøv igjen.');
     } finally {
       setIsUpdatingStatus(false);
+    }
+  }
+
+  async function handleCopyCode() {
+    try {
+      await navigator.clipboard.writeText(currentSession.code);
+      setCopyConfirmed(true);
+      setTimeout(() => {
+        setCopyConfirmed(false);
+      }, 2_000);
+    } catch {
+      setError('Kunne ikke kopiere sesjonskoden.');
     }
   }
 
@@ -285,7 +300,16 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         <p className="text-slate-300">Fase: {sessionPhase}</p>
         <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950 p-4">
           <p className="text-sm text-slate-400">Sesjonskode</p>
-          <p className="mt-1 text-3xl font-bold tracking-[0.2em] text-white">{currentSession.code}</p>
+          <button
+            type="button"
+            onClick={handleCopyCode}
+            className="mt-1 text-3xl font-bold tracking-[0.2em] text-white transition hover:text-slate-300"
+            aria-label="Kopier sesjonskode"
+            title="Trykk for å kopiere"
+          >
+            {currentSession.code}
+          </button>
+          {copyConfirmed ? <p className="mt-1 text-xs text-emerald-300">Kopiert!</p> : null}
           <p className="mt-2 text-xs text-slate-500">Sesjonskode: {currentSession.code}</p>
           {participantUrl ? (
             <div className="mt-4 flex flex-col items-start gap-3">
@@ -375,6 +399,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Live oversikt</h2>
+        {summaryError ? <p className="mt-2 text-xs text-amber-300">{summaryError}</p> : null}
         <p className="mt-3 text-slate-100">Antall deltakere som har sendt inn: {summary.participantCount}</p>
 
         {sessionPhase === 'stemming' ? (
