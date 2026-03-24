@@ -3,6 +3,8 @@ Run this SQL manually in the Neon SQL editor:
 
 ALTER TABLE items ADD COLUMN excluded boolean NOT NULL DEFAULT false;
 ALTER TABLE sessions ADD COLUMN phase text NOT NULL DEFAULT 'kartlegging';
+ALTER TABLE sessions ADD COLUMN dot_budget integer NOT NULL DEFAULT 5;
+ALTER TABLE sessions ADD COLUMN voting_type text NOT NULL DEFAULT 'scale';
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -46,10 +48,12 @@ import { boolean, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg
 export const sessionModes = ['kartlegging', 'stemming'] as const;
 export const sessionPhases = ['kartlegging', 'stemming'] as const;
 export const sessionStatuses = ['setup', 'active', 'paused', 'closed'] as const;
+export const votingTypes = ['scale', 'dots'] as const;
 
 export type SessionMode = (typeof sessionModes)[number];
 export type SessionPhase = (typeof sessionPhases)[number];
 export type SessionStatus = (typeof sessionStatuses)[number];
+export type VotingType = (typeof votingTypes)[number];
 
 export const sessions = pgTable('sessions', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -58,6 +62,8 @@ export const sessions = pgTable('sessions', {
   mode: text('mode').$type<SessionMode>().notNull().default('kartlegging'),
   phase: text('phase').$type<SessionPhase>().notNull().default('kartlegging'),
   status: text('status').$type<SessionStatus>().notNull().default('setup'),
+  votingType: text('voting_type').$type<VotingType>().notNull().default('scale'),
+  dotBudget: integer('dot_budget').notNull().default(5),
   tags: text('tags').array().notNull().default([]),
   allowNewItems: boolean('allow_new_items').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),

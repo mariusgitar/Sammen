@@ -5,6 +5,8 @@ import { FormEvent, useMemo, useState } from 'react';
 type SessionView = {
   id: string;
   title: string;
+  votingType: 'scale' | 'dots';
+  dotBudget: number;
 };
 
 type SessionItem = {
@@ -36,7 +38,14 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const isDotVoting = session.votingType === 'dots' && session.dotBudget > 0;
   const allItemsVoted = useMemo(() => items.every((item) => typeof votes[item.id] === 'number'), [items, votes]);
+  const dotsUsed = useMemo(
+    () => items.reduce((sum, item) => sum + (votes[item.id] ?? 0), 0),
+    [items, votes],
+  );
+  const dotsRemaining = Math.max(0, session.dotBudget - dotsUsed);
+  const canSubmit = isDotVoting ? dotsUsed === session.dotBudget : allItemsVoted;
 
   function handleJoin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -49,7 +58,7 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   }
 
   async function handleSubmitVotes() {
-    if (!allItemsVoted) {
+    if (!canSubmit) {
       return;
     }
 
@@ -68,7 +77,7 @@ export function StemmingView({ session, items }: StemmingViewProps) {
           nickname: nickname.trim(),
           responses: items.map((item) => ({
             itemId: item.id,
-            value: String(votes[item.id]),
+            value: String(votes[item.id] ?? 0),
           })),
         }),
       });
@@ -142,39 +151,97 @@ export function StemmingView({ session, items }: StemmingViewProps) {
         <div className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight text-white">{session.title}</h1>
           <p className="mt-2 text-sm text-slate-300">Hei, {nickname.trim()}</p>
-          <p className="mt-3 text-sm text-slate-200">Gi hvert kriterium en score fra 1 til 5</p>
-          <p className="text-sm text-slate-400">1 = lite viktig, 5 = svært viktig</p>
+          {isDotVoting ? (
+            <>
+              <p className="mt-3 text-sm text-slate-200">
+                Fordel {session.dotBudget} prikker på kriteriene under.
+              </p>
+              <p className="text-sm text-slate-400">Du kan gi flere prikker til samme kriterium.</p>
+              <p className="mt-2 text-sm text-slate-100">
+                Brukt: {dotsUsed}/{session.dotBudget} · Gjenstår: {dotsRemaining}
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="mt-3 text-sm text-slate-200">Gi hvert kriterium en score fra 1 til 5</p>
+              <p className="text-sm text-slate-400">1 = lite viktig, 5 = svært viktig</p>
+            </>
+          )}
         </div>
 
         <div className="space-y-4">
           {items.map((item) => (
             <section key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
               <p className="text-base text-slate-100">{item.text}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {scoreOptions.map((score) => {
-                  const selected = votes[item.id] === score;
+              {isDotVoting ? (
+                <div className="mt-4 flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVotes((current) => {
+                        const currentValue = current[item.id] ?? 0;
+                        if (currentValue <= 0) {
+                          return current;
+                        }
 
-                  return (
-                    <button
-                      key={score}
-                      type="button"
-                      onClick={() => {
-                        setVotes((current) => ({
+                        return {
                           ...current,
-                          [item.id]: score,
-                        }));
-                      }}
-                      className={`rounded-full border px-3 py-1 text-sm transition ${
-                        selected
-                          ? 'border-white bg-white text-black'
-                          : 'border-white/30 text-white/70 hover:border-white/50 hover:text-white'
-                      }`}
-                    >
-                      {score}
-                    </button>
-                  );
-                })}
-              </div>
+                          [item.id]: currentValue - 1,
+                        };
+                      });
+                    }}
+                    className="rounded border border-white/30 px-3 py-1 text-sm text-white/80 transition hover:border-white/50 hover:text-white"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-12 text-center text-base font-medium text-white">{votes[item.id] ?? 0}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setVotes((current) => {
+                        const used = items.reduce((sum, currentItem) => sum + (current[currentItem.id] ?? 0), 0);
+                        if (used >= session.dotBudget) {
+                          return current;
+                        }
+
+                        return {
+                          ...current,
+                          [item.id]: (current[item.id] ?? 0) + 1,
+                        };
+                      });
+                    }}
+                    className="rounded border border-white/30 px-3 py-1 text-sm text-white/80 transition hover:border-white/50 hover:text-white"
+                  >
+                    +
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {scoreOptions.map((score) => {
+                    const selected = votes[item.id] === score;
+
+                    return (
+                      <button
+                        key={score}
+                        type="button"
+                        onClick={() => {
+                          setVotes((current) => ({
+                            ...current,
+                            [item.id]: score,
+                          }));
+                        }}
+                        className={`rounded-full border px-3 py-1 text-sm transition ${
+                          selected
+                            ? 'border-white bg-white text-black'
+                            : 'border-white/30 text-white/70 hover:border-white/50 hover:text-white'
+                        }`}
+                      >
+                        {score}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </section>
           ))}
         </div>
@@ -184,7 +251,7 @@ export function StemmingView({ session, items }: StemmingViewProps) {
         <button
           type="button"
           onClick={handleSubmitVotes}
-          disabled={!allItemsVoted || isSubmitting}
+          disabled={!canSubmit || isSubmitting}
           className="mt-8 w-full rounded bg-slate-100 px-4 py-2 font-medium text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
         >
           Send inn stemmer
