@@ -127,22 +127,29 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
     setError('');
 
     try {
+      const requestBody = {
+        sessionId: session.id,
+        participantId,
+        nickname: nickname.trim(),
+        responses: responseItems
+          .map((item) => ({
+            itemId: item.id,
+            value: responses[item.id] ?? '',
+          }))
+          .filter((entry) => entry.value !== '' && entry.value !== null),
+      };
+
+      if (process.env.NODE_ENV === 'development') {
+        // eslint-disable-next-line no-console
+        console.log('POST /api/responses body', requestBody);
+      }
+
       const response = await fetch('/api/responses', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          sessionId: session.id,
-          participantId,
-          nickname: nickname.trim(),
-          responses: responseItems
-            .map((item) => ({
-              itemId: item.id,
-              value: responses[item.id] ?? '',
-            }))
-            .filter((entry) => entry.value.trim().length > 0),
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = (await response.json()) as SubmitResponsesResult;
