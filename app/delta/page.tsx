@@ -6,6 +6,19 @@ import { useRouter } from 'next/navigation';
 export default function ParticipantEntryPage() {
   const router = useRouter();
   const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+
+  function handleJoin() {
+    const normalizedCode = code.trim().toUpperCase();
+
+    if (normalizedCode.length < 3) {
+      setError('Skriv inn en gyldig kode');
+      return;
+    }
+
+    setError('');
+    router.push(`/delta/${normalizedCode}`);
+  }
 
   return (
     <main className="min-h-screen px-4 py-10 sm:px-6">
@@ -19,16 +32,19 @@ export default function ParticipantEntryPage() {
             maxLength={6}
             placeholder="Sesjonskode (f.eks. KSBZGV)"
             onChange={(event) => {
-              setCode(event.target.value.toUpperCase());
+              setCode(event.target.value);
+              if (error) {
+                setError('');
+              }
             }}
             className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/40"
           />
+          {error ? <p className="text-sm text-red-400">{error}</p> : null}
 
           <button
             type="button"
-            onClick={() => router.push(`/delta/${code.toUpperCase()}`)}
+            onClick={handleJoin}
             className="inline-flex items-center rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white disabled:opacity-50"
-            disabled={code.trim().length === 0}
           >
             Bli med →
           </button>

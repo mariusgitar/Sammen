@@ -76,13 +76,13 @@ export function StemmingView({ session, items }: StemmingViewProps) {
       const data = (await response.json()) as SubmitResponsesResult;
 
       if (!response.ok || !('ok' in data)) {
-        setError('error' in data ? data.error : 'Kunne ikke sende inn stemmene.');
+        setError('Noe gikk galt. Prøv igjen.');
         return;
       }
 
       setSubmitted(true);
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Kunne ikke sende inn stemmene.');
+    } catch {
+      setError('Noe gikk galt. Prøv igjen.');
     } finally {
       setIsSubmitting(false);
     }

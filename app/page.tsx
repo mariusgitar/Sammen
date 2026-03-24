@@ -115,7 +115,7 @@ export default async function HomePage() {
             </div>
           ) : (
             <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-900 p-6 text-sm text-slate-300 shadow-xl shadow-slate-950/20">
-              Ingen sesjoner ennå. Opprett den første med knappen over.
+              Ingen sesjoner ennå. Opprett din første sesjon.
             </div>
           )}
         </section>

@@ -151,13 +151,13 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
       const data = (await response.json()) as SubmitResponsesResult;
 
       if (!response.ok || !('ok' in data)) {
-        setError('error' in data ? data.error : 'Kunne ikke sende inn svarene.');
+        setError('Noe gikk galt. Prøv igjen.');
         return;
       }
 
       setSubmitted(true);
-    } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Kunne ikke sende inn svarene.');
+    } catch {
+      setError('Noe gikk galt. Prøv igjen.');
     } finally {
       setIsSubmitting(false);
     }

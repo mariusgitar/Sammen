@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import type { SessionMode } from '@/db/schema';
@@ -28,22 +28,38 @@ export default function NewSessionPage() {
   const [tags, setTags] = useState('');
   const [allowNewItems, setAllowNewItems] = useState(true);
   const [error, setError] = useState('');
+  const [titleError, setTitleError] = useState('');
+  const [itemsError, setItemsError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
-    setIsSubmitting(true);
+    setTitleError('');
+    setItemsError('');
+
+    if (!title.trim()) {
+      setTitleError('Tittel er påkrevd');
+      titleInputRef.current?.focus();
+      return;
+    }
 
     const parsedItems = items
       .split('\n')
       .map((item) => item.trim())
       .filter(Boolean);
 
+    if (parsedItems.length === 0) {
+      setItemsError('Legg til minst ett element');
+      return;
+    }
+
     const parsedTags = tags
       .split(',')
       .map((tag) => tag.trim())
       .filter(Boolean);
+    setIsSubmitting(true);
 
     try {
       const response = await fetch('/api/sessions', {
@@ -52,7 +68,7 @@ export default function NewSessionPage() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          title,
+          title: title.trim(),
           mode,
           items: parsedItems,
           tags: parsedTags,
@@ -90,6 +106,7 @@ export default function NewSessionPage() {
             </label>
             <input
               required
+              ref={titleInputRef}
               id="title"
               name="title"
               type="text"
@@ -97,6 +114,7 @@ export default function NewSessionPage() {
               onChange={(event) => setTitle(event.target.value)}
               className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
             />
+            {titleError ? <p className="text-sm text-red-400">{titleError}</p> : null}
           </div>
 
           <fieldset className="space-y-3">
@@ -134,6 +152,7 @@ export default function NewSessionPage() {
               className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
             />
             <p className="text-sm text-slate-400">Skriv ett element per linje</p>
+            {itemsError ? <p className="text-sm text-red-400">{itemsError}</p> : null}
           </div>
 
           <div className="space-y-2">
