@@ -60,11 +60,10 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
   const [proposedItems, setProposedItems] = useState<ProposedItem[]>([]);
 
   const originalItems = useMemo(() => items.filter((item) => !item.isNew), [items]);
-  const requiredItems = useMemo(
+  const responseItems = useMemo(
     () => [...originalItems, ...proposedItems.map((item, index) => ({ ...item, orderIndex: index, isNew: true }))],
     [originalItems, proposedItems],
   );
-  const allRequiredItemsTagged = requiredItems.every((item) => Boolean(responses[item.id]));
 
   function handleJoin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -124,10 +123,6 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
   }
 
   async function handleSubmit() {
-    if (!allRequiredItemsTagged) {
-      return;
-    }
-
     setIsSubmitting(true);
     setError('');
 
@@ -141,10 +136,12 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
           sessionId: session.id,
           participantId,
           nickname: nickname.trim(),
-          responses: requiredItems.map((item) => ({
-            itemId: item.id,
-            value: responses[item.id],
-          })),
+          responses: responseItems
+            .map((item) => ({
+              itemId: item.id,
+              value: responses[item.id] ?? '',
+            }))
+            .filter((entry) => entry.value.trim().length > 0),
         }),
       });
 
@@ -217,6 +214,9 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
         <div className="mb-8">
           <h1 className="text-2xl font-semibold tracking-tight text-white">{session.title}</h1>
           <p className="mt-2 text-sm text-slate-300">Hei, {nickname.trim()}</p>
+          <p className="mt-2 text-sm text-slate-300">
+            Tagg elementene du vil kategorisere. Du kan sende inn uten å tagge alle.
+          </p>
         </div>
 
         <div className="space-y-4">
@@ -320,7 +320,7 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!allRequiredItemsTagged || isSubmitting}
+            disabled={isSubmitting}
             className="w-full rounded bg-slate-100 px-4 py-2 font-medium text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? 'Sender inn...' : 'Send inn svar'}

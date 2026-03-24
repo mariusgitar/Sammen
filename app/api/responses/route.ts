@@ -28,14 +28,12 @@ function isValidBody(candidate: unknown): candidate is RequestBody {
     typeof body.participantId === 'string' &&
     typeof body.nickname === 'string' &&
     Array.isArray(body.responses) &&
-    body.responses.length > 0 &&
     body.responses.every(
       (entry) =>
         entry &&
         typeof entry === 'object' &&
         typeof entry.itemId === 'string' &&
-        typeof entry.value === 'string' &&
-        entry.value.trim().length > 0,
+        typeof entry.value === 'string',
     )
   );
 }
@@ -68,16 +66,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Session is not open for responses' }, { status: 409 });
     }
 
-    const responseItemIds = body.responses.map((entry) => entry.itemId);
+    const validResponses = body.responses.filter((entry) => entry.value.trim().length > 0);
+    const responseItemIds = validResponses.map((entry) => entry.itemId);
     const uniqueItemIds = [...new Set(responseItemIds)];
 
-    const sessionItems = await db
-      .select({
-        id: items.id,
-        excluded: items.excluded,
-      })
-      .from(items)
-      .where(and(eq(items.sessionId, session.id), inArray(items.id, uniqueItemIds)));
+    const sessionItems =
+      uniqueItemIds.length > 0
+        ? await db
+            .select({
+              id: items.id,
+              excluded: items.excluded,
+            })
+            .from(items)
+            .where(and(eq(items.sessionId, session.id), inArray(items.id, uniqueItemIds)))
+        : [];
 
     if (sessionItems.length !== uniqueItemIds.length) {
       return NextResponse.json({ error: 'One or more items are invalid for this session' }, { status: 400 });
@@ -87,7 +89,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'One or more items are not open for voting' }, { status: 400 });
     }
 
-    for (const response of body.responses) {
+    for (const response of validResponses) {
       await db.insert(responses).values({
         sessionId: body.sessionId,
         itemId: response.itemId,
