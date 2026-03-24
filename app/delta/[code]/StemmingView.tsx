@@ -196,23 +196,32 @@ export function StemmingView({ session, items }: StemmingViewProps) {
             const currentDots = votes[item.id] ?? 0;
             const totalUsed = Object.values(votes).reduce((sum, value) => sum + value, 0);
             const remainingBudget = session.dotBudget - totalUsed;
-            const visibleDots = Math.max(1, Math.min(session.dotBudget, currentDots + remainingBudget));
+            const visibleDots = session.allowMultipleDots
+              ? Math.max(1, Math.min(session.dotBudget, currentDots + remainingBudget))
+              : 1;
             const hoveredValue = hoveredDot?.itemId === item.id ? hoveredDot.value : 0;
 
             return (
               <section key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
                 <p className="text-base text-slate-100">{item.text}</p>
                 {isDotVoting ? (
-                  <div className="mt-4 flex flex-wrap gap-1.5" onMouseLeave={() => setHoveredDot(null)}>
+                  <div
+                    className="mt-4 flex flex-wrap gap-1.5"
+                    onMouseLeave={session.allowMultipleDots ? () => setHoveredDot(null) : undefined}
+                  >
                     {Array.from({ length: visibleDots }, (_, index) => {
                       const isFilled = index < currentDots;
-                      const isHovered = index < hoveredValue;
+                      const isHovered = session.allowMultipleDots && index < hoveredValue;
 
                       return (
                         <button
                           key={index}
                           type="button"
-                          onMouseEnter={() => setHoveredDot({ itemId: item.id, value: index + 1 })}
+                          onMouseEnter={
+                            session.allowMultipleDots
+                              ? () => setHoveredDot({ itemId: item.id, value: index + 1 })
+                              : undefined
+                          }
                           onClick={() => {
                             setVotes((current) => {
                               const currentValue = current[item.id] ?? 0;
@@ -221,7 +230,13 @@ export function StemmingView({ session, items }: StemmingViewProps) {
                                   sum + (currentItem.id === item.id ? 0 : (current[currentItem.id] ?? 0)),
                                 0,
                               );
-                              const requestedValue = index === currentValue - 1 ? 0 : index + 1;
+                              const requestedValue = session.allowMultipleDots
+                                ? index === currentValue - 1
+                                  ? 0
+                                  : index + 1
+                                : currentValue === 1
+                                  ? 0
+                                  : 1;
 
                               if (totalWithoutCurrent + requestedValue > session.dotBudget) {
                                 return current;
@@ -238,7 +253,7 @@ export function StemmingView({ session, items }: StemmingViewProps) {
                             });
                           }}
                           className={`h-5 w-5 rounded-full transition ${
-                            hoveredValue > 0
+                            session.allowMultipleDots && hoveredValue > 0
                               ? isHovered
                                 ? 'bg-gradient-to-br from-indigo-500/60 to-violet-500/60'
                                 : 'border border-white/30 bg-transparent'
