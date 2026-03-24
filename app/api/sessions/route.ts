@@ -71,6 +71,7 @@ export async function POST(request: NextRequest) {
         code,
         title,
         mode: body.mode,
+        phase: body.mode === 'stemming' ? 'stemming' : 'kartlegging',
         tags,
         allowNewItems: body.allow_new_items,
       })
