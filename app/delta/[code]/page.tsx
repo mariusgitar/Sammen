@@ -1,7 +1,6 @@
-import { and, asc, eq } from 'drizzle-orm';
+'use client';
 
-import { getDb } from '@/db';
-import { items, sessions } from '@/db/schema';
+import { useEffect, useMemo, useState } from 'react';
 
 import { KartleggingView } from './KartleggingView';
 import { StemmingView } from './StemmingView';
@@ -12,36 +11,120 @@ type ParticipantPageProps = {
   };
 };
 
-export default async function ParticipantPage({ params }: ParticipantPageProps) {
-  const db = getDb();
+export default function ParticipantPage({ params }: ParticipantPageProps) {
   const code = params.code.toUpperCase();
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [sessionData, setSessionData] = useState<{
+    session: {
+      id: string;
+      title: string;
+      phase: 'kartlegging' | 'stemming';
+      status: 'setup' | 'active' | 'paused' | 'closed';
+      tags: string[];
+      allowNewItems: boolean;
+    };
+    items: Array<{
+      id: string;
+      text: string;
+      isNew: boolean;
+      excluded: boolean;
+      orderIndex: number;
+    }>;
+  } | null>(null);
 
-  const [session] = await db
-    .select({
-      id: sessions.id,
-      code: sessions.code,
-      title: sessions.title,
-      mode: sessions.mode,
-      phase: sessions.phase,
-      status: sessions.status,
-      tags: sessions.tags,
-      allowNewItems: sessions.allowNewItems,
-    })
-    .from(sessions)
-    .where(eq(sessions.code, code))
-    .limit(1);
+  async function fetchSession() {
+    try {
+      const response = await fetch(`/api/sessions/${code}`, {
+        cache: 'no-store',
+      });
+      const data = (await response.json()) as
+        | {
+            session: {
+              id: string;
+              title: string;
+              phase: 'kartlegging' | 'stemming';
+              status: 'setup' | 'active' | 'paused' | 'closed';
+              tags: string[];
+              allowNewItems: boolean;
+            };
+            items: Array<{
+              id: string;
+              text: string;
+              isNew: boolean;
+              excluded: boolean;
+              orderIndex: number;
+            }>;
+          }
+        | { error: string };
 
-  if (!session) {
+      if (!response.ok || !('session' in data)) {
+        setError('error' in data ? data.error : 'Kunne ikke hente sesjonen.');
+        setSessionData(null);
+        return;
+      }
+
+      setError('');
+      setSessionData(data);
+    } catch (fetchError) {
+      setError(fetchError instanceof Error ? fetchError.message : 'Kunne ikke hente sesjonen.');
+      setSessionData(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void fetchSession();
+    const timer = setInterval(() => {
+      void fetchSession();
+    }, 5_000);
+
+    return () => clearInterval(timer);
+  }, [code]);
+
+  const visibleItems = useMemo(() => {
+    if (!sessionData) {
+      return [];
+    }
+    if (sessionData.session.phase === 'stemming') {
+      return sessionData.items.filter((item) => !item.excluded);
+    }
+    return sessionData.items;
+  }, [sessionData]);
+
+  if (isLoading) {
     return (
       <main className="min-h-screen px-4 py-10 sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Sesjon ikke funnet</h1>
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Laster sesjon…</h1>
         </div>
       </main>
     );
   }
 
-  if (session.status !== 'active') {
+  if (!sessionData) {
+    return (
+      <main className="min-h-screen px-4 py-10 sm:px-6">
+        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Sesjon ikke funnet</h1>
+          {error ? <p className="mt-2 text-sm text-red-400">{error}</p> : null}
+        </div>
+      </main>
+    );
+  }
+
+  if (sessionData.session.status === 'closed') {
+    return (
+      <main className="min-h-screen px-4 py-10 sm:px-6">
+        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Sesjonen er avsluttet.</h1>
+        </div>
+      </main>
+    );
+  }
+
+  if (sessionData.session.status === 'setup' || sessionData.session.status === 'paused') {
     return (
       <main className="min-h-screen px-4 py-10 sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
@@ -52,30 +135,13 @@ export default async function ParticipantPage({ params }: ParticipantPageProps) 
     );
   }
 
-  const itemFilter =
-    session.phase === 'stemming'
-      ? and(eq(items.sessionId, session.id), eq(items.excluded, false))
-      : eq(items.sessionId, session.id);
-
-  const sessionItems = await db
-    .select({
-      id: items.id,
-      text: items.text,
-      isNew: items.isNew,
-      excluded: items.excluded,
-      orderIndex: items.orderIndex,
-    })
-    .from(items)
-    .where(itemFilter)
-    .orderBy(asc(items.orderIndex), asc(items.createdAt));
-
-  if (session.phase === 'stemming' && session.status === 'active') {
+  if (sessionData.session.phase === 'stemming') {
     return (
       <StemmingView
-        items={sessionItems.map((item) => ({ id: item.id, text: item.text }))}
+        items={visibleItems.map((item) => ({ id: item.id, text: item.text }))}
         session={{
-          id: session.id,
-          title: session.title,
+          id: sessionData.session.id,
+          title: sessionData.session.title,
         }}
       />
     );
@@ -83,12 +149,12 @@ export default async function ParticipantPage({ params }: ParticipantPageProps) 
 
   return (
     <KartleggingView
-      items={sessionItems}
+      items={visibleItems}
       session={{
-        id: session.id,
-        title: session.title,
-        tags: session.tags,
-        allowNewItems: session.allowNewItems,
+        id: sessionData.session.id,
+        title: sessionData.session.title,
+        tags: sessionData.session.tags,
+        allowNewItems: sessionData.session.allowNewItems,
       }}
     />
   );
