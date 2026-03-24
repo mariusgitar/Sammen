@@ -1,6 +1,20 @@
+'use client';
+
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export function Nav() {
+  const router = useRouter();
+
+  async function handleLogout() {
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+    });
+
+    router.push('/logg-inn');
+    router.refresh();
+  }
+
   return (
     <header className="border-b border-slate-800 bg-slate-950/95 px-6 py-4">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between">
@@ -17,6 +31,13 @@ export function Nav() {
           >
             Ny sesjon
           </Link>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="text-sm font-medium text-slate-200 transition hover:text-white"
+          >
+            Logg ut
+          </button>
         </div>
       </div>
     </header>
