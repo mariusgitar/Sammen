@@ -11,87 +11,90 @@ type ParticipantPageProps = {
   };
 };
 
+type SessionStatus = 'setup' | 'active' | 'paused' | 'closed';
+type SessionPhase = 'kartlegging' | 'stemming';
+
+type SessionResponse = {
+  session: {
+    id: string;
+    code: string;
+    title: string;
+    mode: string;
+    phase: SessionPhase;
+    status: SessionStatus;
+    tags: string[];
+    allowNewItems: boolean;
+  };
+  items: Array<{
+    id: string;
+    text: string;
+    isNew: boolean;
+    excluded: boolean;
+    orderIndex: number;
+  }>;
+};
+
+type ErrorResponse = {
+  error: string;
+};
+
 export default function ParticipantPage({ params }: ParticipantPageProps) {
-  const code = params.code.toUpperCase();
+  const code = useMemo(() => params.code.toUpperCase(), [params.code]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [sessionData, setSessionData] = useState<{
-    session: {
-      id: string;
-      title: string;
-      phase: 'kartlegging' | 'stemming';
-      status: 'setup' | 'active' | 'paused' | 'closed';
-      tags: string[];
-      allowNewItems: boolean;
-    };
-    items: Array<{
-      id: string;
-      text: string;
-      isNew: boolean;
-      excluded: boolean;
-      orderIndex: number;
-    }>;
-  } | null>(null);
-
-  async function fetchSession() {
-    try {
-      const response = await fetch(`/api/sessions/${code}`, {
-        cache: 'no-store',
-      });
-      const data = (await response.json()) as
-        | {
-            session: {
-              id: string;
-              title: string;
-              phase: 'kartlegging' | 'stemming';
-              status: 'setup' | 'active' | 'paused' | 'closed';
-              tags: string[];
-              allowNewItems: boolean;
-            };
-            items: Array<{
-              id: string;
-              text: string;
-              isNew: boolean;
-              excluded: boolean;
-              orderIndex: number;
-            }>;
-          }
-        | { error: string };
-
-      if (!response.ok || !('session' in data)) {
-        setError('error' in data ? data.error : 'Kunne ikke hente sesjonen.');
-        setSessionData(null);
-        return;
-      }
-
-      setError('');
-      setSessionData(data);
-    } catch (fetchError) {
-      setError(fetchError instanceof Error ? fetchError.message : 'Kunne ikke hente sesjonen.');
-      setSessionData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }
+  const [isNotFound, setIsNotFound] = useState(false);
+  const [data, setData] = useState<SessionResponse | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
+    async function fetchSession() {
+      try {
+        const response = await fetch(`/api/sessions/${code}`, { cache: 'no-store' });
+        const payload = (await response.json()) as SessionResponse | ErrorResponse;
+
+        if (!isMounted) {
+          return;
+        }
+
+        if (response.status === 404) {
+          setIsNotFound(true);
+          setError('');
+          setData(null);
+          return;
+        }
+
+        if (!response.ok || !('session' in payload) || !('items' in payload)) {
+          setError('error' in payload ? payload.error : 'Kunne ikke hente sesjonsdata.');
+          return;
+        }
+
+        setIsNotFound(false);
+        setError('');
+        setData(payload);
+      } catch (fetchError) {
+        if (!isMounted) {
+          return;
+        }
+
+        setError(fetchError instanceof Error ? fetchError.message : 'Kunne ikke hente sesjonsdata.');
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    }
+
     void fetchSession();
     const timer = setInterval(() => {
       void fetchSession();
     }, 5_000);
 
-    return () => clearInterval(timer);
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
   }, [code]);
-
-  const visibleItems = useMemo(() => {
-    if (!sessionData) {
-      return [];
-    }
-    if (sessionData.session.phase === 'stemming') {
-      return sessionData.items.filter((item) => !item.excluded);
-    }
-    return sessionData.items;
-  }, [sessionData]);
 
   if (isLoading) {
     return (
@@ -103,18 +106,30 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
     );
   }
 
-  if (!sessionData) {
+  if (isNotFound) {
     return (
       <main className="min-h-screen px-4 py-10 sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
           <h1 className="text-2xl font-semibold tracking-tight text-white">Sesjon ikke funnet</h1>
-          {error ? <p className="mt-2 text-sm text-red-400">{error}</p> : null}
         </div>
       </main>
     );
   }
 
-  if (sessionData.session.status === 'closed') {
+  if (error || !data) {
+    return (
+      <main className="min-h-screen px-4 py-10 sm:px-6">
+        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+          <h1 className="text-2xl font-semibold tracking-tight text-white">Kunne ikke laste sesjonen</h1>
+          {error ? <p className="mt-2 text-sm text-slate-300">{error}</p> : null}
+        </div>
+      </main>
+    );
+  }
+
+  const { session, items } = data;
+
+  if (session.status === 'closed') {
     return (
       <main className="min-h-screen px-4 py-10 sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
@@ -124,7 +139,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
     );
   }
 
-  if (sessionData.session.status === 'setup' || sessionData.session.status === 'paused') {
+  if (session.status === 'setup' || session.status === 'paused') {
     return (
       <main className="min-h-screen px-4 py-10 sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
@@ -135,13 +150,13 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
     );
   }
 
-  if (sessionData.session.phase === 'stemming') {
+  if (session.status === 'active' && session.phase === 'stemming') {
     return (
       <StemmingView
-        items={visibleItems.map((item) => ({ id: item.id, text: item.text }))}
+        items={items.filter((item) => !item.excluded).map((item) => ({ id: item.id, text: item.text }))}
         session={{
-          id: sessionData.session.id,
-          title: sessionData.session.title,
+          id: session.id,
+          title: session.title,
         }}
       />
     );
@@ -149,12 +164,12 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
 
   return (
     <KartleggingView
-      items={visibleItems}
+      items={items}
       session={{
-        id: sessionData.session.id,
-        title: sessionData.session.title,
-        tags: sessionData.session.tags,
-        allowNewItems: sessionData.session.allowNewItems,
+        id: session.id,
+        title: session.title,
+        tags: session.tags,
+        allowNewItems: session.allowNewItems,
       }}
     />
   );
