@@ -7,6 +7,7 @@ type SessionView = {
   title: string;
   votingType: 'scale' | 'dots';
   dotBudget: number;
+  allowMultipleDots: boolean;
 };
 
 type SessionItem = {
@@ -46,6 +47,23 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   );
   const dotsRemaining = Math.max(0, session.dotBudget - dotsUsed);
   const canSubmit = isDotVoting ? dotsUsed === session.dotBudget : allItemsVoted;
+  const dotOptions = useMemo(() => {
+    if (!session.allowMultipleDots) {
+      return [0, 1];
+    }
+
+    const budget = session.dotBudget;
+
+    if (budget <= 5) {
+      return Array.from(new Set([0, 1, 2, 3, 4, 5].filter((value) => value <= budget))).sort((a, b) => a - b);
+    }
+
+    if (budget <= 10) {
+      return Array.from(new Set([0, 1, 2, 3, 5, 8, budget])).sort((a, b) => a - b);
+    }
+
+    return Array.from(new Set([0, 1, 2, 3, 5, 10, budget])).sort((a, b) => a - b);
+  }, [session.allowMultipleDots, session.dotBudget]);
 
   function handleJoin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -156,7 +174,11 @@ export function StemmingView({ session, items }: StemmingViewProps) {
               <p className="mt-3 text-sm text-slate-200">
                 Fordel {session.dotBudget} prikker på kriteriene under.
               </p>
-              <p className="text-sm text-slate-400">Du kan gi flere prikker til samme kriterium.</p>
+              <p className="text-sm text-slate-400">
+                {session.allowMultipleDots
+                  ? 'Du kan gi flere prikker til samme kriterium.'
+                  : 'Du kan maksimalt gi én prikk per kriterium.'}
+              </p>
               <p className="mt-2 text-sm text-slate-100">
                 Brukt: {dotsUsed}/{session.dotBudget} · Gjenstår: {dotsRemaining}
               </p>
@@ -174,46 +196,48 @@ export function StemmingView({ session, items }: StemmingViewProps) {
             <section key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
               <p className="text-base text-slate-100">{item.text}</p>
               {isDotVoting ? (
-                <div className="mt-4 flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVotes((current) => {
-                        const currentValue = current[item.id] ?? 0;
-                        if (currentValue <= 0) {
-                          return current;
-                        }
+                <div className="mt-4 grid grid-cols-4 gap-2 sm:grid-cols-7">
+                  {dotOptions.map((value) => {
+                    const selected = (votes[item.id] ?? 0) === value;
 
-                        return {
-                          ...current,
-                          [item.id]: currentValue - 1,
-                        };
-                      });
-                    }}
-                    className="rounded border border-white/30 px-3 py-1 text-sm text-white/80 transition hover:border-white/50 hover:text-white"
-                  >
-                    −
-                  </button>
-                  <span className="min-w-12 text-center text-base font-medium text-white">{votes[item.id] ?? 0}</span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setVotes((current) => {
-                        const used = items.reduce((sum, currentItem) => sum + (current[currentItem.id] ?? 0), 0);
-                        if (used >= session.dotBudget) {
-                          return current;
-                        }
+                    return (
+                      <button
+                        key={value}
+                        type="button"
+                        onClick={() => {
+                          setVotes((current) => {
+                            const currentValue = current[item.id] ?? 0;
+                            const totalWithoutCurrent = items.reduce(
+                              (sum, currentItem) =>
+                                sum + (currentItem.id === item.id ? 0 : (current[currentItem.id] ?? 0)),
+                              0,
+                            );
+                            const boundedValue = session.allowMultipleDots ? value : Math.min(1, value);
 
-                        return {
-                          ...current,
-                          [item.id]: (current[item.id] ?? 0) + 1,
-                        };
-                      });
-                    }}
-                    className="rounded border border-white/30 px-3 py-1 text-sm text-white/80 transition hover:border-white/50 hover:text-white"
-                  >
-                    +
-                  </button>
+                            if (totalWithoutCurrent + boundedValue > session.dotBudget) {
+                              return current;
+                            }
+
+                            if (currentValue === boundedValue) {
+                              return current;
+                            }
+
+                            return {
+                              ...current,
+                              [item.id]: boundedValue,
+                            };
+                          });
+                        }}
+                        className={`h-10 w-10 rounded-full border text-sm font-medium transition ${
+                          selected
+                            ? 'border-indigo-500 bg-indigo-500 text-white'
+                            : 'border-white/30 text-white/80 hover:border-white/50 hover:text-white'
+                        }`}
+                      >
+                        {value}
+                      </button>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="mt-4 flex flex-wrap gap-2">
