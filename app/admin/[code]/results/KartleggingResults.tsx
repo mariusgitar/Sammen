@@ -6,6 +6,8 @@ type KartleggingItem = {
   id: string;
   text: string;
   excluded: boolean;
+  is_new?: boolean;
+  created_by?: string | null;
 };
 
 type KartleggingResponse = {
@@ -20,7 +22,7 @@ type KartleggingResultsProps = {
   participantCount: number;
 };
 
-type ViewMode = 'element' | 'tag' | 'uenighet';
+type ViewMode = 'element' | 'tag' | 'uenighet' | 'nye';
 
 function makeBar(count: number, total: number, width = 6) {
   if (total <= 0) {
@@ -78,53 +80,25 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
   }, [countsByItem, includedItems]);
 
   const perTagData = useMemo(() => {
-    const grouped = new Map<string, { itemId: string; text: string; count: number; total: number }[]>();
+    const grouped = new Map<string, { itemId: string; text: string; count: number }[]>();
 
     for (const tag of tags) {
-      grouped.set(tag, []);
-    }
-
-    const tiedItems: { itemId: string; text: string; count: number; total: number; topTags: string[] }[] = [];
-
-    for (const entry of itemStats) {
-      if (entry.total === 0) {
-        continue;
-      }
-
-      if (entry.topTags.length > 1) {
-        tiedItems.push({
+      const rows = itemStats
+        .map((entry) => ({
           itemId: entry.item.id,
           text: entry.item.text,
-          count: entry.maxCount,
-          total: entry.total,
-          topTags: entry.topTags,
-        });
-        continue;
-      }
+          count: entry.counts[tag] ?? 0,
+        }))
+        .filter((row) => row.count > 0)
+        .sort((a, b) => b.count - a.count);
 
-      const [topTag] = entry.topTags;
-      if (!topTag) {
-        continue;
-      }
-
-      const current = grouped.get(topTag) ?? [];
-      current.push({
-        itemId: entry.item.id,
-        text: entry.item.text,
-        count: entry.maxCount,
-        total: entry.total,
-      });
-      grouped.set(topTag, current);
+      grouped.set(tag, rows);
     }
 
-    for (const [, values] of grouped) {
-      values.sort((a, b) => b.count - a.count);
-    }
-
-    tiedItems.sort((a, b) => b.count - a.count);
-
-    return { grouped, tiedItems };
+    return grouped;
   }, [itemStats, tags]);
+
+  const newItems = useMemo(() => includedItems.filter((item) => item.is_new), [includedItems]);
 
   const disagreementSorted = useMemo(
     () => [...itemStats].sort((a, b) => b.disagreementScore - a.disagreementScore),
@@ -186,6 +160,17 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
         >
           Uenighet først
         </button>
+        <button
+          type="button"
+          onClick={() => setView('nye')}
+          className={`rounded-md border px-3 py-1.5 text-sm font-medium transition ${
+            view === 'nye'
+              ? 'border-slate-900 bg-slate-900 text-white'
+              : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
+          }`}
+        >
+          Nye forslag
+        </button>
       </div>
 
       {view === 'element' ? (
@@ -207,7 +192,7 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
       {view === 'tag' ? (
         <div className="mt-4 space-y-5">
           {tags.map((tag) => {
-            const rows = perTagData.grouped.get(tag) ?? [];
+            const rows = perTagData.get(tag) ?? [];
             return (
               <article key={tag} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
                 <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">{tag}</h3>
@@ -217,35 +202,17 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
                       <li key={`${tag}-${row.itemId}`} className="rounded-md border border-slate-200 bg-white px-3 py-2">
                         <p className="font-medium text-slate-900">{row.text}</p>
                         <p className="text-slate-700">
-                          {row.count} av {row.total}
+                          {row.count} av {participantCount}
                         </p>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="mt-2 text-sm text-slate-600">Ingen elementer med klar overvekt på denne taggen.</p>
+                  <p className="mt-2 text-sm text-slate-600">Ingen elementer med denne taggen.</p>
                 )}
               </article>
             );
           })}
-
-          <article className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Delt — ingen klar tag</h3>
-            {perTagData.tiedItems.length > 0 ? (
-              <ul className="mt-2 space-y-2 text-sm text-slate-800">
-                {perTagData.tiedItems.map((row) => (
-                  <li key={`tied-${row.itemId}`} className="rounded-md border border-slate-200 bg-white px-3 py-2">
-                    <p className="font-medium text-slate-900">{row.text}</p>
-                    <p className="text-slate-700">
-                      {row.count} av {row.total} ({row.topTags.join(' / ')})
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-2 text-sm text-slate-600">Ingen delte resultater.</p>
-            )}
-          </article>
         </div>
       ) : null}
 
@@ -278,6 +245,22 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
               </article>
             );
           })}
+        </div>
+      ) : null}
+
+      {view === 'nye' ? (
+        <div className="mt-4 space-y-4">
+          {newItems.length > 0 ? (
+            newItems.map((item) => (
+              <article key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                <p className="font-medium">{item.text}</p>
+                <p className="mt-1 text-sm text-slate-700">Foreslått av: {item.created_by ?? 'Ukjent'}</p>
+                {renderTagBreakdown(countsByItem.get(item.id) ?? {})}
+              </article>
+            ))
+          ) : (
+            <p className="text-sm text-slate-600">Ingen nye forslag i denne sesjonen.</p>
+          )}
         </div>
       ) : null}
     </section>
