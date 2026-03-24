@@ -52,41 +52,38 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .where(eq(items.sessionId, session.id))
       .orderBy(asc(items.orderIndex), asc(items.createdAt));
 
-    const responseBreakdown = await db
+    const sessionResponses = await db
       .select({
         itemId: responses.itemId,
         tag: responses.value,
-        count: sql<number>`count(*)`,
+        participantId: responses.participantId,
       })
       .from(responses)
-      .where(eq(responses.sessionId, session.id))
-      .groupBy(responses.itemId, responses.value);
+      .where(eq(responses.sessionId, session.id));
 
-    const responseCountByItem = await db
-      .select({
-        itemId: responses.itemId,
-        count: sql<number>`count(*)`,
-      })
-      .from(responses)
-      .where(eq(responses.sessionId, session.id))
-      .groupBy(responses.itemId);
-
-    const itemToResponseCount = new Map<string, number>();
-    for (const entry of responseCountByItem) {
-      itemToResponseCount.set(entry.itemId, Number(entry.count));
-    }
+    console.log('Admin summary items raw result:', sessionItems);
+    console.log('Admin summary responses raw result:', sessionResponses);
 
     const tagsByItem = new Map<string, Record<string, number>>();
-    for (const entry of responseBreakdown) {
+    const participantIdsByItem = new Map<string, Set<string>>();
+    const allParticipantIds = new Set<string>();
+
+    for (const entry of sessionResponses) {
       const current = tagsByItem.get(entry.itemId) ?? {};
-      current[entry.tag] = Number(entry.count);
+      current[entry.tag] = (current[entry.tag] ?? 0) + 1;
       tagsByItem.set(entry.itemId, current);
+
+      const itemParticipants = participantIdsByItem.get(entry.itemId) ?? new Set<string>();
+      itemParticipants.add(entry.participantId);
+      participantIdsByItem.set(entry.itemId, itemParticipants);
+
+      allParticipantIds.add(entry.participantId);
     }
 
     const summaryItems: SummaryItem[] = sessionItems.map((item) => {
       const tagCounts = tagsByItem.get(item.id) ?? {};
-      const taggedTotal = Object.values(tagCounts).reduce((sum, count) => sum + count, 0);
-      const totalResponses = itemToResponseCount.get(item.id) ?? 0;
+      const taggedParticipants = participantIdsByItem.get(item.id)?.size ?? 0;
+      const totalParticipants = allParticipantIds.size;
 
       return {
         id: item.id,
@@ -94,7 +91,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         is_new: item.is_new,
         created_by: item.created_by,
         tagCounts,
-        untaggedCount: Math.max(0, totalResponses - taggedTotal),
+        untaggedCount: Math.max(0, totalParticipants - taggedParticipants),
       };
     });
 
