@@ -39,6 +39,6 @@ Tailwind CSS. Deployed on Vercel.
 - Mobile-first
 
 ## Known limitations
-- No authentication
+- Admin auth uses a single global password (ADMIN_PASSWORD env var)
 - No real-time (polling only)
 - One session per workshop (no project grouping yet)
