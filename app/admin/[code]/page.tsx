@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { asc, eq } from 'drizzle-orm';
 
 import { getDb } from '@/db';
@@ -57,6 +58,9 @@ export default async function AdminSessionPage({ params }: AdminPageProps) {
   return (
     <main className="min-h-screen px-4 py-10 sm:px-6">
       <div className="mx-auto w-full max-w-4xl">
+        <Link href="/" className="mb-4 inline-flex text-sm font-medium text-slate-300 transition hover:text-slate-100">
+          ← Tilbake til oversikt
+        </Link>
         <AdminPanel session={session} items={sessionItems} />
       </div>
     </main>
