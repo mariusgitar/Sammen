@@ -11,7 +11,8 @@ type RouteContext = {
 };
 
 type RequestBody = {
-  is_new: boolean;
+  is_new?: boolean;
+  excluded?: boolean;
 };
 
 function isValidBody(candidate: unknown): candidate is RequestBody {
@@ -20,7 +21,16 @@ function isValidBody(candidate: unknown): candidate is RequestBody {
   }
 
   const body = candidate as Partial<RequestBody>;
-  return typeof body.is_new === 'boolean';
+
+  if (typeof body.is_new !== 'undefined' && typeof body.is_new !== 'boolean') {
+    return false;
+  }
+
+  if (typeof body.excluded !== 'undefined' && typeof body.excluded !== 'boolean') {
+    return false;
+  }
+
+  return typeof body.is_new !== 'undefined' || typeof body.excluded !== 'undefined';
 }
 
 export async function PATCH(request: Request, { params }: RouteContext) {
@@ -35,12 +45,16 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
     const [updatedItem] = await db
       .update(items)
-      .set({ isNew: body.is_new })
+      .set({
+        ...(typeof body.is_new === 'boolean' ? { isNew: body.is_new } : {}),
+        ...(typeof body.excluded === 'boolean' ? { excluded: body.excluded } : {}),
+      })
       .where(eq(items.id, params.id))
       .returning({
         id: items.id,
         text: items.text,
         is_new: items.isNew,
+        excluded: items.excluded,
         created_by: items.createdBy,
       });
 

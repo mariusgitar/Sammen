@@ -1,6 +1,9 @@
 /*
 Run this SQL manually in the Neon SQL editor:
 
+ALTER TABLE items ADD COLUMN excluded boolean NOT NULL DEFAULT false;
+ALTER TABLE sessions ADD COLUMN phase text NOT NULL DEFAULT 'kartlegging';
+
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -10,6 +13,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   ),
   title text NOT NULL,
   mode text NOT NULL DEFAULT 'kartlegging' CHECK (mode IN ('kartlegging', 'stemming')),
+  phase text NOT NULL DEFAULT 'kartlegging' CHECK (phase IN ('kartlegging', 'stemming')),
   status text NOT NULL DEFAULT 'setup' CHECK (status IN ('setup', 'active', 'paused', 'closed')),
   tags text[] NOT NULL DEFAULT ARRAY[]::text[],
   allow_new_items boolean NOT NULL DEFAULT true,
@@ -22,6 +26,7 @@ CREATE TABLE IF NOT EXISTS items (
   text text NOT NULL,
   created_by text NOT NULL DEFAULT 'facilitator',
   is_new boolean NOT NULL DEFAULT false,
+  excluded boolean NOT NULL DEFAULT false,
   order_index integer NOT NULL DEFAULT 0,
   created_at timestamp NOT NULL DEFAULT now()
 );
@@ -39,9 +44,11 @@ CREATE TABLE IF NOT EXISTS responses (
 import { boolean, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const sessionModes = ['kartlegging', 'stemming'] as const;
+export const sessionPhases = ['kartlegging', 'stemming'] as const;
 export const sessionStatuses = ['setup', 'active', 'paused', 'closed'] as const;
 
 export type SessionMode = (typeof sessionModes)[number];
+export type SessionPhase = (typeof sessionPhases)[number];
 export type SessionStatus = (typeof sessionStatuses)[number];
 
 export const sessions = pgTable('sessions', {
@@ -49,6 +56,7 @@ export const sessions = pgTable('sessions', {
   code: text('code').notNull().unique(),
   title: text('title').notNull(),
   mode: text('mode').$type<SessionMode>().notNull().default('kartlegging'),
+  phase: text('phase').$type<SessionPhase>().notNull().default('kartlegging'),
   status: text('status').$type<SessionStatus>().notNull().default('setup'),
   tags: text('tags').array().notNull().default([]),
   allowNewItems: boolean('allow_new_items').notNull().default(true),
@@ -63,6 +71,7 @@ export const items = pgTable('items', {
   text: text('text').notNull(),
   createdBy: text('created_by').notNull().default('facilitator'),
   isNew: boolean('is_new').notNull().default(false),
+  excluded: boolean('excluded').notNull().default(false),
   orderIndex: integer('order_index').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });

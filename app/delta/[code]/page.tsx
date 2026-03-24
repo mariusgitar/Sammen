@@ -1,9 +1,10 @@
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 
 import { getDb } from '@/db';
 import { items, sessions } from '@/db/schema';
 
 import { KartleggingView } from './KartleggingView';
+import { StemmingView } from './StemmingView';
 
 type ParticipantPageProps = {
   params: {
@@ -21,6 +22,7 @@ export default async function ParticipantPage({ params }: ParticipantPageProps) 
       code: sessions.code,
       title: sessions.title,
       mode: sessions.mode,
+      phase: sessions.phase,
       status: sessions.status,
       tags: sessions.tags,
       allowNewItems: sessions.allowNewItems,
@@ -50,16 +52,34 @@ export default async function ParticipantPage({ params }: ParticipantPageProps) 
     );
   }
 
+  const itemFilter =
+    session.phase === 'stemming'
+      ? and(eq(items.sessionId, session.id), eq(items.excluded, false))
+      : eq(items.sessionId, session.id);
+
   const sessionItems = await db
     .select({
       id: items.id,
       text: items.text,
       isNew: items.isNew,
+      excluded: items.excluded,
       orderIndex: items.orderIndex,
     })
     .from(items)
-    .where(eq(items.sessionId, session.id))
+    .where(itemFilter)
     .orderBy(asc(items.orderIndex), asc(items.createdAt));
+
+  if (session.phase === 'stemming' && session.status === 'active') {
+    return (
+      <StemmingView
+        items={sessionItems.map((item) => ({ id: item.id, text: item.text }))}
+        session={{
+          id: session.id,
+          title: session.title,
+        }}
+      />
+    );
+  }
 
   return (
     <KartleggingView

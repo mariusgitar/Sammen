@@ -21,6 +21,7 @@ export default async function AdminSessionPage({ params }: AdminPageProps) {
       title: sessions.title,
       code: sessions.code,
       mode: sessions.mode,
+      phase: sessions.phase,
       status: sessions.status,
     })
     .from(sessions)
@@ -43,6 +44,7 @@ export default async function AdminSessionPage({ params }: AdminPageProps) {
       id: items.id,
       text: items.text,
       isNew: items.isNew,
+      excluded: items.excluded,
       createdBy: items.createdBy,
     })
     .from(items)
