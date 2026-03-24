@@ -23,15 +23,17 @@ const sessionStatusClassName: Record<SessionStatus, string> = {
   closed: 'bg-slate-800 text-slate-400',
 };
 
-const phaseLabel: Record<SessionPhase, string> = {
-  kartlegging: 'Kartlegging',
-  stemming: 'Stemming',
-};
+const getModeBadgeLabel = (mode: 'kartlegging' | 'stemming', phase: SessionPhase) => {
+  if (mode === 'stemming') {
+    return 'Stemming';
+  }
 
-const modeLabel = {
-  kartlegging: 'Kartlegging',
-  stemming: 'Stemming',
-} as const;
+  if (phase === 'stemming') {
+    return 'Kartlegging → Stemming';
+  }
+
+  return 'Kartlegging';
+};
 
 const norwegianDateFormatter = new Intl.DateTimeFormat('nb-NO', {
   day: 'numeric',
@@ -86,13 +88,8 @@ export default async function HomePage() {
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-xl font-semibold tracking-tight text-white">{session.title}</h3>
                     <span className="rounded-full bg-slate-800 px-2 py-0.5 text-xs font-medium text-slate-300">
-                      {modeLabel[session.mode]}
+                      {getModeBadgeLabel(session.mode, session.phase)}
                     </span>
-                    {session.mode === 'kartlegging' ? (
-                      <span className="rounded-full bg-sky-500/20 px-2 py-0.5 text-xs font-medium text-sky-300">
-                        {phaseLabel[session.phase]}
-                      </span>
-                    ) : null}
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${sessionStatusClassName[session.status]}`}
                     >
