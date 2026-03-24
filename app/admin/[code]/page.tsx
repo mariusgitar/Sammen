@@ -1,7 +1,9 @@
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 
 import { getDb } from '@/db';
 import { items, sessions } from '@/db/schema';
+
+import { AdminPanel } from './AdminPanel';
 
 type AdminPageProps = {
   params: {
@@ -11,7 +13,19 @@ type AdminPageProps = {
 
 export default async function AdminSessionPage({ params }: AdminPageProps) {
   const db = getDb();
-  const [session] = await db.select().from(sessions).where(eq(sessions.code, params.code)).limit(1);
+  const code = params.code.toUpperCase();
+
+  const [session] = await db
+    .select({
+      id: sessions.id,
+      title: sessions.title,
+      code: sessions.code,
+      mode: sessions.mode,
+      status: sessions.status,
+    })
+    .from(sessions)
+    .where(eq(sessions.code, code))
+    .limit(1);
 
   if (!session) {
     return (
@@ -24,43 +38,21 @@ export default async function AdminSessionPage({ params }: AdminPageProps) {
     );
   }
 
-  const sessionItems = await db.select().from(items).where(eq(items.sessionId, session.id));
+  const sessionItems = await db
+    .select({
+      id: items.id,
+      text: items.text,
+      isNew: items.isNew,
+      createdBy: items.createdBy,
+    })
+    .from(items)
+    .where(eq(items.sessionId, session.id))
+    .orderBy(asc(items.orderIndex), asc(items.createdAt));
 
   return (
     <main className="min-h-screen px-4 py-10 sm:px-6">
-      <div className="mx-auto w-full max-w-lg space-y-6 rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-white">{session.title}</h1>
-          <p className="mt-2 text-sm text-slate-300">Dette er en enkel admin-visning for å bekrefte at sesjonen ble lagret.</p>
-        </div>
-
-        <dl className="space-y-3 text-sm text-slate-200">
-          <div>
-            <dt className="font-medium text-slate-400">Kode</dt>
-            <dd>{session.code}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-slate-400">Modus</dt>
-            <dd>{session.mode}</dd>
-          </div>
-          <div>
-            <dt className="font-medium text-slate-400">Status</dt>
-            <dd>{session.status}</dd>
-          </div>
-        </dl>
-
-        <section>
-          <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Elementer</h2>
-          {sessionItems.length > 0 ? (
-            <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-100">
-              {sessionItems.map((item) => (
-                <li key={item.id}>{item.text}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="mt-3 text-sm text-slate-300">Ingen elementer registrert.</p>
-          )}
-        </section>
+      <div className="mx-auto w-full max-w-4xl">
+        <AdminPanel session={session} items={sessionItems} />
       </div>
     </main>
   );
