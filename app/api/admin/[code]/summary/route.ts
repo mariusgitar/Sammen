@@ -4,6 +4,9 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { items, responses, sessions } from '@/db/schema';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 type RouteContext = {
   params: {
     code: string;
@@ -60,12 +63,14 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
     const allResponses = await db
       .select({
-        itemId: responses.itemId,
+        item_id: responses.itemId,
         value: responses.value,
-        participantId: responses.participantId,
+        participant_id: responses.participantId,
       })
       .from(responses)
       .where(eq(responses.sessionId, session.id));
+
+    const participantCount = new Set(allResponses.map((r) => r.participant_id)).size;
 
     if (session.phase === 'stemming') {
       const votesByItem = new Map<string, number[]>();
@@ -77,56 +82,57 @@ export async function GET(_request: Request, { params }: RouteContext) {
           continue;
         }
 
-        const current = votesByItem.get(entry.itemId) ?? [];
+        const current = votesByItem.get(entry.item_id) ?? [];
         current.push(numericVote);
-        votesByItem.set(entry.itemId, current);
+        votesByItem.set(entry.item_id, current);
       }
 
-      const summaryItems: StemmingSummaryItem[] = allItems
-        .map((item) => {
-          const itemVotes = votesByItem.get(item.id) ?? [];
-          const distribution: Record<'1' | '2' | '3' | '4' | '5', number> = {
-            '1': 0,
-            '2': 0,
-            '3': 0,
-            '4': 0,
-            '5': 0,
-          };
+      const summaryItems: StemmingSummaryItem[] = allItems.map((item) => {
+        const itemVotes = votesByItem.get(item.id) ?? [];
+        const distribution: Record<'1' | '2' | '3' | '4' | '5', number> = {
+          '1': 0,
+          '2': 0,
+          '3': 0,
+          '4': 0,
+          '5': 0,
+        };
 
-          for (const vote of itemVotes) {
-            distribution[String(vote) as keyof typeof distribution] += 1;
-          }
+        for (const vote of itemVotes) {
+          distribution[String(vote) as keyof typeof distribution] += 1;
+        }
 
-          const voteCount = itemVotes.length;
-          const averageScore = voteCount > 0 ? itemVotes.reduce((sum, vote) => sum + vote, 0) / voteCount : 0;
+        const voteCount = itemVotes.length;
+        const averageScore = voteCount > 0 ? itemVotes.reduce((sum, vote) => sum + vote, 0) / voteCount : 0;
 
-          return {
-            id: item.id,
-            text: item.text,
-            is_new: item.is_new,
-            created_by: item.created_by,
-            excluded: item.excluded,
-            averageScore,
-            voteCount,
-            distribution,
-          };
-        });
+        return {
+          id: item.id,
+          text: item.text,
+          is_new: item.is_new,
+          created_by: item.created_by,
+          excluded: item.excluded,
+          averageScore,
+          voteCount,
+          distribution,
+        };
+      });
 
       return NextResponse.json({
         phase: session.phase,
-        participantCount: new Set(allResponses.map((r) => r.participantId)).size,
+        participantCount,
         items: summaryItems,
       });
     }
 
     const itemSummaries: KartleggingSummaryItem[] = allItems.map((item) => {
-      const itemResponses = allResponses.filter((r) => r.itemId === item.id);
+      const itemResponses = allResponses.filter((r) => r.item_id === item.id);
       const tagCounts: Record<string, number> = {};
+
       for (const r of itemResponses) {
         tagCounts[r.value] = (tagCounts[r.value] ?? 0) + 1;
       }
-      const uniqueParticipants = new Set(allResponses.map((r) => r.participantId)).size;
-      const taggedCount = new Set(itemResponses.map((r) => r.participantId)).size;
+
+      const taggedCount = new Set(itemResponses.map((r) => r.participant_id)).size;
+
       return {
         id: item.id,
         text: item.text,
@@ -134,11 +140,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
         created_by: item.created_by,
         excluded: item.excluded,
         tagCounts,
-        untaggedCount: uniqueParticipants - taggedCount,
+        untaggedCount: participantCount - taggedCount,
       };
     });
-
-    const participantCount = new Set(allResponses.map((r) => r.participantId)).size;
 
     return NextResponse.json({
       phase: session.phase,
