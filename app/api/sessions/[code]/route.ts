@@ -99,14 +99,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       })
       .where(eq(sessions.code, code))
       .returning({
-        id: sessions.id,
-        code: sessions.code,
-        title: sessions.title,
-        mode: sessions.mode,
         phase: sessions.phase,
         status: sessions.status,
-        tags: sessions.tags,
-        allowNewItems: sessions.allowNewItems,
       });
 
     if (!updatedSession) {

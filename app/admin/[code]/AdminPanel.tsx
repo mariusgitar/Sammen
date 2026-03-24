@@ -179,7 +179,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
       const data = (await response.json()) as
         | {
-            session: SessionView;
+            session: Pick<SessionView, 'status' | 'phase'>;
           }
         | { error: string };
 
@@ -188,9 +188,13 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         return;
       }
 
-      setCurrentSession(data.session);
       setSessionStatus(data.session.status);
       setSessionPhase(data.session.phase);
+      setCurrentSession((current) => ({
+        ...current,
+        status: data.session.status,
+        phase: data.session.phase,
+      }));
     } catch {
       setError('Kunne ikke oppdatere sesjonen. Prøv igjen.');
     } finally {
@@ -271,16 +275,22 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         body: JSON.stringify({ status: 'active', phase: 'stemming' }),
       });
 
-      const data = (await sessionResponse.json()) as { session: SessionView } | { error: string };
+      const data = (await sessionResponse.json()) as
+        | { session: Pick<SessionView, 'status' | 'phase'> }
+        | { error: string };
 
       if (!sessionResponse.ok || !('session' in data)) {
         setError('error' in data ? data.error : 'Kunne ikke åpne for stemming.');
         return;
       }
 
-      setCurrentSession(data.session);
       setSessionStatus(data.session.status);
       setSessionPhase(data.session.phase);
+      setCurrentSession((current) => ({
+        ...current,
+        status: data.session.status,
+        phase: data.session.phase,
+      }));
       await fetchSummary();
     } catch (openError) {
       setError(openError instanceof Error ? openError.message : 'Kunne ikke åpne for stemming.');
@@ -349,52 +359,53 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         </div>
       </section>
 
-      <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Sesjonskontroller</h2>
-        <div className="mt-4 flex flex-wrap gap-3">
-          {sessionStatus === 'setup' ? (
-            <button
-              type="button"
-              onClick={() => updateSessionStatus('active')}
-              disabled={isUpdatingStatus}
-              className="rounded bg-emerald-200 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-70"
-            >
-              Åpne for deltakere
-            </button>
-          ) : null}
+      {sessionStatus === 'closed' ? null : (
+        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Sesjonskontroller</h2>
+          <div className="mt-4 flex flex-wrap gap-3">
+            {sessionStatus === 'setup' ? (
+              <button
+                type="button"
+                onClick={() => updateSessionStatus('active')}
+                disabled={isUpdatingStatus}
+                className="rounded bg-emerald-200 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-70"
+              >
+                Åpne for deltakere
+              </button>
+            ) : null}
 
-          {sessionStatus === 'active' && sessionPhase === 'kartlegging' ? (
-            <button
-              type="button"
-              onClick={() => updateSessionStatus('paused')}
-              disabled={isUpdatingStatus}
-              className="rounded bg-amber-200 px-4 py-2 text-sm font-medium text-amber-950 transition hover:bg-amber-100 disabled:opacity-70"
-            >
-              Avslutt innsamling
-            </button>
-          ) : null}
+            {sessionStatus === 'active' ? (
+              <button
+                type="button"
+                onClick={() => updateSessionStatus('paused')}
+                disabled={isUpdatingStatus}
+                className="rounded bg-amber-200 px-4 py-2 text-sm font-medium text-amber-950 transition hover:bg-amber-100 disabled:opacity-70"
+              >
+                Avslutt innsamling
+              </button>
+            ) : null}
 
-          {sessionStatus === 'paused' ? (
-            <button
-              type="button"
-              onClick={() => updateSessionStatus('closed')}
-              disabled={isUpdatingStatus}
-              className="rounded bg-rose-200 px-4 py-2 text-sm font-medium text-rose-950 transition hover:bg-rose-100 disabled:opacity-70"
-            >
-              Avslutt sesjon
-            </button>
-          ) : null}
-
-          {(sessionStatus === 'paused' || sessionStatus === 'closed') && (
-            <Link
-              href={`/admin/${currentSession.code}/results`}
-              className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
-            >
-              Se resultater →
-            </Link>
-          )}
-        </div>
-      </section>
+            {sessionStatus === 'paused' ? (
+              <>
+                <button
+                  type="button"
+                  onClick={() => updateSessionStatus('closed')}
+                  disabled={isUpdatingStatus}
+                  className="rounded bg-rose-200 px-4 py-2 text-sm font-medium text-rose-950 transition hover:bg-rose-100 disabled:opacity-70"
+                >
+                  Avslutt sesjon
+                </button>
+                <Link
+                  href={`/admin/${currentSession.code}/results`}
+                  className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
+                >
+                  Se resultater →
+                </Link>
+              </>
+            ) : null}
+          </div>
+        </section>
+      )}
 
       {sessionStatus === 'paused' && sessionPhase === 'kartlegging' ? (
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
