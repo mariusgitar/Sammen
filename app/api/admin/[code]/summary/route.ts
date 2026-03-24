@@ -1,4 +1,4 @@
-import { asc, eq, sql } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { getDb } from '@/db';
@@ -15,7 +15,6 @@ type KartleggingSummaryItem = {
   text: string;
   is_new: boolean;
   created_by: string;
-  excluded: boolean;
   tagCounts: Record<string, number>;
   untaggedCount: number;
 };
@@ -25,7 +24,6 @@ type StemmingSummaryItem = {
   text: string;
   is_new: boolean;
   created_by: string;
-  excluded: boolean;
   averageScore: number;
   voteCount: number;
   distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
@@ -46,30 +44,22 @@ export async function GET(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    const [participantTotals] = await db
-      .select({
-        participantCount: sql<number>`count(distinct ${responses.participantId})`,
-      })
-      .from(responses)
-      .where(eq(responses.sessionId, session.id));
-
-    const sessionItems = await db
+    const allItems = await db
       .select({
         id: items.id,
         text: items.text,
         is_new: items.isNew,
         created_by: items.createdBy,
-        excluded: items.excluded,
       })
       .from(items)
       .where(eq(items.sessionId, session.id))
       .orderBy(asc(items.orderIndex), asc(items.createdAt));
 
-    const sessionResponses = await db
+    const allResponses = await db
       .select({
-        itemId: responses.itemId,
+        item_id: responses.itemId,
         value: responses.value,
-        participantId: responses.participantId,
+        participant_id: responses.participantId,
       })
       .from(responses)
       .where(eq(responses.sessionId, session.id));
@@ -77,20 +67,19 @@ export async function GET(_request: Request, { params }: RouteContext) {
     if (session.phase === 'stemming') {
       const votesByItem = new Map<string, number[]>();
 
-      for (const entry of sessionResponses) {
+      for (const entry of allResponses) {
         const numericVote = Number(entry.value);
 
         if (!Number.isInteger(numericVote) || numericVote < 1 || numericVote > 5) {
           continue;
         }
 
-        const current = votesByItem.get(entry.itemId) ?? [];
+        const current = votesByItem.get(entry.item_id) ?? [];
         current.push(numericVote);
-        votesByItem.set(entry.itemId, current);
+        votesByItem.set(entry.item_id, current);
       }
 
-      const summaryItems: StemmingSummaryItem[] = sessionItems
-        .filter((item) => !item.excluded)
+      const summaryItems: StemmingSummaryItem[] = allItems
         .map((item) => {
           const itemVotes = votesByItem.get(item.id) ?? [];
           const distribution: Record<'1' | '2' | '3' | '4' | '5', number> = {
@@ -113,7 +102,6 @@ export async function GET(_request: Request, { params }: RouteContext) {
             text: item.text,
             is_new: item.is_new,
             created_by: item.created_by,
-            excluded: item.excluded,
             averageScore,
             voteCount,
             distribution,
@@ -121,48 +109,34 @@ export async function GET(_request: Request, { params }: RouteContext) {
         });
 
       return NextResponse.json({
-        phase: session.phase,
-        participantCount: Number(participantTotals?.participantCount ?? 0),
+        participantCount: new Set(allResponses.map((r) => r.participant_id)).size,
         items: summaryItems,
       });
     }
 
-    const tagsByItem = new Map<string, Record<string, number>>();
-    const participantIdsByItem = new Map<string, Set<string>>();
-    const allParticipantIds = new Set<string>();
-
-    for (const entry of sessionResponses) {
-      const current = tagsByItem.get(entry.itemId) ?? {};
-      current[entry.value] = (current[entry.value] ?? 0) + 1;
-      tagsByItem.set(entry.itemId, current);
-
-      const itemParticipants = participantIdsByItem.get(entry.itemId) ?? new Set<string>();
-      itemParticipants.add(entry.participantId);
-      participantIdsByItem.set(entry.itemId, itemParticipants);
-
-      allParticipantIds.add(entry.participantId);
-    }
-
-    const summaryItems: KartleggingSummaryItem[] = sessionItems.map((item) => {
-      const tagCounts = tagsByItem.get(item.id) ?? {};
-      const taggedParticipants = participantIdsByItem.get(item.id)?.size ?? 0;
-      const totalParticipants = allParticipantIds.size;
-
+    const itemSummaries: KartleggingSummaryItem[] = allItems.map((item) => {
+      const itemResponses = allResponses.filter((r) => r.item_id === item.id);
+      const tagCounts: Record<string, number> = {};
+      for (const r of itemResponses) {
+        tagCounts[r.value] = (tagCounts[r.value] ?? 0) + 1;
+      }
+      const uniqueParticipants = new Set(allResponses.map((r) => r.participant_id)).size;
+      const taggedCount = new Set(itemResponses.map((r) => r.participant_id)).size;
       return {
         id: item.id,
         text: item.text,
         is_new: item.is_new,
         created_by: item.created_by,
-        excluded: item.excluded,
         tagCounts,
-        untaggedCount: Math.max(0, totalParticipants - taggedParticipants),
+        untaggedCount: uniqueParticipants - taggedCount,
       };
     });
 
+    const participantCount = new Set(allResponses.map((r) => r.participant_id)).size;
+
     return NextResponse.json({
-      phase: session.phase,
-      participantCount: Number(participantTotals?.participantCount ?? 0),
-      items: summaryItems,
+      participantCount,
+      items: itemSummaries,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
