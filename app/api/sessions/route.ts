@@ -2,12 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 
 import { getDb } from '@/db';
-import { items, sessionModes, sessions } from '@/db/schema';
+import { items, sessionModes, sessions, votingTypes } from '@/db/schema';
 import { generateCode } from '@/lib/generate-code';
 
 type CreateSessionBody = {
   title: string;
   mode: (typeof sessionModes)[number];
+  voting_type?: (typeof votingTypes)[number];
+  dot_budget?: number;
   items: string[];
   tags: string[];
   allow_new_items: boolean;
@@ -23,6 +25,9 @@ function isCreateSessionBody(body: unknown): body is CreateSessionBody {
   return (
     typeof candidate.title === 'string' &&
     sessionModes.includes(candidate.mode as (typeof sessionModes)[number]) &&
+    (typeof candidate.voting_type === 'undefined' ||
+      votingTypes.includes(candidate.voting_type as (typeof votingTypes)[number])) &&
+    (typeof candidate.dot_budget === 'undefined' || Number.isInteger(candidate.dot_budget)) &&
     Array.isArray(candidate.items) &&
     candidate.items.every((item) => typeof item === 'string') &&
     Array.isArray(candidate.tags) &&
@@ -64,6 +69,8 @@ export async function POST(request: NextRequest) {
 
     const code = await generateUniqueCode();
     const db = getDb();
+    const votingType = body.voting_type ?? 'scale';
+    const dotBudget = Math.max(3, Math.min(20, body.dot_budget ?? 5));
 
     const [createdSession] = await db
       .insert(sessions)
@@ -72,6 +79,8 @@ export async function POST(request: NextRequest) {
         title,
         mode: body.mode,
         phase: body.mode === 'stemming' ? 'stemming' : 'kartlegging',
+        votingType: body.mode === 'stemming' ? votingType : 'scale',
+        dotBudget: body.mode === 'stemming' && votingType === 'dots' ? dotBudget : 5,
         tags,
         allowNewItems: body.allow_new_items,
       })
@@ -80,6 +89,8 @@ export async function POST(request: NextRequest) {
         code: sessions.code,
         title: sessions.title,
         mode: sessions.mode,
+        votingType: sessions.votingType,
+        dotBudget: sessions.dotBudget,
         status: sessions.status,
         tags: sessions.tags,
       });

@@ -3,7 +3,7 @@
 import { FormEvent, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import type { SessionMode } from '@/db/schema';
+import type { SessionMode, VotingType } from '@/db/schema';
 
 type CreateSessionResponse =
   | {
@@ -27,6 +27,8 @@ export default function NewSessionPage() {
   const [items, setItems] = useState('');
   const [tags, setTags] = useState('');
   const [allowNewItems, setAllowNewItems] = useState(true);
+  const [votingType, setVotingType] = useState<VotingType>('scale');
+  const [dotBudget, setDotBudget] = useState(5);
   const [error, setError] = useState('');
   const [titleError, setTitleError] = useState('');
   const [itemsError, setItemsError] = useState('');
@@ -70,6 +72,8 @@ export default function NewSessionPage() {
         body: JSON.stringify({
           title: title.trim(),
           mode,
+          voting_type: mode === 'stemming' ? votingType : 'scale',
+          dot_budget: mode === 'stemming' && votingType === 'dots' ? dotBudget : 5,
           items: parsedItems,
           tags: parsedTags,
           allow_new_items: allowNewItems,
@@ -136,6 +140,63 @@ export default function NewSessionPage() {
               ))}
             </div>
           </fieldset>
+
+          {mode === 'stemming' ? (
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium text-slate-100">Stemmetype</legend>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+                  <input
+                    required
+                    type="radio"
+                    name="voting-type"
+                    value="scale"
+                    checked={votingType === 'scale'}
+                    onChange={() => setVotingType('scale')}
+                    className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
+                  />
+                  <span>Skala 1-5</span>
+                </label>
+                <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+                  <input
+                    required
+                    type="radio"
+                    name="voting-type"
+                    value="dots"
+                    checked={votingType === 'dots'}
+                    onChange={() => setVotingType('dots')}
+                    className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
+                  />
+                  <span>Dot voting</span>
+                </label>
+              </div>
+            </fieldset>
+          ) : null}
+
+          {mode === 'stemming' && votingType === 'dots' ? (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-100" htmlFor="dot-budget">
+                Antall prikker per deltaker
+              </label>
+              <input
+                id="dot-budget"
+                name="dot-budget"
+                type="number"
+                min={3}
+                max={20}
+                value={dotBudget}
+                onChange={(event) => {
+                  const value = Number(event.target.value);
+                  if (Number.isNaN(value)) {
+                    return;
+                  }
+
+                  setDotBudget(Math.max(3, Math.min(20, value)));
+                }}
+                className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
+              />
+            </div>
+          ) : null}
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-100" htmlFor="items">
