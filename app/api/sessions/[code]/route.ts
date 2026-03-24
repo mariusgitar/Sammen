@@ -44,6 +44,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
         code: sessions.code,
         title: sessions.title,
         mode: sessions.mode,
+        votingType: sessions.votingType,
+        dotBudget: sessions.dotBudget,
         phase: sessions.phase,
         status: sessions.status,
         tags: sessions.tags,
