@@ -150,7 +150,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
     );
   }
 
-  if (session.status === 'active' && session.phase === 'stemming') {
+  if (session.status === 'active' && (session.phase === 'stemming' || session.mode === 'stemming')) {
     return (
       <StemmingView
         items={items.filter((item) => !item.excluded).map((item) => ({ id: item.id, text: item.text }))}
