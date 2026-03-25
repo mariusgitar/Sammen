@@ -19,10 +19,6 @@ export function InnspillAdmin({ code, questions }: { code: string; questions: Qu
   const [rows, setRows] = useState<SummaryQuestion[]>([]);
   const [localQuestions, setLocalQuestions] = useState<Question[]>(questions);
 
-  useEffect(() => {
-    setLocalQuestions(questions);
-  }, [questions]);
-
   async function fetchSummary() {
     const response = await fetch(`/api/admin/${code}/innspill-summary`, { cache: 'no-store' });
     const data = (await response.json()) as { questions?: SummaryQuestion[] };
