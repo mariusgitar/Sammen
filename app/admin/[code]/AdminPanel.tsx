@@ -11,7 +11,7 @@ type SessionView = {
   title: string;
   code: string;
   mode: string;
-  phase: 'kartlegging' | 'stemming' | 'innspill';
+  phase: 'kartlegging' | 'stemming' | 'innspill' | 'rangering';
   status: 'setup' | 'active' | 'paused' | 'closed';
   resultsVisible: boolean;
 };
@@ -47,11 +47,22 @@ type StemmingSummaryItem = {
   distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
 };
 
+type RangeringSummaryItem = {
+  id: string;
+  text: string;
+  is_new: boolean;
+  created_by: string;
+  excluded: boolean;
+  average_position: number;
+  vote_count: number;
+  position_distribution: Record<string, number>;
+};
+
 type SummaryResponse = {
-  phase: 'kartlegging' | 'stemming' | 'innspill';
+  phase: 'kartlegging' | 'stemming' | 'innspill' | 'rangering';
   status: 'setup' | 'active' | 'paused' | 'closed';
   participantCount: number;
-  items: Array<KartleggingSummaryItem | StemmingSummaryItem>;
+  items: Array<KartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
 };
 
 type AdminPanelProps = {
@@ -375,6 +386,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     [summary.items],
   );
 
+  const rankingResults = useMemo(
+    () =>
+      summary.items
+        .filter((item): item is RangeringSummaryItem => 'average_position' in item)
+        .sort((a, b) => a.average_position - b.average_position),
+    [summary.items],
+  );
+
   const participantUrl = origin ? `${origin}/delta/${currentSession.code}` : '';
 
   return (
@@ -526,7 +545,30 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         {summaryError ? <p className="mt-2 text-xs text-amber-300">{summaryError}</p> : null}
         <p className="mt-3 text-slate-100">Antall deltakere som har sendt inn: {summary.participantCount}</p>
 
-        {sessionPhase === 'stemming' ? (
+        {currentSession.mode === 'rangering' && (sessionPhase === 'rangering' || sessionPhase === 'stemming') ? (
+          <div className="mt-4 space-y-3">
+            {rankingResults.map((item, index) => {
+              const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : String(index + 1);
+              const sortedDistribution = Object.entries(item.position_distribution).sort((a, b) => Number(a[0]) - Number(b[0]));
+
+              return (
+                <article key={item.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 text-sm text-slate-100">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl">{medal}</span>
+                    <p className="font-medium text-slate-50">{item.text}</p>
+                  </div>
+                  <p className="mt-2 text-slate-300">Snitt posisjon: {Number.isFinite(item.average_position) ? item.average_position.toFixed(1) : '–'}</p>
+                  <p className="text-slate-300">({item.vote_count} deltakere)</p>
+                  <p className="mt-1 text-slate-300">
+                    {sortedDistribution.length > 0
+                      ? sortedDistribution.map(([position, count]) => `${position}:${count}`).join('  ')
+                      : 'Ingen rangeringer ennå'}
+                  </p>
+                </article>
+              );
+            })}
+          </div>
+        ) : sessionPhase === 'stemming' ? (
           <div className="mt-4 space-y-3">
             {voteResults.map((item) => (
               <article key={item.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 text-sm text-slate-100">

@@ -34,6 +34,18 @@ type StemmingSummaryItem = {
   distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
 };
 
+
+type RangeringSummaryItem = {
+  id: string;
+  text: string;
+  is_new: boolean;
+  created_by: string;
+  excluded: boolean;
+  average_position: number;
+  vote_count: number;
+  position_distribution: Record<string, number>;
+};
+
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const db = getDb();
@@ -82,6 +94,46 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .where(eq(responses.sessionId, session.id));
 
     const participantCount = new Set(allResponses.map((response) => response.participant_id)).size;
+
+    if (session.mode === 'rangering') {
+      const summaryItems: RangeringSummaryItem[] = allItems
+        .map((item) => {
+          const votes = allResponses
+            .filter((response) => response.item_id === item.id)
+            .map((response) => Number(response.value))
+            .filter((value) => Number.isInteger(value) && value > 0);
+
+          const voteCount = votes.length;
+          const averagePosition = voteCount > 0 ? votes.reduce((sum, value) => sum + value, 0) / voteCount : Number.POSITIVE_INFINITY;
+          const positionDistribution: Record<string, number> = {};
+
+          for (const vote of votes) {
+            const key = String(vote);
+            positionDistribution[key] = (positionDistribution[key] ?? 0) + 1;
+          }
+
+          return {
+            id: item.id,
+            text: item.text,
+            is_new: item.is_new,
+            created_by: item.created_by,
+            excluded: item.excluded,
+            average_position: averagePosition,
+            vote_count: voteCount,
+            position_distribution: positionDistribution,
+          };
+        })
+        .sort((a, b) => a.average_position - b.average_position);
+
+      return NextResponse.json({
+        phase: session.phase,
+        status: session.status,
+        mode: session.mode,
+        votingType: session.votingType,
+        participantCount,
+        items: summaryItems,
+      });
+    }
 
     if (session.phase === 'stemming') {
       const votesByItem = new Map<string, number[]>();

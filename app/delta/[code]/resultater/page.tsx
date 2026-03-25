@@ -12,8 +12,8 @@ type SessionInfoResponse = {
   session: {
     code: string;
     title: string;
-    mode: 'kartlegging' | 'stemming';
-    phase: 'kartlegging' | 'stemming';
+    mode: 'kartlegging' | 'stemming' | 'rangering';
+    phase: 'kartlegging' | 'stemming' | 'rangering';
     votingType: 'scale' | 'dots';
     resultsVisible: boolean;
   };
@@ -38,12 +38,22 @@ type StemmingSummaryItem = {
   distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
 };
 
+type RangeringSummaryItem = {
+  id: string;
+  text: string;
+  is_new: boolean;
+  excluded: boolean;
+  average_position: number;
+  vote_count: number;
+  position_distribution: Record<string, number>;
+};
+
 type ResultsResponse = {
-  mode: 'kartlegging' | 'stemming';
-  phase: 'kartlegging' | 'stemming';
+  mode: 'kartlegging' | 'stemming' | 'rangering';
+  phase: 'kartlegging' | 'stemming' | 'rangering';
   votingType: 'scale' | 'dots';
   participantCount: number;
-  items: Array<KartleggingSummaryItem | StemmingSummaryItem>;
+  items: Array<KartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
 };
 
 function hasSplitVotes(item: KartleggingSummaryItem, participantCount: number) {
@@ -177,6 +187,11 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     }))
     .sort((a, b) => b.totalDots - a.totalDots);
 
+  const rankingItems = results.items
+    .filter((item): item is RangeringSummaryItem => 'average_position' in item)
+    .filter((item) => !item.excluded)
+    .sort((a, b) => a.average_position - b.average_position);
+
   const scaleItems = results.items
     .filter((item): item is StemmingSummaryItem => 'averageScore' in item)
     .filter((item) => !item.excluded)
@@ -187,7 +202,21 @@ export default function ParticipantResultsPage({ params }: PageProps) {
       <div className="mx-auto max-w-4xl space-y-4">
         <h1 className="text-center text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
 
-        {results.phase === 'kartlegging' ? (
+        {results.mode === 'rangering' ? (
+          <>
+            <h2 className="text-xl font-semibold text-slate-900">Rangering-resultater</h2>
+            <div className="space-y-3">
+              {rankingItems.map((item, index) => (
+                <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <p className="text-xs text-slate-500">#{index + 1}</p>
+                  <p className="font-medium text-slate-900">{item.text}</p>
+                  <p className="mt-1 text-sm text-slate-700">Snitt posisjon: {item.average_position.toFixed(1)}</p>
+                  <p className="text-xs text-slate-500">{item.vote_count} deltakere</p>
+                </article>
+              ))}
+            </div>
+          </>
+        ) : results.phase === 'kartlegging' ? (
           <>
             <h2 className="text-xl font-semibold text-slate-900">Kartlegging-resultater</h2>
             <div className="space-y-3">
