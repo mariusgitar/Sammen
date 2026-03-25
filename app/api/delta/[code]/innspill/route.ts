@@ -37,20 +37,20 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
     const result = questions
       .map((q) => ({
-      id: q.id,
-      text: q.text,
-      question_status: q.question_status,
-      innspill: allInnspill
-        .filter((i) => i.question_id === q.id)
-        .map((i) => ({
-          id: i.id,
-          text: i.text,
-          nickname: i.nickname,
-          likes: i.likes,
-          participant_id: i.participant_id,
-          created_at: i.created_at,
-        }))
-        .sort((a, b) => b.likes - a.likes),
+        id: q.id,
+        text: q.text,
+        question_status: q.question_status,
+        innspill: allInnspill
+          .filter((i) => i.question_id === q.id)
+          .map((i) => ({
+            id: i.id,
+            text: i.text,
+            nickname: i.nickname,
+            likes: i.likes,
+            participant_id: i.participant_id,
+            created_at: i.created_at,
+          }))
+          .sort((a, b) => b.likes - a.likes),
       }))
       .filter((question) => question.question_status === 'active' || question.innspill.length > 0);
 
@@ -64,14 +64,11 @@ export async function GET(_request: Request, { params }: RouteContext) {
         },
       },
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error('GET /api/delta/[code]/innspill error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      {
-        ok: false,
-        error: error.message,
-        stack: error.stack,
-      },
+      { ok: false, error: errorMessage },
       { status: 500 },
     );
   }

@@ -23,6 +23,11 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+    console.error('DELETE /api/innspill/[id] error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      { ok: false, error: errorMessage },
+      { status: 500 },
+    );
   }
 }

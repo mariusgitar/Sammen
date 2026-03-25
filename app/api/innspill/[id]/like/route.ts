@@ -32,6 +32,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const [row] = await db.select({ likes: innspill.likes }).from(innspill).where(eq(innspill.id, params.id)).limit(1);
     return NextResponse.json({ likes: row?.likes ?? 0, liked });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+    console.error('POST /api/innspill/[id]/like error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      { ok: false, error: errorMessage },
+      { status: 500 },
+    );
   }
 }

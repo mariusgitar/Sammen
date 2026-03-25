@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 type Question = {
   id: string;
@@ -25,10 +25,15 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
   const [myInnspill, setMyInnspill] = useState<Record<string, Array<{ id: string; text: string; likes: number; likedByMe: boolean }>>>({});
   const [allInnspill, setAllInnspill] = useState<Record<string, Array<{ id: string; text: string; nickname: string; likes: number; likedByMe: boolean }>>>({});
   const [showOthers, setShowOthers] = useState(false);
+  const initialized = useRef(false);
   const participantStorageKey = 'samen_participant_id';
   const nicknameStorageKey = `samen_nickname_${session.code}`;
 
   useEffect(() => {
+    if (initialized.current) {
+      return;
+    }
+
     const storedId = localStorage.getItem(participantStorageKey);
     const storedNick = localStorage.getItem(nicknameStorageKey);
 
@@ -44,7 +49,9 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
       setNickname(storedNick);
       setHasJoined(true);
     }
-  }, [nicknameStorageKey]);
+
+    initialized.current = true;
+  }, [nicknameStorageKey, participantStorageKey]);
 
   async function fetchInnspill() {
     const response = await fetch(`/api/delta/${session.code}/innspill`, { cache: 'no-store' });

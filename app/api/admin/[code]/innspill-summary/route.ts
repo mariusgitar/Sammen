@@ -62,6 +62,11 @@ export async function GET(_request: Request, { params }: { params: { code: strin
       },
     );
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+    console.error('GET /api/admin/[code]/innspill-summary error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json(
+      { ok: false, error: errorMessage },
+      { status: 500 },
+    );
   }
 }

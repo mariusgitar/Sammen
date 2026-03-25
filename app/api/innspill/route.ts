@@ -66,14 +66,11 @@ export async function POST(request: Request) {
       .returning({ id: innspill.id, text: innspill.text, likes: innspill.likes });
 
     return NextResponse.json({ innspill: created }, { status: 201 });
-  } catch (error: any) {
+  } catch (error) {
     console.error('POST /api/innspill error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      {
-        ok: false,
-        error: error.message,
-        stack: error.stack,
-      },
+      { ok: false, error: errorMessage },
       { status: 500 },
     );
   }
