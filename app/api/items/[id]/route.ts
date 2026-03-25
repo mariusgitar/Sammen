@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { getDb } from '@/db';
-import { items } from '@/db/schema';
+import { items, questionStatuses } from '@/db/schema';
 
 type RouteContext = {
   params: {
@@ -13,6 +13,7 @@ type RouteContext = {
 type RequestBody = {
   is_new?: boolean;
   excluded?: boolean;
+  question_status?: (typeof questionStatuses)[number];
 };
 
 function isValidBody(candidate: unknown): candidate is RequestBody {
@@ -30,7 +31,11 @@ function isValidBody(candidate: unknown): candidate is RequestBody {
     return false;
   }
 
-  return typeof body.is_new !== 'undefined' || typeof body.excluded !== 'undefined';
+  if (typeof body.question_status !== 'undefined' && !questionStatuses.includes(body.question_status)) {
+    return false;
+  }
+
+  return typeof body.is_new !== 'undefined' || typeof body.excluded !== 'undefined' || typeof body.question_status !== 'undefined';
 }
 
 export async function PATCH(request: Request, { params }: RouteContext) {
@@ -48,6 +53,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       .set({
         ...(typeof body.is_new === 'boolean' ? { isNew: body.is_new } : {}),
         ...(typeof body.excluded === 'boolean' ? { excluded: body.excluded } : {}),
+        ...(typeof body.question_status === 'string' ? { questionStatus: body.question_status } : {}),
       })
       .where(eq(items.id, params.id))
       .returning({
@@ -55,6 +61,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         text: items.text,
         is_new: items.isNew,
         excluded: items.excluded,
+        question_status: items.questionStatus,
         created_by: items.createdBy,
       });
 
