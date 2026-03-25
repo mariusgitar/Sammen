@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,7 +25,8 @@ export default function LoginPage() {
       });
 
       if (response.ok) {
-        window.location.assign('/');
+        const data = (await response.json()) as { ok: boolean; redirect?: string };
+        router.push(data.redirect ?? '/admin/oversikt');
         return;
       }
 

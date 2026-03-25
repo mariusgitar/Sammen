@@ -21,7 +21,7 @@ export async function POST(request: Request) {
   }
 
   const cookieHash = await getSha256Hex(password);
-  const response = NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true, redirect: '/admin/oversikt' });
 
   response.cookies.set({
     name: ADMIN_COOKIE_NAME,
