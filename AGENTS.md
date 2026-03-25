@@ -98,6 +98,7 @@ API routes:
   GET /api/admin/[code]/summary
   GET /api/admin/[code]/innspill-summary
   GET /api/delta/[code]/innspill
+  POST /api/sessions/[code]/start-stemming
   GET /api/delta/[code]/results
   POST /api/auth/login
   POST /api/auth/logout

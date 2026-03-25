@@ -65,6 +65,13 @@ type SummaryResponse = {
   items: Array<KartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
 };
 
+type InnspillQuestion = {
+  id: string;
+  text: string;
+  question_status: 'inactive' | 'active' | 'locked';
+  innspill: Array<{ id: string; text: string; nickname: string; likes: number }>;
+};
+
 type AdminPanelProps = {
   session: SessionView;
   items: SessionItem[];
@@ -125,12 +132,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   );
   const [error, setError] = useState('');
   const [summaryError, setSummaryError] = useState('');
-  const [origin, setOrigin] = useState('');
   const [copyConfirmed, setCopyConfirmed] = useState(false);
-
-  useEffect(() => {
-    setOrigin(window.location.origin);
-  }, []);
+  const [urlCopied, setUrlCopied] = useState(false);
+  const [dotBudget, setDotBudget] = useState(5);
+  const [allowMultipleDots, setAllowMultipleDots] = useState(true);
+  const [showKartleggingDotOptions, setShowKartleggingDotOptions] = useState(false);
+  const [innspillQuestions, setInnspillQuestions] = useState<InnspillQuestion[]>([]);
+  const [selectedInnspill, setSelectedInnspill] = useState<Record<string, boolean>>({});
+  const [showInnspillDotOptions, setShowInnspillDotOptions] = useState(false);
 
   async function fetchSummary() {
     try {
@@ -169,11 +178,49 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     }
   }
 
+  async function fetchInnspillSummary() {
+    if (currentSession.mode !== 'aapne-innspill') {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/${currentSession.code}/innspill-summary`, {
+        cache: 'no-store',
+      });
+      const data = (await response.json()) as { questions?: InnspillQuestion[]; error?: string };
+
+      const questions = data.questions ?? [];
+
+      if (!response.ok || questions.length === 0) {
+        return;
+      }
+
+      setInnspillQuestions(questions);
+      setSelectedInnspill((current) => {
+        const next = { ...current };
+
+        for (const question of questions) {
+          for (const entry of question.innspill) {
+            if (typeof next[entry.id] === 'undefined') {
+              next[entry.id] = entry.likes > 0;
+            }
+          }
+        }
+
+        return next;
+      });
+    } catch {
+      // noop
+    }
+  }
+
   useEffect(() => {
     void fetchSummary();
+    void fetchInnspillSummary();
 
     const timer = setInterval(() => {
       void fetchSummary();
+      void fetchInnspillSummary();
     }, 10_000);
 
     return () => clearInterval(timer);
@@ -273,6 +320,18 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     }
   }
 
+  async function handleCopyParticipantUrl(participantUrl: string) {
+    try {
+      await navigator.clipboard.writeText(participantUrl);
+      setUrlCopied(true);
+      setTimeout(() => {
+        setUrlCopied(false);
+      }, 2_000);
+    } catch {
+      setError('Kunne ikke kopiere deltakerlenken.');
+    }
+  }
+
   async function promoteItem(itemId: string) {
     setError('');
 
@@ -299,46 +358,55 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     }
   }
 
-  async function openVoting() {
+  async function startStemming(votingType: 'scale' | 'dots', payloadItems?: Array<{ text: string; created_by: string }>) {
     setIsOpeningVoting(true);
     setError('');
 
     try {
-      const excludedIds = Object.entries(includeMap)
-        .filter(([, included]) => !included)
-        .map(([itemId]) => itemId);
+      if (sessionPhase === 'kartlegging') {
+        const excludedIds = Object.entries(includeMap)
+          .filter(([, included]) => !included)
+          .map(([itemId]) => itemId);
 
-      await Promise.all(
-        excludedIds.map(async (itemId) => {
-          const response = await fetch(`/api/items/${itemId}`, {
-            method: 'PATCH',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ excluded: true }),
-          });
+        await Promise.all(
+          excludedIds.map(async (itemId) => {
+            const response = await fetch(`/api/items/${itemId}`, {
+              method: 'PATCH',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ excluded: true }),
+            });
 
-          const data = (await response.json()) as { item: { id: string } } | { error: string };
+            const data = (await response.json()) as { item: { id: string } } | { error: string };
 
-          if (!response.ok || !('item' in data)) {
-            throw new Error('error' in data ? data.error : 'Kunne ikke oppdatere element.');
-          }
-        }),
-      );
+            if (!response.ok || !('item' in data)) {
+              throw new Error('error' in data ? data.error : 'Kunne ikke oppdatere element.');
+            }
+          }),
+        );
+      }
 
-      const sessionResponse = await fetch(`/api/sessions/${currentSession.code}`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/sessions/${currentSession.code}/start-stemming`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ status: 'active', phase: 'stemming' }),
+        body: JSON.stringify({
+          voting_type: votingType,
+          dot_budget: votingType === 'dots' ? dotBudget : undefined,
+          allow_multiple_dots: votingType === 'dots' ? allowMultipleDots : undefined,
+          items: payloadItems,
+        }),
       });
 
-      const data = (await sessionResponse.json()) as
-        | { session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible'> }
+      const data = (await response.json()) as
+        | {
+            session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible' | 'mode'>;
+          }
         | { error: string };
 
-      if (!sessionResponse.ok || !('session' in data)) {
+      if (!response.ok || !('session' in data)) {
         setError('error' in data ? data.error : 'Kunne ikke åpne for stemming.');
         return;
       }
@@ -347,16 +415,20 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       setSessionPhase(data.session.phase);
       setCurrentSession((current) => ({
         ...current,
+        mode: data.session.mode,
         status: data.session.status,
         phase: data.session.phase,
         resultsVisible: data.session.resultsVisible,
       }));
       setResultsVisible(data.session.resultsVisible);
       await fetchSummary();
+      await fetchInnspillSummary();
     } catch (openError) {
       setError(openError instanceof Error ? openError.message : 'Kunne ikke åpne for stemming.');
     } finally {
       setIsOpeningVoting(false);
+      setShowKartleggingDotOptions(false);
+      setShowInnspillDotOptions(false);
     }
   }
 
@@ -394,7 +466,17 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     [summary.items],
   );
 
-  const participantUrl = origin ? `${origin}/delta/${currentSession.code}` : '';
+  const participantUrl = typeof window !== 'undefined' ? `${window.location.origin}/delta/${currentSession.code}` : `/delta/${currentSession.code}`;
+
+  const selectedInnspillEntries = useMemo(
+    () =>
+      innspillQuestions.flatMap((question) =>
+        question.innspill
+          .filter((entry) => selectedInnspill[entry.id])
+          .map((entry) => ({ text: entry.text, created_by: entry.nickname })),
+      ),
+    [innspillQuestions, selectedInnspill],
+  );
 
   return (
     <div className="space-y-6">
@@ -430,7 +512,13 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               <div className="rounded-lg bg-white p-2">
                 <QRCode value={participantUrl} size={180} bgColor="#ffffff" fgColor="#000000" />
               </div>
-              <p className="text-xs text-slate-400">samen-alene.vercel.app/delta/{currentSession.code}</p>
+              <button
+                type="button"
+                onClick={() => void handleCopyParticipantUrl(participantUrl)}
+                className="mt-2 text-left text-xs text-white/40 transition-colors hover:text-white/70"
+              >
+                {urlCopied ? 'Kopiert! ✓' : participantUrl}
+              </button>
             </div>
           ) : null}
         </div>
@@ -465,6 +553,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
             <>
               <button
                 type="button"
+                onClick={() => updateSessionStatus('active')}
+                disabled={isUpdatingStatus}
+                className="rounded bg-emerald-200 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-70"
+              >
+                Åpne kartlegging igjen
+              </button>
+              <button
+                type="button"
                 onClick={() => updateSessionStatus('closed')}
                 disabled={isUpdatingStatus}
                 className="rounded bg-rose-200 px-4 py-2 text-sm font-medium text-rose-950 transition hover:bg-rose-100 disabled:opacity-70"
@@ -477,6 +573,26 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               >
                 Se resultater →
               </Link>
+            </>
+          ) : null}
+
+          {sessionStatus === 'closed' ? (
+            <>
+              <button
+                type="button"
+                onClick={() => updateSessionStatus('active')}
+                disabled={isUpdatingStatus}
+                className="rounded bg-emerald-200 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-70"
+              >
+                Åpne igjen
+              </button>
+              <Link
+                href={`/admin/${currentSession.code}/results`}
+                className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
+              >
+                Se resultater →
+              </Link>
+              <p className="w-full text-xs text-amber-300">Sesjonen er avsluttet. Du kan åpne den igjen hvis nødvendig.</p>
             </>
           ) : null}
 
@@ -523,14 +639,55 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
             ))}
           </div>
 
-          <button
-            type="button"
-            onClick={openVoting}
-            disabled={isOpeningVoting}
-            className="mt-6 rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white disabled:opacity-70"
-          >
-            Åpne for stemming
-          </button>
+          <div className="mt-6 flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => void startStemming('scale')}
+              disabled={isOpeningVoting}
+              className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white disabled:opacity-70"
+            >
+              Åpne for stemming (skala 1-5)
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowKartleggingDotOptions((current) => !current)}
+              disabled={isOpeningVoting}
+              className="rounded border border-slate-600 px-4 py-2 text-left text-sm font-medium text-slate-100 transition hover:border-slate-400 disabled:opacity-70"
+            >
+              Åpne for stemming (dot voting)
+            </button>
+            {showKartleggingDotOptions ? (
+              <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-4 space-y-3">
+                <label className="block text-sm text-slate-200">
+                  Dot-budget per deltaker
+                  <input
+                    type="number"
+                    min={1}
+                    value={dotBudget}
+                    onChange={(event) => setDotBudget(Math.max(1, Number(event.target.value) || 1))}
+                    className="mt-1 block w-28 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-slate-100"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={allowMultipleDots}
+                    onChange={(event) => setAllowMultipleDots(event.target.checked)}
+                    className="h-4 w-4 rounded border-slate-500 bg-slate-900"
+                  />
+                  Tillat flere dots på samme element
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void startStemming('dots')}
+                  disabled={isOpeningVoting}
+                  className="rounded bg-emerald-200 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-70"
+                >
+                  Start dot voting
+                </button>
+              </div>
+            ) : null}
+          </div>
         </section>
       ) : null}
 
@@ -545,6 +702,92 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               questionStatus: item.questionStatus ?? 'inactive',
             }))}
         />
+      ) : null}
+
+      {currentSession.mode === 'aapne-innspill' && sessionStatus === 'paused' ? (
+        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Gå videre til stemming</h2>
+          <p className="mt-3 text-sm text-slate-300">
+            Velg hvilke innspill som skal tas med til stemming. Deltakerne stemmer deretter på de utvalgte innspillene.
+          </p>
+
+          <div className="mt-4 space-y-4">
+            {innspillQuestions.map((question) => (
+              <article key={question.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">
+                <h3 className="text-sm font-semibold text-slate-100">{question.text}</h3>
+                <div className="mt-3 space-y-2">
+                  {question.innspill.map((entry) => (
+                    <label key={entry.id} className="flex items-start gap-3 text-sm text-slate-200">
+                      <input
+                        type="checkbox"
+                        checked={selectedInnspill[entry.id] ?? false}
+                        onChange={(event) => {
+                          const checked = event.target.checked;
+                          setSelectedInnspill((current) => ({ ...current, [entry.id]: checked }));
+                        }}
+                        className="mt-0.5 h-4 w-4 rounded border-slate-500 bg-slate-900"
+                      />
+                      <span>
+                        {entry.text} <span className="text-xs text-slate-400">({entry.nickname} · {entry.likes} likes)</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="mt-6 flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={() => void startStemming('scale', selectedInnspillEntries)}
+              disabled={isOpeningVoting || selectedInnspillEntries.length === 0}
+              className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white disabled:opacity-70"
+            >
+              Åpne for stemming (skala 1-5)
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowInnspillDotOptions((current) => !current)}
+              disabled={isOpeningVoting || selectedInnspillEntries.length === 0}
+              className="rounded border border-slate-600 px-4 py-2 text-left text-sm font-medium text-slate-100 transition hover:border-slate-400 disabled:opacity-70"
+            >
+              Åpne for stemming (dot voting)
+            </button>
+            {showInnspillDotOptions ? (
+              <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-4 space-y-3">
+                <label className="block text-sm text-slate-200">
+                  Dot-budget per deltaker
+                  <input
+                    type="number"
+                    min={1}
+                    value={dotBudget}
+                    onChange={(event) => setDotBudget(Math.max(1, Number(event.target.value) || 1))}
+                    className="mt-1 block w-28 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-slate-100"
+                  />
+                </label>
+                <label className="flex items-center gap-2 text-sm text-slate-200">
+                  <input
+                    type="checkbox"
+                    checked={allowMultipleDots}
+                    onChange={(event) => setAllowMultipleDots(event.target.checked)}
+                    className="h-4 w-4 rounded border-slate-500 bg-slate-900"
+                  />
+                  Tillat flere dots på samme element
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void startStemming('dots', selectedInnspillEntries)}
+                  disabled={isOpeningVoting || selectedInnspillEntries.length === 0}
+                  className="rounded bg-emerald-200 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-70"
+                >
+                  Start dot voting
+                </button>
+              </div>
+            ) : null}
+          </div>
+          {selectedInnspillEntries.length === 0 ? <p className="mt-3 text-xs text-amber-300">Velg minst ett innspill for å starte stemming.</p> : null}
+        </section>
       ) : null}
 
       {currentSession.mode !== 'aapne-innspill' ? (
