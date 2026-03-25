@@ -72,7 +72,17 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
     }
 
     setMyInnspill(mine);
-    setAllInnspill(others);
+    setAllInnspill((prev) => {
+      const merged = { ...prev };
+      data.questions?.forEach((q) => {
+        if (others[q.id] && others[q.id].length > 0) {
+          merged[q.id] = others[q.id];
+        } else if (!merged[q.id]) {
+          merged[q.id] = [];
+        }
+      });
+      return merged;
+    });
   }
 
   useEffect(() => {
@@ -115,8 +125,6 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
         }),
       });
       const responseBody = (await response.json()) as { innspill?: { id: string; text: string; likes: number } };
-      // eslint-disable-next-line no-console
-      console.log('POST /api/innspill response', { status: response.status, body: responseBody });
 
       if (!response.ok) {
         return;
