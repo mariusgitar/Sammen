@@ -1,10 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 export function Nav() {
   const router = useRouter();
+  const pathname = usePathname();
+
+  if (pathname?.startsWith('/vis/')) {
+    return null;
+  }
 
   async function handleLogout() {
     await fetch('/api/auth/logout', {
