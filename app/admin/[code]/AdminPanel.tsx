@@ -404,6 +404,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         <p className="mt-2 text-slate-300">Modus: {currentSession.mode}</p>
         <p className="text-slate-300">Status: {sessionStatus}</p>
         <p className="text-slate-300">Fase: {sessionPhase}</p>
+        <Link
+          href={`/vis/${currentSession.code}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-block text-sm text-white/50 transition hover:text-white/70"
+        >
+          Åpne presentasjonsmodus →
+        </Link>
         <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950 p-4">
           <p className="text-sm text-slate-400">Sesjonskode</p>
           <button

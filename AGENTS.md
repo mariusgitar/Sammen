@@ -81,6 +81,7 @@ Rangering:
 /logg-inn — admin login
 /admin/[code] — facilitator panel
 /admin/[code]/results — results page
+/vis/[code] — fullscreen presentation mode (polls 3s)
 /delta — participant code entry
 /delta/[code] — participant view (polls 5s)
 /delta/[code]/resultater — participant results (polls 5s)
