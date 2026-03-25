@@ -88,7 +88,11 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
     return () => clearInterval(timer);
   }, [hasJoined, participantId]);
 
-  const activeQuestions = useMemo(() => items.filter((item) => item.questionStatus === 'active'), [items]);
+  const visibleQuestions = useMemo(
+    () =>
+      items.filter((item) => item.questionStatus === 'active' || (myInnspill[item.id] ?? []).length > 0 || (allInnspill[item.id] ?? []).length > 0),
+    [allInnspill, items, myInnspill],
+  );
 
   async function submit(questionId: string) {
     const text = (inputText[questionId] ?? '').trim();
@@ -193,26 +197,32 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
       <div className="mx-auto w-full max-w-3xl space-y-6">
         <h1 className="text-2xl font-semibold">{session.title}</h1>
 
-        {activeQuestions.length === 0 ? <p className="rounded-xl border border-slate-800 bg-slate-900 p-4">Vent på at fasilitator åpner neste spørsmål...</p> : null}
+        {visibleQuestions.length === 0 ? <p className="rounded-xl border border-slate-800 bg-slate-900 p-4">Vent på at fasilitator åpner neste spørsmål...</p> : null}
 
-        {activeQuestions.map((question) => (
+        {visibleQuestions.map((question) => (
           <section key={question.id} className="rounded-xl border border-slate-800 bg-slate-900 p-4">
             <h2 className="text-xl font-semibold">{question.text}</h2>
-            <textarea
-              value={inputText[question.id] ?? ''}
-              onChange={(event) => setInputText((current) => ({ ...current, [question.id]: event.target.value }))}
-              placeholder="Skriv ditt innspill..."
-              className="mt-3 w-full rounded border border-slate-700 bg-slate-950 p-2"
-              rows={3}
-            />
-            <button
-              type="button"
-              onClick={() => submit(question.id)}
-              disabled={submitting[question.id]}
-              className="mt-2 rounded bg-white px-3 py-1.5 text-sm font-medium text-slate-950"
-            >
-              {submitting[question.id] ? 'Lagrer...' : 'Legg til'}
-            </button>
+            {question.questionStatus === 'active' ? (
+              <>
+                <textarea
+                  value={inputText[question.id] ?? ''}
+                  onChange={(event) => setInputText((current) => ({ ...current, [question.id]: event.target.value }))}
+                  placeholder="Skriv ditt innspill..."
+                  className="mt-3 w-full rounded border border-slate-700 bg-slate-950 p-2"
+                  rows={3}
+                />
+                <button
+                  type="button"
+                  onClick={() => submit(question.id)}
+                  disabled={submitting[question.id]}
+                  className="mt-2 rounded bg-white px-3 py-1.5 text-sm font-medium text-slate-950"
+                >
+                  {submitting[question.id] ? 'Lagrer...' : 'Legg til'}
+                </button>
+              </>
+            ) : (
+              <p className="mt-3 text-sm text-slate-400">Dette spørsmålet er lukket for nye innspill.</p>
+            )}
 
             <div className="mt-5">
               <p className="text-sm font-medium text-slate-300">Dine innspill:</p>
