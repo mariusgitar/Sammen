@@ -5,6 +5,8 @@ import { getDb } from '@/db';
 import { innspill, items, sessions } from '@/db/schema';
 
 type RouteContext = { params: { code: string } };
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
@@ -52,7 +54,16 @@ export async function GET(_request: Request, { params }: RouteContext) {
       }))
       .filter((question) => question.question_status === 'active' || question.innspill.length > 0);
 
-    return NextResponse.json({ questions: result });
+    return NextResponse.json(
+      { questions: result },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      },
+    );
   } catch (error: any) {
     console.error('GET /api/delta/[code]/innspill error:', error);
     return NextResponse.json(

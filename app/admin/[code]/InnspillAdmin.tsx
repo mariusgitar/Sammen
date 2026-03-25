@@ -26,6 +26,9 @@ export function InnspillAdmin({ code, questions }: { code: string; questions: Qu
     const response = await fetch(`/api/admin/${code}/innspill-summary`, { cache: 'no-store' });
     const data = (await response.json()) as { questions?: SummaryQuestion[] };
     if (response.ok && data.questions) {
+      if (data.questions.length === 0) {
+        return;
+      }
       setRows(data.questions);
       setLocalQuestions((prev) => prev.map((q) => {
         const updated = data.questions!.find((sq) => sq.id === q.id);
