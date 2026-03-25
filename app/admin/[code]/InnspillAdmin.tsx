@@ -17,6 +17,15 @@ type SummaryQuestion = {
 
 type LocalQuestion = Question & { innspill_count: number };
 
+const columnColors = [
+  'border-t-indigo-500',
+  'border-t-violet-500',
+  'border-t-sky-500',
+  'border-t-emerald-500',
+  'border-t-amber-500',
+  'border-t-rose-500',
+];
+
 export function InnspillAdmin({ code, questions }: { code: string; questions: Question[] }) {
   const [rows, setRows] = useState<SummaryQuestion[]>([]);
   const [localQuestions, setLocalQuestions] = useState<LocalQuestion[]>([]);
@@ -44,7 +53,7 @@ export function InnspillAdmin({ code, questions }: { code: string; questions: Qu
       setLocalQuestions(questions.map((q) => ({ ...q, innspill_count: 0 })));
       initialized.current = true;
     }
-  }, []);
+  }, [questions]);
 
   useEffect(() => {
     void fetchSummary();
@@ -81,6 +90,8 @@ export function InnspillAdmin({ code, questions }: { code: string; questions: Qu
     await fetchSummary();
   }
 
+  const liveQuestions = merged.filter((question) => question.question_status !== 'inactive');
+
   return (
     <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20 space-y-6">
       <div>
@@ -105,20 +116,37 @@ export function InnspillAdmin({ code, questions }: { code: string; questions: Qu
 
       <div>
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Live innspill</h2>
-        <div className="mt-3 space-y-4">
-          {merged.filter((question) => question.question_status !== 'inactive').map((question) => (
-            <article key={question.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">
-              <h3 className="font-semibold text-slate-100">{question.text}</h3>
-              <div className="mt-3 space-y-2">
-                {question.innspill.map((entry, index) => (
-                  <div key={entry.id} className={`rounded border p-3 text-sm ${index < 3 ? 'border-emerald-700/40 bg-emerald-950/20' : 'border-slate-700'}`}>
-                    <p className="text-slate-100">{entry.text}</p>
-                    <p className="mt-1 text-xs text-slate-400">{entry.nickname} · {entry.likes} likes</p>
-                  </div>
-                ))}
-              </div>
-            </article>
-          ))}
+        <div
+          className={`mt-3 grid grid-cols-1 items-start gap-4 overflow-x-auto md:grid-cols-2 lg:grid-cols-3 ${
+            liveQuestions.length > 3 ? 'xl:grid-flow-col xl:auto-cols-[320px] xl:grid-cols-none' : ''
+          }`}
+        >
+          {liveQuestions.map((question, index) => {
+            const sortedInnspill = [...question.innspill].sort((a, b) => b.likes - a.likes);
+
+            return (
+              <article
+                key={question.id}
+                className={`min-h-[300px] rounded-2xl border border-slate-700 border-t-2 bg-slate-950/70 p-4 ${columnColors[index % columnColors.length]}`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="font-semibold text-slate-100">{question.text}</h3>
+                  <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300">
+                    {question.question_status === 'active' ? 'Aktiv' : 'Låst'}
+                  </span>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {sortedInnspill.map((entry, entryIndex) => (
+                    <div key={entry.id} className={`rounded border p-3 text-sm ${entryIndex < 3 ? 'border-emerald-700/40 bg-emerald-950/20' : 'border-slate-700'}`}>
+                      <p className="text-slate-100">{entry.text}</p>
+                      <p className="mt-1 text-xs text-slate-400">{entry.nickname} · {entry.likes} likes</p>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            );
+          })}
         </div>
       </div>
     </section>
