@@ -31,7 +31,15 @@ export async function GET(_request: Request, { params }: RouteContext) {
     }
 
     return NextResponse.json({ questions: payload });
-  } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+  } catch (error: any) {
+    console.error('GET /api/delta/[code]/innspill error:', error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: error.message,
+        stack: error.stack,
+      },
+      { status: 500 },
+    );
   }
 }
