@@ -26,7 +26,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
     .limit(1);
 
   if (!session) {
-    return <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6"><div className="mx-auto w-full max-w-4xl rounded-xl border border-slate-200 bg-white p-6"><h1 className="text-2xl font-semibold">Sesjon ikke funnet</h1><p className="mt-2 text-sm text-slate-600">Kontroller koden og prøv igjen.</p><Link href="/" className="mt-4 inline-flex text-sm font-medium text-slate-700 underline">Tilbake til oversikt</Link></div></main>;
+    return <main className="min-h-screen bg-slate-50 px-4 py-10 text-slate-900 sm:px-6"><div className="mx-auto w-full max-w-4xl rounded-xl border border-slate-200 bg-white p-6"><h1 className="text-2xl font-semibold">Sesjon ikke funnet</h1><p className="mt-2 text-sm text-slate-600">Kontroller koden og prøv igjen.</p><Link href="/admin/oversikt" className="mt-4 inline-flex text-sm font-medium text-slate-700 underline">Tilbake til oversikt</Link></div></main>;
   }
 
   const allItems = await db.select({ id: items.id, text: items.text, isNew: items.isNew, createdBy: items.createdBy, excluded: items.excluded, orderIndex: items.orderIndex, isQuestion: items.isQuestion, createdAt: items.createdAt }).from(items).where(eq(items.sessionId, session.id)).orderBy(asc(items.orderIndex), asc(items.createdAt));

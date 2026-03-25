@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const ADMIN_COOKIE_NAME = 'admin_session';
-const PROTECTED_PREFIXES = ['/admin', '/ny'];
+const PROTECTED_PREFIXES = ['/admin', '/admin/oversikt', '/ny'];
 
 async function getSha256Hex(value: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -24,10 +24,6 @@ async function isValidCookie(cookieValue: string): Promise<boolean> {
 }
 
 function isProtectedPath(pathname: string): boolean {
-  if (pathname === '/') {
-    return true;
-  }
-
   return PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
@@ -49,5 +45,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/ny/:path*', '/admin/:path*', '/vis/:path*'],
+  matcher: ['/ny/:path*', '/admin/:path*', '/vis/:path*'],
 };
