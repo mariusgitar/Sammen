@@ -48,7 +48,7 @@ export function InnspillAdmin({ code, questions }: { code: string; questions: Qu
 
   useEffect(() => {
     void fetchSummary();
-    const timer = setInterval(() => void fetchSummary(), 5_000);
+    const timer = setInterval(() => void fetchSummary(), 10_000);
     return () => clearInterval(timer);
   }, []);
 

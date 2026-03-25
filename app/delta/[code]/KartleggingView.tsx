@@ -163,10 +163,6 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
           .filter((entry) => entry.value !== '' && entry.value !== null),
       };
 
-      if (process.env.NODE_ENV === 'development') {
-        // eslint-disable-next-line no-console
-        console.log('POST /api/responses body', requestBody);
-      }
 
       const response = await fetch('/api/responses', {
         method: 'POST',

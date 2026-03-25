@@ -38,11 +38,6 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
 
   const includedItems = useMemo(() => items.filter((item) => !item.excluded), [items]);
 
-  console.log('[KartleggingResults] items.length:', items.length);
-  console.log(
-    '[KartleggingResults] item is_new values:',
-    items.map((item) => ({ id: item.id, is_new: item.is_new })),
-  );
 
   const countsByItem = useMemo(() => {
     const byItem = new Map<string, Record<string, number>>();
