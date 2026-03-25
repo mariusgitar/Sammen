@@ -17,7 +17,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     const questions = await db
       .select({ id: items.id, text: items.text, question_status: items.questionStatus })
       .from(items)
-      .where(and(eq(items.sessionId, session.id), eq(items.isQuestion, true), eq(items.questionStatus, 'active')))
+      .where(and(eq(items.sessionId, session.id), eq(items.isQuestion, true)))
       .orderBy(asc(items.orderIndex), asc(items.createdAt));
 
     const allInnspill = await db
@@ -33,7 +33,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .from(innspill)
       .where(eq(innspill.sessionId, session.id));
 
-    const result = questions.map((q) => ({
+    const result = questions
+      .map((q) => ({
       id: q.id,
       text: q.text,
       question_status: q.question_status,
@@ -48,7 +49,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
           created_at: i.created_at,
         }))
         .sort((a, b) => b.likes - a.likes),
-    }));
+      }))
+      .filter((question) => question.question_status === 'active' || question.innspill.length > 0);
 
     return NextResponse.json({ questions: result });
   } catch (error: any) {
