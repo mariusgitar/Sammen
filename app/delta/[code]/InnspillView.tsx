@@ -119,18 +119,21 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
       }
 
       if (responseBody.innspill) {
-        setMyInnspill((current) => ({
-          ...current,
-          [questionId]: [
-            ...(current[questionId] ?? []),
-            {
-              id: responseBody.innspill.id,
-              text: responseBody.innspill.text,
-              likes: 0,
-              likedByMe: false,
-            },
-          ],
-        }));
+        setMyInnspill((prev) => {
+          const current = prev ?? {};
+          return {
+            ...current,
+            [questionId]: [
+              ...(current[questionId] ?? []),
+              {
+                id: responseBody.innspill!.id,
+                text: responseBody.innspill!.text,
+                likes: 0,
+                likedByMe: false,
+              },
+            ],
+          };
+        });
       }
       setInputText((current) => ({ ...current, [questionId]: '' }));
     } finally {
