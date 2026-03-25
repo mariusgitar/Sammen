@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 type Question = {
   id: string;
@@ -15,17 +15,33 @@ type SummaryQuestion = {
   innspill: Array<{ id: string; text: string; nickname: string; likes: number }>;
 };
 
+type LocalQuestion = Question & { innspill_count: number };
+
 export function InnspillAdmin({ code, questions }: { code: string; questions: Question[] }) {
   const [rows, setRows] = useState<SummaryQuestion[]>([]);
-  const [localQuestions, setLocalQuestions] = useState<Question[]>(questions);
+  const [localQuestions, setLocalQuestions] = useState<LocalQuestion[]>([]);
+  const initialized = useRef(false);
 
   async function fetchSummary() {
     const response = await fetch(`/api/admin/${code}/innspill-summary`, { cache: 'no-store' });
     const data = (await response.json()) as { questions?: SummaryQuestion[] };
     if (response.ok && data.questions) {
       setRows(data.questions);
+      setLocalQuestions((prev) => prev.map((q) => {
+        const updated = data.questions!.find((sq) => sq.id === q.id);
+        return updated
+          ? { ...q, innspill_count: updated.innspill?.length ?? 0 }
+          : q;
+      }));
     }
   }
+
+  useEffect(() => {
+    if (!initialized.current) {
+      setLocalQuestions(questions.map((q) => ({ ...q, innspill_count: 0 })));
+      initialized.current = true;
+    }
+  }, []);
 
   useEffect(() => {
     void fetchSummary();
@@ -59,11 +75,6 @@ export function InnspillAdmin({ code, questions }: { code: string; questions: Qu
         ? { ...question, questionStatus: newStatus }
         : question
     )));
-    setRows((current) => current.map((question) => (
-      question.id === questionId
-        ? { ...question, question_status: newStatus }
-        : question
-    )));
     await fetchSummary();
   }
 
@@ -77,7 +88,7 @@ export function InnspillAdmin({ code, questions }: { code: string; questions: Qu
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-medium text-slate-100">{question.text}</p>
                 <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300">{question.question_status === 'inactive' ? 'Inaktiv' : question.question_status === 'active' ? 'Aktiv' : 'Låst'}</span>
-                <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300">{question.innspill.length} innspill</span>
+                <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300">{localQuestions.find((localQuestion) => localQuestion.id === question.id)?.innspill_count ?? question.innspill.length} innspill</span>
               </div>
               <div className="mt-3 flex gap-2">
                 {question.question_status === 'inactive' ? <button onClick={() => void toggleQuestionStatus(question.id, question.question_status)} className="rounded bg-emerald-200 px-3 py-1 text-xs text-emerald-950">Åpne</button> : null}
