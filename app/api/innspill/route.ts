@@ -53,18 +53,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Question is not active' }, { status: 409 });
     }
 
-    const [created] = await db.insert(innspill).values({
-      sessionId: parsed.sessionId,
-      questionId: parsed.questionId,
-      participantId: parsed.participantId,
-      nickname: parsed.nickname.trim(),
-      text: parsed.text.trim(),
-      likes: 0,
-    }).returning({ id: innspill.id, text: innspill.text, likes: innspill.likes });
+    const [created] = await db
+      .insert(innspill)
+      .values({
+        sessionId: parsed.sessionId,
+        questionId: parsed.questionId,
+        participantId: parsed.participantId,
+        nickname: parsed.nickname.trim(),
+        text: parsed.text.trim(),
+        likes: 0,
+      })
+      .returning({ id: innspill.id, text: innspill.text, likes: innspill.likes });
 
     return NextResponse.json({ innspill: created }, { status: 201 });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  } catch (error: any) {
+    console.error('POST /api/innspill error:', error);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: error.message,
+        stack: error.stack,
+      },
+      { status: 500 },
+    );
   }
 }
