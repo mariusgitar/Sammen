@@ -21,37 +21,39 @@ export default function ParticipantEntryPage() {
   }
 
   return (
-    <main className="min-h-screen px-4 py-10 sm:px-6">
-      <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-        <h1 className="text-2xl font-semibold tracking-tight text-white">Bli med i en sesjon</h1>
+    <main className="flex min-h-screen items-center justify-center bg-[#ffffff] px-4">
+      <section className="w-full max-w-sm space-y-8">
+        <p className="text-2xl font-bold text-[#0f172a]">●&nbsp;&nbsp;Sammen</p>
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight text-[#0f172a]">Skriv inn koden for å bli med</h1>
+          <p className="text-sm text-[#64748b]">Koden finner du på skjermen foran deg</p>
+        </div>
 
-        <div className="mt-5 space-y-3">
+        <div className="space-y-3">
           <input
             type="text"
             value={code}
             maxLength={6}
-            placeholder="Sesjonskode (f.eks. KSBZGV)"
+            placeholder="f.eks. KSBZGV"
             onChange={(event) => {
-              setCode(event.target.value);
+              setCode(event.target.value.toUpperCase());
               if (error) {
                 setError('');
               }
             }}
-            className="w-full rounded-md border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:border-slate-500 focus:outline-none focus:ring-2 focus:ring-slate-500/40"
+            className="w-full rounded-xl border-2 border-[#e2e8f0] p-4 text-center text-2xl font-bold uppercase tracking-widest text-[#0f172a] placeholder:text-[#94a3b8] focus:border-[#3b5bdb] focus:outline-none"
           />
-          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+          {error ? <p className="text-sm text-amber-500">{error}</p> : null}
 
           <button
             type="button"
             onClick={handleJoin}
-            className="inline-flex items-center rounded-md bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white disabled:opacity-50"
+            className="w-full rounded-full bg-[#0f172a] py-4 text-lg font-semibold text-white transition hover:bg-[#1e293b]"
           >
             Bli med →
           </button>
         </div>
-
-        <p className="mt-4 text-sm text-slate-400">Få koden av din fasilitator</p>
-      </div>
+      </section>
     </main>
   );
 }
