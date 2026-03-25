@@ -173,8 +173,8 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
             [questionId]: [
               ...(current[questionId] ?? []),
               {
-                id: responseBody.innspill.id,
-                text: responseBody.innspill.text,
+                id: responseBody.innspill!.id,
+                text: responseBody.innspill!.text,
                 likes: 0,
                 likedByMe: false,
               },
