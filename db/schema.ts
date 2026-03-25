@@ -10,6 +10,7 @@ ALTER TABLE sessions ADD COLUMN voting_type text NOT NULL DEFAULT 'scale';
 ALTER TABLE sessions ADD COLUMN allow_multiple_dots boolean NOT NULL DEFAULT true;
 ALTER TABLE sessions ADD COLUMN results_visible boolean NOT NULL DEFAULT false;
 ALTER TABLE sessions ADD COLUMN visibility_mode text NOT NULL DEFAULT 'manual';
+ALTER TABLE sessions ADD COLUMN max_rank_items integer;
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -19,8 +20,8 @@ CREATE TABLE IF NOT EXISTS sessions (
     char_length(code) = 6 AND code = upper(code) AND code ~ '^[A-Z2-9]+$'
   ),
   title text NOT NULL,
-  mode text NOT NULL DEFAULT 'kartlegging' CHECK (mode IN ('kartlegging', 'stemming', 'aapne-innspill')),
-  phase text NOT NULL DEFAULT 'kartlegging' CHECK (phase IN ('kartlegging', 'stemming', 'innspill')),
+  mode text NOT NULL DEFAULT 'kartlegging' CHECK (mode IN ('kartlegging', 'stemming', 'aapne-innspill', 'rangering')),
+  phase text NOT NULL DEFAULT 'kartlegging' CHECK (phase IN ('kartlegging', 'stemming', 'innspill', 'rangering')),
   status text NOT NULL DEFAULT 'setup' CHECK (status IN ('setup', 'active', 'paused', 'closed')),
   tags text[] NOT NULL DEFAULT ARRAY[]::text[],
   allow_new_items boolean NOT NULL DEFAULT true,
@@ -71,8 +72,8 @@ CREATE TABLE IF NOT EXISTS innspill_likes (
 
 import { boolean, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
-export const sessionModes = ['kartlegging', 'stemming', 'aapne-innspill'] as const;
-export const sessionPhases = ['kartlegging', 'stemming', 'innspill'] as const;
+export const sessionModes = ['kartlegging', 'stemming', 'aapne-innspill', 'rangering'] as const;
+export const sessionPhases = ['kartlegging', 'stemming', 'innspill', 'rangering'] as const;
 export const sessionStatuses = ['setup', 'active', 'paused', 'closed'] as const;
 export const votingTypes = ['scale', 'dots'] as const;
 export const visibilityModes = ['manual', 'all'] as const;
@@ -97,6 +98,7 @@ export const sessions = pgTable('sessions', {
   allowMultipleDots: boolean('allow_multiple_dots').notNull().default(true),
   resultsVisible: boolean('results_visible').notNull().default(false),
   visibilityMode: text('visibility_mode').$type<VisibilityMode>().notNull().default('manual'),
+  maxRankItems: integer('max_rank_items'),
   tags: text('tags').array().notNull().default([]),
   allowNewItems: boolean('allow_new_items').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),

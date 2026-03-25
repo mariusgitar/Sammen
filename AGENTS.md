@@ -32,11 +32,11 @@ Deployed on Vercel at samen-alene.vercel.app.
 sessions:
   id, code, title, mode, status, tags, allow_new_items,
   phase, dot_budget, voting_type, allow_multiple_dots,
-  visibility_mode, results_visible, created_at
+  visibility_mode, max_rank_items, results_visible, created_at
 
-  mode values: 'kartlegging' | 'stemming' | 'aapne-innspill'
+  mode values: 'kartlegging' | 'stemming' | 'aapne-innspill' | 'rangering'
   status values: 'setup' | 'active' | 'paused' | 'closed'
-  phase values: 'kartlegging' | 'stemming' | 'innspill'
+  phase values: 'kartlegging' | 'stemming' | 'innspill' | 'rangering'
   voting_type values: 'scale' | 'dots'
   visibility_mode values: 'manual' | 'all'
 
@@ -66,6 +66,9 @@ Kartlegging:
 
 Stemming only:
   setup → active (stemming) → paused → closed
+
+Rangering:
+  setup → active (rangering) → paused → closed
 
 Åpne innspill:
   setup → active → paused → closed

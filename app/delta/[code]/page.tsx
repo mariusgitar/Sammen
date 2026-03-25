@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { InnspillView } from './InnspillView';
 import { KartleggingView } from './KartleggingView';
 import { StemmingView } from './StemmingView';
+import { RangeringView } from './RangeringView';
 
 type ParticipantPageProps = {
   params: {
@@ -13,7 +14,7 @@ type ParticipantPageProps = {
 };
 
 type SessionStatus = 'setup' | 'active' | 'paused' | 'closed';
-type SessionPhase = 'kartlegging' | 'stemming' | 'innspill';
+type SessionPhase = 'kartlegging' | 'stemming' | 'innspill' | 'rangering';
 type QuestionStatus = 'inactive' | 'active' | 'locked';
 
 type SessionResponse = {
@@ -21,7 +22,7 @@ type SessionResponse = {
     id: string;
     code: string;
     title: string;
-    mode: string;
+    mode: 'kartlegging' | 'stemming' | 'aapne-innspill' | 'rangering';
     votingType: 'scale' | 'dots';
     dotBudget: number;
     allowMultipleDots: boolean;
@@ -31,6 +32,7 @@ type SessionResponse = {
     tags: string[];
     allowNewItems: boolean;
     visibilityMode: 'manual' | 'all';
+    maxRankItems: number | null;
   };
   items: Array<{
     id: string;
@@ -131,6 +133,21 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
 
   if (session.mode === 'aapne-innspill' && session.status === 'active') {
     return <InnspillView session={session} items={items.filter((item) => item.isQuestion)} />;
+  }
+
+
+  if (session.mode === 'rangering' && session.status === 'active') {
+    return (
+      <RangeringView
+        items={items.filter((item) => !item.excluded).map((item) => ({ id: item.id, text: item.text }))}
+        session={{
+          id: session.id,
+          title: session.title,
+          code: session.code,
+          maxRankItems: session.maxRankItems,
+        }}
+      />
+    );
   }
 
   if (session.status === 'active' && (session.phase === 'stemming' || session.mode === 'stemming')) {

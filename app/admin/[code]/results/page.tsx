@@ -7,6 +7,7 @@ import { innspill, items, responses, sessions } from '@/db/schema';
 import { ExportButton } from './ExportButton';
 import { InnspillResults } from './InnspillResults';
 import { KartleggingResults } from './KartleggingResults';
+import { RangeringResults } from './RangeringResults';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -60,6 +61,28 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
     return { id: item.id, text: item.text, averageScore, voteCount, distribution };
   }).sort((a, b) => b.averageScore - a.averageScore);
 
+  const rankingItems = includedItems
+    .map((item) => {
+      const numericVotes = allResponses
+        .filter((entry) => entry.itemId === item.id)
+        .map((entry) => Number(entry.value))
+        .filter((value) => Number.isInteger(value) && value > 0);
+
+      const voteCount = numericVotes.length;
+      const averagePosition = voteCount > 0 ? numericVotes.reduce((sum, value) => sum + value, 0) / voteCount : Number.POSITIVE_INFINITY;
+
+      return {
+        id: item.id,
+        text: item.text,
+        averagePosition,
+        voteCount,
+        minPosition: voteCount > 0 ? Math.min(...numericVotes) : null,
+        maxPosition: voteCount > 0 ? Math.max(...numericVotes) : null,
+      };
+    })
+    .filter((item) => Number.isFinite(item.averagePosition))
+    .sort((a, b) => a.averagePosition - b.averagePosition);
+
   const innspillQuestions = allItems.filter((item) => item.isQuestion).map((question) => ({
     id: question.id,
     text: question.text,
@@ -82,7 +105,9 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
 
         {hasKartlegging ? <KartleggingResults items={allItems.map((item) => ({ id: item.id, text: item.text, excluded: item.excluded, is_new: item.isNew, created_by: item.createdBy }))} responses={mappingResponses.map((entry) => ({ itemId: entry.itemId, value: entry.value }))} tags={session.tags} participantCount={mappingParticipantCount} /> : null}
 
-        {hasStemming ? (
+        {session.mode === 'rangering' ? <RangeringResults items={rankingItems} /> : null}
+
+        {hasStemming && session.mode !== 'rangering' ? (
           <section className="rounded-xl border border-slate-200 bg-white p-6"><h2 className="text-xl font-semibold">Stemming-resultater</h2><div className="mt-4 space-y-4">{voteItems.map((item) => (<article key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="font-medium">{item.text}</p><p className="mt-2 text-sm text-slate-700">Snittscore: <span className="font-semibold text-slate-900">{item.averageScore.toFixed(1)}</span></p><p className="text-sm text-slate-700">Antall stemmer: {item.voteCount}</p><p className="mt-1 text-sm text-slate-700">1▪{item.distribution['1']} &nbsp; 2▪{item.distribution['2']} &nbsp; 3▪{item.distribution['3']} &nbsp;4▪{item.distribution['4']} &nbsp; 5▪{item.distribution['5']}</p></article>))}</div></section>
         ) : null}
       </div>

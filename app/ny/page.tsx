@@ -19,6 +19,7 @@ const modes: Array<{ label: string; value: SessionMode }> = [
   { label: 'Kartlegging', value: 'kartlegging' },
   { label: 'Stemming', value: 'stemming' },
   { label: 'Åpne innspill', value: 'aapne-innspill' },
+  { label: 'Rangering', value: 'rangering' },
 ];
 
 export default function NewSessionPage() {
@@ -28,6 +29,7 @@ export default function NewSessionPage() {
   const [items, setItems] = useState('');
   const [tags, setTags] = useState('');
   const [allowNewItems, setAllowNewItems] = useState(true);
+  const [maxRankItemsInput, setMaxRankItemsInput] = useState('');
   const [visibilityMode, setVisibilityMode] = useState<VisibilityMode>('all');
   const [votingType, setVotingType] = useState<VotingType>('scale');
   const [dotBudget, setDotBudget] = useState(5);
@@ -35,16 +37,19 @@ export default function NewSessionPage() {
   const [error, setError] = useState('');
   const [titleError, setTitleError] = useState('');
   const [itemsError, setItemsError] = useState('');
+  const [maxRankItemsError, setMaxRankItemsError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const isInnspillMode = mode === 'aapne-innspill';
+  const isRangeringMode = mode === 'rangering';
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError('');
     setTitleError('');
     setItemsError('');
+    setMaxRankItemsError('');
 
     if (!title.trim()) {
       setTitleError('Tittel er påkrevd');
@@ -66,6 +71,14 @@ export default function NewSessionPage() {
       .split(',')
       .map((tag) => tag.trim())
       .filter(Boolean);
+
+    const parsedMaxRankItems = maxRankItemsInput.trim() === '' ? null : Number(maxRankItemsInput);
+
+    if (isRangeringMode && parsedMaxRankItems !== null && (!Number.isInteger(parsedMaxRankItems) || parsedMaxRankItems < 2)) {
+      setMaxRankItemsError('Maks antall å rangere må være et heltall på minst 2');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -81,9 +94,10 @@ export default function NewSessionPage() {
           dot_budget: mode === 'stemming' && votingType === 'dots' ? dotBudget : 5,
           allow_multiple_dots: mode === 'stemming' && votingType === 'dots' ? allowMultipleDots : true,
           visibility_mode: isInnspillMode ? visibilityMode : 'manual',
+          max_rank_items: isRangeringMode ? parsedMaxRankItems : null,
           items: parsedItems,
-          tags: isInnspillMode ? [] : parsedTags,
-          allow_new_items: isInnspillMode ? true : allowNewItems,
+          tags: isInnspillMode || isRangeringMode ? [] : parsedTags,
+          allow_new_items: isInnspillMode || isRangeringMode ? true : allowNewItems,
         }),
       });
 
@@ -237,7 +251,7 @@ export default function NewSessionPage() {
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-100" htmlFor="items">
-              {isInnspillMode ? 'Spørsmål / seksjoner' : 'Kriterier / elementer'}
+              {isInnspillMode ? 'Spørsmål / seksjoner' : isRangeringMode ? 'Elementer å rangere' : 'Kriterier / elementer'}
             </label>
             <textarea
               required
@@ -254,6 +268,28 @@ export default function NewSessionPage() {
             </p>
             {itemsError ? <p className="text-sm text-red-400">{itemsError}</p> : null}
           </div>
+
+          {isRangeringMode ? (
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-100" htmlFor="max-rank-items">
+                Maks antall å rangere (valgfritt)
+              </label>
+              <input
+                id="max-rank-items"
+                name="max-rank-items"
+                type="number"
+                min={2}
+                placeholder="Alle"
+                value={maxRankItemsInput}
+                onChange={(event) => setMaxRankItemsInput(event.target.value)}
+                className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
+              />
+              <p className="text-sm text-slate-400">
+                Sett grense hvis listen er lang, f.eks. 5 = deltakerne rangerer kun topp 5
+              </p>
+              {maxRankItemsError ? <p className="text-sm text-red-400">{maxRankItemsError}</p> : null}
+            </div>
+          ) : null}
 
           {isInnspillMode ? (
             <fieldset className="space-y-3">
@@ -285,7 +321,7 @@ export default function NewSessionPage() {
                 </label>
               </div>
             </fieldset>
-          ) : (
+          ) : isRangeringMode ? null : (
             <>
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-slate-100" htmlFor="tags">

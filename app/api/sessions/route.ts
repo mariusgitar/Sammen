@@ -12,6 +12,7 @@ type CreateSessionBody = {
   dot_budget?: number;
   allow_multiple_dots?: boolean;
   visibility_mode?: (typeof visibilityModes)[number];
+  max_rank_items?: number | null;
   items: string[];
   tags: string[];
   allow_new_items: boolean;
@@ -33,6 +34,7 @@ function isCreateSessionBody(body: unknown): body is CreateSessionBody {
     (typeof candidate.allow_multiple_dots === 'undefined' || typeof candidate.allow_multiple_dots === 'boolean') &&
     (typeof candidate.visibility_mode === 'undefined' ||
       visibilityModes.includes(candidate.visibility_mode as (typeof visibilityModes)[number])) &&
+    (typeof candidate.max_rank_items === 'undefined' || candidate.max_rank_items === null || Number.isInteger(candidate.max_rank_items)) &&
     Array.isArray(candidate.items) &&
     candidate.items.every((item) => typeof item === 'string') &&
     Array.isArray(candidate.tags) &&
@@ -76,6 +78,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'At least one item is required' }, { status: 400 });
     }
 
+    const normalizedMaxRankItems = body.mode === 'rangering' && Number.isInteger(body.max_rank_items)
+      ? Math.max(2, body.max_rank_items as number)
+      : null;
+
     const code = await generateUniqueCode();
     const db = getDb();
     const votingType = body.voting_type ?? 'scale';
@@ -89,13 +95,21 @@ export async function POST(request: NextRequest) {
         code,
         title,
         mode: body.mode,
-        phase: body.mode === 'stemming' ? 'stemming' : body.mode === 'aapne-innspill' ? 'innspill' : 'kartlegging',
+        phase:
+          body.mode === 'stemming'
+            ? 'stemming'
+            : body.mode === 'aapne-innspill'
+              ? 'innspill'
+              : body.mode === 'rangering'
+                ? 'rangering'
+                : 'kartlegging',
         votingType: body.mode === 'stemming' ? votingType : 'scale',
         dotBudget: body.mode === 'stemming' && votingType === 'dots' ? dotBudget : 5,
         allowMultipleDots: body.mode === 'stemming' && votingType === 'dots' ? allowMultipleDots : true,
         visibilityMode,
-        tags: body.mode === 'aapne-innspill' ? [] : tags,
-        allowNewItems: body.mode === 'aapne-innspill' ? true : body.allow_new_items,
+        maxRankItems: normalizedMaxRankItems,
+        tags: body.mode === 'aapne-innspill' || body.mode === 'rangering' ? [] : tags,
+        allowNewItems: body.mode === 'aapne-innspill' || body.mode === 'rangering' ? true : body.allow_new_items,
       })
       .returning({
         id: sessions.id,

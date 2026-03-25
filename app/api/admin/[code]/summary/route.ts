@@ -34,13 +34,24 @@ type StemmingSummaryItem = {
   distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
 };
 
+type RangeringSummaryItem = {
+  id: string;
+  text: string;
+  is_new: boolean;
+  created_by: string;
+  excluded: boolean;
+  average_position: number;
+  vote_count: number;
+  position_distribution: Record<string, number>;
+};
+
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const db = getDb();
     const code = params.code.toUpperCase();
 
     const [session] = await db
-      .select({ id: sessions.id, phase: sessions.phase, status: sessions.status })
+      .select({ id: sessions.id, mode: sessions.mode, phase: sessions.phase, status: sessions.status })
       .from(sessions)
       .where(eq(sessions.code, code))
       .limit(1);
@@ -70,9 +81,56 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .from(responses)
       .where(eq(responses.sessionId, session.id));
 
-    const participantCount = new Set(
-      allResponses.map((r) => r.participant_id),
-    ).size;
+    const participantCount = new Set(allResponses.map((r) => r.participant_id)).size;
+
+    if (session.mode === 'rangering') {
+      const positionByItem = new Map<string, number[]>();
+      const positionDistributionByItem = new Map<string, Record<string, number>>();
+
+      for (const entry of allResponses) {
+        const numericValue = Number(entry.value);
+
+        if (!Number.isInteger(numericValue) || numericValue <= 0) {
+          continue;
+        }
+
+        const currentVotes = positionByItem.get(entry.item_id) ?? [];
+        currentVotes.push(numericValue);
+        positionByItem.set(entry.item_id, currentVotes);
+
+        const currentDistribution = positionDistributionByItem.get(entry.item_id) ?? {};
+        const key = String(numericValue);
+        currentDistribution[key] = (currentDistribution[key] ?? 0) + 1;
+        positionDistributionByItem.set(entry.item_id, currentDistribution);
+      }
+
+      const summaryItems: RangeringSummaryItem[] = allItems
+        .map((item) => {
+          const itemVotes = positionByItem.get(item.id) ?? [];
+          const voteCount = itemVotes.length;
+          const averagePosition = voteCount > 0 ? itemVotes.reduce((sum, vote) => sum + vote, 0) / voteCount : Number.POSITIVE_INFINITY;
+
+          return {
+            id: item.id,
+            text: item.text,
+            is_new: item.is_new,
+            created_by: item.created_by,
+            excluded: item.excluded,
+            average_position: averagePosition,
+            vote_count: voteCount,
+            position_distribution: positionDistributionByItem.get(item.id) ?? {},
+          };
+        })
+        .sort((a, b) => a.average_position - b.average_position);
+
+      return NextResponse.json({
+        mode: session.mode,
+        phase: session.phase,
+        status: session.status,
+        participantCount,
+        items: summaryItems,
+      });
+    }
 
     if (session.phase === 'stemming') {
       const votesByItem = new Map<string, number[]>();
@@ -119,6 +177,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       });
 
       return NextResponse.json({
+        mode: session.mode,
         phase: session.phase,
         status: session.status,
         participantCount,
@@ -148,6 +207,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     });
 
     return NextResponse.json({
+      mode: session.mode,
       phase: session.phase,
       status: session.status,
       participantCount,
