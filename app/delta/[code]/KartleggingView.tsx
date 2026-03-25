@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 
 type SessionView = {
@@ -53,13 +53,33 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
   const [hasJoined, setHasJoined] = useState(false);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
-  const [participantId] = useState(() => crypto.randomUUID());
+  const [participantId, setParticipantId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [showProposalInput, setShowProposalInput] = useState(false);
   const [proposalText, setProposalText] = useState('');
   const [proposalSubmitting, setProposalSubmitting] = useState(false);
   const [proposedItems, setProposedItems] = useState<ProposedItem[]>([]);
+  const participantStorageKey = 'samen_participant_id';
+  const nicknameStorageKey = `samen_nickname_${session.code}`;
+
+  useEffect(() => {
+    const storedId = localStorage.getItem(participantStorageKey);
+    const storedNick = localStorage.getItem(nicknameStorageKey);
+
+    if (storedId) {
+      setParticipantId(storedId);
+    } else {
+      const newId = crypto.randomUUID();
+      localStorage.setItem(participantStorageKey, newId);
+      setParticipantId(newId);
+    }
+
+    if (storedNick) {
+      setNickname(storedNick);
+      setHasJoined(true);
+    }
+  }, [nicknameStorageKey]);
 
   const originalItems = useMemo(() => items.filter((item) => !item.isNew), [items]);
   const responseItems = useMemo(
@@ -74,6 +94,8 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
       return;
     }
 
+    localStorage.setItem(nicknameStorageKey, nickname.trim());
+    localStorage.setItem(participantStorageKey, participantId);
     setHasJoined(true);
   }
 

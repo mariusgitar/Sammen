@@ -37,13 +37,15 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   const [hasJoined, setHasJoined] = useState(false);
   const [votes, setVotes] = useState<Record<string, number>>({});
   const [submitted, setSubmitted] = useState(false);
-  const [participantId] = useState(() => crypto.randomUUID());
+  const [participantId, setParticipantId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [hoveredDot, setHoveredDot] = useState<{ itemId: string; value: number } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isToastVisible, setIsToastVisible] = useState(false);
   const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const participantStorageKey = 'samen_participant_id';
+  const nicknameStorageKey = `samen_nickname_${session.code}`;
 
   const isDotVoting = session.votingType === 'dots' && session.dotBudget > 0;
   const allItemsVoted = useMemo(() => items.every((item) => typeof votes[item.id] === 'number'), [items, votes]);
@@ -53,6 +55,24 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   );
   const dotsRemaining = Math.max(0, session.dotBudget - dotsUsed);
   const canSubmit = isDotVoting ? dotsUsed === session.dotBudget : allItemsVoted;
+
+  useEffect(() => {
+    const storedId = localStorage.getItem(participantStorageKey);
+    const storedNick = localStorage.getItem(nicknameStorageKey);
+
+    if (storedId) {
+      setParticipantId(storedId);
+    } else {
+      const newId = crypto.randomUUID();
+      localStorage.setItem(participantStorageKey, newId);
+      setParticipantId(newId);
+    }
+
+    if (storedNick) {
+      setNickname(storedNick);
+      setHasJoined(true);
+    }
+  }, [nicknameStorageKey]);
 
   useEffect(() => {
     return () => {
@@ -83,6 +103,8 @@ export function StemmingView({ session, items }: StemmingViewProps) {
       return;
     }
 
+    localStorage.setItem(nicknameStorageKey, nickname.trim());
+    localStorage.setItem(participantStorageKey, participantId);
     setHasJoined(true);
   }
 

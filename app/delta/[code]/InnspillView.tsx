@@ -25,10 +25,26 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
   const [myInnspill, setMyInnspill] = useState<Record<string, Array<{ id: string; text: string; likes: number; likedByMe: boolean }>>>({});
   const [allInnspill, setAllInnspill] = useState<Record<string, Array<{ id: string; text: string; nickname: string; likes: number; likedByMe: boolean }>>>({});
   const [showOthers, setShowOthers] = useState(false);
+  const participantStorageKey = 'samen_participant_id';
+  const nicknameStorageKey = `samen_nickname_${session.code}`;
 
   useEffect(() => {
-    setParticipantId(crypto.randomUUID());
-  }, []);
+    const storedId = localStorage.getItem(participantStorageKey);
+    const storedNick = localStorage.getItem(nicknameStorageKey);
+
+    if (storedId) {
+      setParticipantId(storedId);
+    } else {
+      const newId = crypto.randomUUID();
+      localStorage.setItem(participantStorageKey, newId);
+      setParticipantId(newId);
+    }
+
+    if (storedNick) {
+      setNickname(storedNick);
+      setHasJoined(true);
+    }
+  }, [nicknameStorageKey]);
 
   async function fetchInnspill() {
     const response = await fetch(`/api/delta/${session.code}/innspill`, { cache: 'no-store' });
@@ -94,6 +110,9 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
           text,
         }),
       });
+      const responseBody = (await response.json()) as unknown;
+      // eslint-disable-next-line no-console
+      console.log('POST /api/innspill response', { status: response.status, body: responseBody });
 
       if (!response.ok) {
         return;
@@ -139,7 +158,11 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
           <button
             type="button"
             disabled={!nickname.trim()}
-            onClick={() => setHasJoined(true)}
+            onClick={() => {
+              localStorage.setItem(nicknameStorageKey, nickname.trim());
+              localStorage.setItem(participantStorageKey, participantId);
+              setHasJoined(true);
+            }}
             className="mt-4 w-full rounded bg-white px-4 py-2 font-medium text-slate-950 disabled:opacity-60"
           >
             Bli med
