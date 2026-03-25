@@ -4,6 +4,9 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { innspill, items, sessions } from '@/db/schema';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(_request: Request, { params }: { params: { code: string } }) {
   try {
     const db = getDb();
@@ -48,7 +51,16 @@ export async function GET(_request: Request, { params }: { params: { code: strin
         .sort((a, b) => b.likes - a.likes),
     }));
 
-    return NextResponse.json({ questions: result });
+    return NextResponse.json(
+      { questions: result },
+      {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+          Pragma: 'no-cache',
+          Expires: '0',
+        },
+      },
+    );
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
   }

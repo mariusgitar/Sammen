@@ -53,6 +53,9 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
     if (!response.ok || !data.questions) {
       return;
     }
+    if (data.questions.length === 0) {
+      return;
+    }
 
     const mine: Record<string, Array<{ id: string; text: string; likes: number; likedByMe: boolean }>> = {};
     const others: Record<string, Array<{ id: string; text: string; nickname: string; likes: number; likedByMe: boolean }>> = {};
@@ -71,7 +74,13 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
       }
     }
 
-    setMyInnspill(mine);
+    setMyInnspill((prev) => {
+      const merged = { ...prev };
+      data.questions?.forEach((q) => {
+        merged[q.id] = mine[q.id] ?? [];
+      });
+      return merged;
+    });
     setAllInnspill((prev) => {
       const merged = { ...prev };
       data.questions?.forEach((q) => {
