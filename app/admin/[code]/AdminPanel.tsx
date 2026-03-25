@@ -4,12 +4,14 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
 
+import { InnspillAdmin } from './InnspillAdmin';
+
 type SessionView = {
   id: string;
   title: string;
   code: string;
   mode: string;
-  phase: 'kartlegging' | 'stemming';
+  phase: 'kartlegging' | 'stemming' | 'innspill';
   status: 'setup' | 'active' | 'paused' | 'closed';
   resultsVisible: boolean;
 };
@@ -20,6 +22,8 @@ type SessionItem = {
   isNew: boolean;
   excluded: boolean;
   createdBy: string;
+  isQuestion?: boolean;
+  questionStatus?: 'inactive' | 'active' | 'locked';
 };
 
 type KartleggingSummaryItem = {
@@ -44,7 +48,7 @@ type StemmingSummaryItem = {
 };
 
 type SummaryResponse = {
-  phase: 'kartlegging' | 'stemming';
+  phase: 'kartlegging' | 'stemming' | 'innspill';
   status: 'setup' | 'active' | 'paused' | 'closed';
   participantCount: number;
   items: Array<KartleggingSummaryItem | StemmingSummaryItem>;
@@ -503,6 +507,20 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         </section>
       ) : null}
 
+      {currentSession.mode === 'aapne-innspill' ? (
+        <InnspillAdmin
+          code={currentSession.code}
+          questions={items
+            .filter((item) => item.isQuestion)
+            .map((item) => ({
+              id: item.id,
+              text: item.text,
+              questionStatus: item.questionStatus ?? 'inactive',
+            }))}
+        />
+      ) : null}
+
+      {currentSession.mode !== 'aapne-innspill' ? (
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Live oversikt</h2>
         {summaryError ? <p className="mt-2 text-xs text-amber-300">{summaryError}</p> : null}
@@ -591,6 +609,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
         {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
       </section>
+      ) : null}
     </div>
   );
 }

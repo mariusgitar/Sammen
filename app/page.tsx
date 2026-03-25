@@ -23,9 +23,13 @@ const sessionStatusClassName: Record<SessionStatus, string> = {
   closed: 'bg-slate-800 text-slate-400',
 };
 
-const getModeBadgeLabel = (mode: 'kartlegging' | 'stemming', phase: SessionPhase) => {
+const getModeBadgeLabel = (mode: 'kartlegging' | 'stemming' | 'aapne-innspill', phase: SessionPhase) => {
   if (mode === 'stemming') {
     return 'Stemming';
+  }
+
+  if (mode === 'aapne-innspill') {
+    return 'Åpne innspill';
   }
 
   if (phase === 'stemming') {

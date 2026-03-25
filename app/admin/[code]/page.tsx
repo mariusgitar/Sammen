@@ -51,6 +51,8 @@ export default async function AdminSessionPage({ params }: AdminPageProps) {
       isNew: items.isNew,
       excluded: items.excluded,
       createdBy: items.createdBy,
+      isQuestion: items.isQuestion,
+      questionStatus: items.questionStatus,
     })
     .from(items)
     .where(eq(items.sessionId, session.id))

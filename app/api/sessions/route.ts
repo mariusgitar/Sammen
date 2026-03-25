@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 
 import { getDb } from '@/db';
-import { items, sessionModes, sessions, votingTypes } from '@/db/schema';
+import { items, sessionModes, sessions, visibilityModes, votingTypes } from '@/db/schema';
 import { generateCode } from '@/lib/generate-code';
 
 type CreateSessionBody = {
@@ -11,6 +11,7 @@ type CreateSessionBody = {
   voting_type?: (typeof votingTypes)[number];
   dot_budget?: number;
   allow_multiple_dots?: boolean;
+  visibility_mode?: (typeof visibilityModes)[number];
   items: string[];
   tags: string[];
   allow_new_items: boolean;
@@ -30,6 +31,8 @@ function isCreateSessionBody(body: unknown): body is CreateSessionBody {
       votingTypes.includes(candidate.voting_type as (typeof votingTypes)[number])) &&
     (typeof candidate.dot_budget === 'undefined' || Number.isInteger(candidate.dot_budget)) &&
     (typeof candidate.allow_multiple_dots === 'undefined' || typeof candidate.allow_multiple_dots === 'boolean') &&
+    (typeof candidate.visibility_mode === 'undefined' ||
+      visibilityModes.includes(candidate.visibility_mode as (typeof visibilityModes)[number])) &&
     Array.isArray(candidate.items) &&
     candidate.items.every((item) => typeof item === 'string') &&
     Array.isArray(candidate.tags) &&
@@ -69,11 +72,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
+    if (itemTexts.length === 0) {
+      return NextResponse.json({ error: 'At least one item is required' }, { status: 400 });
+    }
+
     const code = await generateUniqueCode();
     const db = getDb();
     const votingType = body.voting_type ?? 'scale';
     const dotBudget = Math.max(3, Math.min(20, body.dot_budget ?? 5));
     const allowMultipleDots = body.allow_multiple_dots ?? true;
+    const visibilityMode = body.visibility_mode ?? 'manual';
 
     const [createdSession] = await db
       .insert(sessions)
@@ -81,12 +89,13 @@ export async function POST(request: NextRequest) {
         code,
         title,
         mode: body.mode,
-        phase: body.mode === 'stemming' ? 'stemming' : 'kartlegging',
+        phase: body.mode === 'stemming' ? 'stemming' : body.mode === 'aapne-innspill' ? 'innspill' : 'kartlegging',
         votingType: body.mode === 'stemming' ? votingType : 'scale',
         dotBudget: body.mode === 'stemming' && votingType === 'dots' ? dotBudget : 5,
         allowMultipleDots: body.mode === 'stemming' && votingType === 'dots' ? allowMultipleDots : true,
-        tags,
-        allowNewItems: body.allow_new_items,
+        visibilityMode,
+        tags: body.mode === 'aapne-innspill' ? [] : tags,
+        allowNewItems: body.mode === 'aapne-innspill' ? true : body.allow_new_items,
       })
       .returning({
         id: sessions.id,
@@ -100,15 +109,20 @@ export async function POST(request: NextRequest) {
         tags: sessions.tags,
       });
 
-    if (itemTexts.length > 0) {
-      await db.insert(items).values(
-        itemTexts.map((text, orderIndex) => ({
-          sessionId: createdSession.id,
-          text,
-          orderIndex,
-        }))
-      );
-    }
+    const itemRows = itemTexts.map((text, orderIndex) => {
+      const questionStatus: 'active' | 'inactive' =
+        body.mode === 'aapne-innspill' && visibilityMode === 'all' ? 'active' : 'inactive';
+
+      return {
+        sessionId: createdSession.id,
+        text,
+        orderIndex,
+        isQuestion: body.mode === 'aapne-innspill',
+        questionStatus,
+      };
+    });
+
+    await db.insert(items).values(itemRows);
 
     return NextResponse.json({ session: createdSession }, { status: 201 });
   } catch (error) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
+import { InnspillView } from './InnspillView';
 import { KartleggingView } from './KartleggingView';
 import { StemmingView } from './StemmingView';
 
@@ -12,7 +13,8 @@ type ParticipantPageProps = {
 };
 
 type SessionStatus = 'setup' | 'active' | 'paused' | 'closed';
-type SessionPhase = 'kartlegging' | 'stemming';
+type SessionPhase = 'kartlegging' | 'stemming' | 'innspill';
+type QuestionStatus = 'inactive' | 'active' | 'locked';
 
 type SessionResponse = {
   session: {
@@ -28,6 +30,7 @@ type SessionResponse = {
     resultsVisible: boolean;
     tags: string[];
     allowNewItems: boolean;
+    visibilityMode: 'manual' | 'all';
   };
   items: Array<{
     id: string;
@@ -35,6 +38,8 @@ type SessionResponse = {
     isNew: boolean;
     excluded: boolean;
     orderIndex: number;
+    isQuestion: boolean;
+    questionStatus: QuestionStatus;
   }>;
 };
 
@@ -100,25 +105,8 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
     };
   }, [code]);
 
-  if (isLoading) {
-    return (
-      <main className="min-h-screen px-4 py-10 sm:px-6">
-        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Laster sesjon…</h1>
-        </div>
-      </main>
-    );
-  }
-
-  if (isNotFound) {
-    return (
-      <main className="min-h-screen px-4 py-10 sm:px-6">
-        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Sesjon ikke funnet</h1>
-        </div>
-      </main>
-    );
-  }
+  if (isLoading) return <main className="min-h-screen px-4 py-10 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20"><h1 className="text-2xl font-semibold tracking-tight text-white">Laster sesjon…</h1></div></main>;
+  if (isNotFound) return <main className="min-h-screen px-4 py-10 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20"><h1 className="text-2xl font-semibold tracking-tight text-white">Sesjon ikke funnet</h1></div></main>;
 
   if (error || !data) {
     return (
@@ -134,24 +122,15 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   const { session, items } = data;
 
   if (session.status === 'closed') {
-    return (
-      <main className="min-h-screen px-4 py-10 sm:px-6">
-        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Sesjonen er avsluttet.</h1>
-        </div>
-      </main>
-    );
+    return <main className="min-h-screen px-4 py-10 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20"><h1 className="text-2xl font-semibold tracking-tight text-white">Sesjonen er avsluttet.</h1></div></main>;
   }
 
   if (session.status === 'setup' || session.status === 'paused') {
-    return (
-      <main className="min-h-screen px-4 py-10 sm:px-6">
-        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Sesjonen er ikke åpen ennå.</h1>
-          <p className="mt-2 text-sm text-slate-300">Vent på fasilitator.</p>
-        </div>
-      </main>
-    );
+    return <main className="min-h-screen px-4 py-10 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20"><h1 className="text-2xl font-semibold tracking-tight text-white">Sesjonen er ikke åpen ennå.</h1><p className="mt-2 text-sm text-slate-300">Vent på fasilitator.</p></div></main>;
+  }
+
+  if (session.mode === 'aapne-innspill' && session.status === 'active') {
+    return <InnspillView session={session} items={items.filter((item) => item.isQuestion)} />;
   }
 
   if (session.status === 'active' && (session.phase === 'stemming' || session.mode === 'stemming')) {

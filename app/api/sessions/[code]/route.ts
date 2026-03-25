@@ -61,6 +61,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         resultsVisible: sessions.resultsVisible,
         tags: sessions.tags,
         allowNewItems: sessions.allowNewItems,
+        visibilityMode: sessions.visibilityMode,
         createdAt: sessions.createdAt,
       })
       .from(sessions)
@@ -79,6 +80,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
         createdBy: items.createdBy,
         isNew: items.isNew,
         excluded: items.excluded,
+        isQuestion: items.isQuestion,
+        questionStatus: items.questionStatus,
         orderIndex: items.orderIndex,
         createdAt: items.createdAt,
       })

@@ -3,7 +3,7 @@
 import { FormEvent, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import type { SessionMode, VotingType } from '@/db/schema';
+import type { SessionMode, VisibilityMode, VotingType } from '@/db/schema';
 
 type CreateSessionResponse =
   | {
@@ -18,6 +18,7 @@ type CreateSessionResponse =
 const modes: Array<{ label: string; value: SessionMode }> = [
   { label: 'Kartlegging', value: 'kartlegging' },
   { label: 'Stemming', value: 'stemming' },
+  { label: 'Åpne innspill', value: 'aapne-innspill' },
 ];
 
 export default function NewSessionPage() {
@@ -27,6 +28,7 @@ export default function NewSessionPage() {
   const [items, setItems] = useState('');
   const [tags, setTags] = useState('');
   const [allowNewItems, setAllowNewItems] = useState(true);
+  const [visibilityMode, setVisibilityMode] = useState<VisibilityMode>('all');
   const [votingType, setVotingType] = useState<VotingType>('scale');
   const [dotBudget, setDotBudget] = useState(5);
   const [allowMultipleDots, setAllowMultipleDots] = useState(true);
@@ -35,6 +37,8 @@ export default function NewSessionPage() {
   const [itemsError, setItemsError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const titleInputRef = useRef<HTMLInputElement>(null);
+
+  const isInnspillMode = mode === 'aapne-innspill';
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -54,7 +58,7 @@ export default function NewSessionPage() {
       .filter(Boolean);
 
     if (parsedItems.length === 0) {
-      setItemsError('Legg til minst ett element');
+      setItemsError(isInnspillMode ? 'Legg til minst ett spørsmål' : 'Legg til minst ett element');
       return;
     }
 
@@ -76,9 +80,10 @@ export default function NewSessionPage() {
           voting_type: mode === 'stemming' ? votingType : 'scale',
           dot_budget: mode === 'stemming' && votingType === 'dots' ? dotBudget : 5,
           allow_multiple_dots: mode === 'stemming' && votingType === 'dots' ? allowMultipleDots : true,
+          visibility_mode: isInnspillMode ? visibilityMode : 'manual',
           items: parsedItems,
-          tags: parsedTags,
-          allow_new_items: allowNewItems,
+          tags: isInnspillMode ? [] : parsedTags,
+          allow_new_items: isInnspillMode ? true : allowNewItems,
         }),
       });
 
@@ -232,7 +237,7 @@ export default function NewSessionPage() {
 
           <div className="space-y-2">
             <label className="block text-sm font-medium text-slate-100" htmlFor="items">
-              Kriterier / elementer
+              {isInnspillMode ? 'Spørsmål / seksjoner' : 'Kriterier / elementer'}
             </label>
             <textarea
               required
@@ -240,41 +245,77 @@ export default function NewSessionPage() {
               name="items"
               value={items}
               onChange={(event) => setItems(event.target.value)}
-              placeholder="Én per linje"
+              placeholder={isInnspillMode ? 'Ett spørsmål per linje' : 'Én per linje'}
               rows={6}
               className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
             />
-            <p className="text-sm text-slate-400">Skriv ett element per linje</p>
+            <p className="text-sm text-slate-400">
+              {isInnspillMode ? 'Hvert spørsmål blir en seksjon deltakerne svarer under' : 'Skriv ett element per linje'}
+            </p>
             {itemsError ? <p className="text-sm text-red-400">{itemsError}</p> : null}
           </div>
 
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-100" htmlFor="tags">
-              Tags deltakerne kan velge
-            </label>
-            <input
-              id="tags"
-              name="tags"
-              type="text"
-              value={tags}
-              onChange={(event) => setTags(event.target.value)}
-              placeholder="Flytt til behov, Fjern"
-              className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
-            />
-            <p className="text-sm text-slate-400">Kommaseparert. Kun relevant for Kartlegging-modus.</p>
-          </div>
+          {isInnspillMode ? (
+            <fieldset className="space-y-3">
+              <legend className="text-sm font-medium text-slate-100">Synlighet</legend>
+              <div className="space-y-2">
+                <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+                  <input
+                    required
+                    type="radio"
+                    name="visibility-mode"
+                    value="manual"
+                    checked={visibilityMode === 'manual'}
+                    onChange={() => setVisibilityMode('manual')}
+                    className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
+                  />
+                  <span>Manuell styring (fasilitator aktiverer spørsmål enkeltvis)</span>
+                </label>
+                <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+                  <input
+                    required
+                    type="radio"
+                    name="visibility-mode"
+                    value="all"
+                    checked={visibilityMode === 'all'}
+                    onChange={() => setVisibilityMode('all')}
+                    className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
+                  />
+                  <span>Alle synlige fra start</span>
+                </label>
+              </div>
+            </fieldset>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-slate-100" htmlFor="tags">
+                  Tags deltakerne kan velge
+                </label>
+                <input
+                  id="tags"
+                  name="tags"
+                  type="text"
+                  value={tags}
+                  onChange={(event) => setTags(event.target.value)}
+                  placeholder="Flytt til behov, Fjern"
+                  className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
+                />
+                <p className="text-sm text-slate-400">Kommaseparert. Kun relevant for Kartlegging-modus.</p>
+              </div>
 
-          <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-            <input
-              id="allow-new-items"
-              name="allow-new-items"
-              type="checkbox"
-              checked={allowNewItems}
-              onChange={(event) => setAllowNewItems(event.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-950 text-slate-100"
-            />
-            <span>Tillat deltakere å foreslå nye elementer</span>
-          </label>
+              <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+                <input
+                  id="allow-new-items"
+                  name="allow-new-items"
+                  type="checkbox"
+                  checked={allowNewItems}
+                  onChange={(event) => setAllowNewItems(event.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-950 text-slate-100"
+                />
+                <span>Tillat deltakere å foreslå nye elementer</span>
+              </label>
+            </>
+          )}
 
           <button
             type="submit"
