@@ -17,6 +17,11 @@ type SummaryQuestion = {
 
 export function InnspillAdmin({ code, questions }: { code: string; questions: Question[] }) {
   const [rows, setRows] = useState<SummaryQuestion[]>([]);
+  const [localQuestions, setLocalQuestions] = useState<Question[]>(questions);
+
+  useEffect(() => {
+    setLocalQuestions(questions);
+  }, [questions]);
 
   async function fetchSummary() {
     const response = await fetch(`/api/admin/${code}/innspill-summary`, { cache: 'no-store' });
@@ -34,20 +39,35 @@ export function InnspillAdmin({ code, questions }: { code: string; questions: Qu
 
   const merged = useMemo(() => {
     const map = new Map(rows.map((row) => [row.id, row]));
-    return questions.map((question) => map.get(question.id) ?? {
+    return localQuestions.map((question) => map.get(question.id) ?? {
       id: question.id,
       text: question.text,
       question_status: question.questionStatus,
       innspill: [],
     });
-  }, [questions, rows]);
+  }, [localQuestions, rows]);
 
-  async function setStatus(id: string, questionStatus: 'inactive' | 'active' | 'locked') {
-    await fetch(`/api/items/${id}`, {
+  async function toggleQuestionStatus(questionId: string, currentStatus: 'inactive' | 'active' | 'locked') {
+    const newStatus: 'active' | 'locked' = currentStatus === 'active' ? 'locked' : 'active';
+    const response = await fetch(`/api/items/${questionId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question_status: questionStatus }),
+      body: JSON.stringify({ question_status: newStatus }),
     });
+    if (!response.ok) {
+      return;
+    }
+
+    setLocalQuestions((current) => current.map((question) => (
+      question.id === questionId
+        ? { ...question, questionStatus: newStatus }
+        : question
+    )));
+    setRows((current) => current.map((question) => (
+      question.id === questionId
+        ? { ...question, question_status: newStatus }
+        : question
+    )));
     await fetchSummary();
   }
 
@@ -64,9 +84,9 @@ export function InnspillAdmin({ code, questions }: { code: string; questions: Qu
                 <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300">{question.innspill.length} innspill</span>
               </div>
               <div className="mt-3 flex gap-2">
-                {question.question_status === 'inactive' ? <button onClick={() => void setStatus(question.id, 'active')} className="rounded bg-emerald-200 px-3 py-1 text-xs text-emerald-950">Åpne</button> : null}
-                {question.question_status === 'active' ? <button onClick={() => void setStatus(question.id, 'locked')} className="rounded bg-amber-200 px-3 py-1 text-xs text-amber-950">Lås</button> : null}
-                {question.question_status === 'locked' ? <button onClick={() => void setStatus(question.id, 'active')} className="rounded bg-slate-200 px-3 py-1 text-xs text-slate-950">Åpne igjen</button> : null}
+                {question.question_status === 'inactive' ? <button onClick={() => void toggleQuestionStatus(question.id, question.question_status)} className="rounded bg-emerald-200 px-3 py-1 text-xs text-emerald-950">Åpne</button> : null}
+                {question.question_status === 'active' ? <button onClick={() => void toggleQuestionStatus(question.id, question.question_status)} className="rounded bg-amber-200 px-3 py-1 text-xs text-amber-950">Lås</button> : null}
+                {question.question_status === 'locked' ? <button onClick={() => void toggleQuestionStatus(question.id, question.question_status)} className="rounded bg-slate-200 px-3 py-1 text-xs text-slate-950">Åpne igjen</button> : null}
               </div>
             </article>
           ))}

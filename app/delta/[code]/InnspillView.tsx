@@ -110,7 +110,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
           text,
         }),
       });
-      const responseBody = (await response.json()) as unknown;
+      const responseBody = (await response.json()) as { innspill?: { id: string; text: string; likes: number } };
       // eslint-disable-next-line no-console
       console.log('POST /api/innspill response', { status: response.status, body: responseBody });
 
@@ -118,8 +118,21 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
         return;
       }
 
+      if (responseBody.innspill) {
+        setMyInnspill((current) => ({
+          ...current,
+          [questionId]: [
+            ...(current[questionId] ?? []),
+            {
+              id: responseBody.innspill.id,
+              text: responseBody.innspill.text,
+              likes: 0,
+              likedByMe: false,
+            },
+          ],
+        }));
+      }
       setInputText((current) => ({ ...current, [questionId]: '' }));
-      await fetchInnspill();
     } finally {
       setSubmitting((current) => ({ ...current, [questionId]: false }));
     }
