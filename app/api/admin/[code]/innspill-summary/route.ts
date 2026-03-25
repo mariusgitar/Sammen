@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { getDb } from '@/db';
@@ -12,20 +12,41 @@ export async function GET(_request: Request, { params }: { params: { code: strin
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    const questions = await db.select({ id: items.id, text: items.text, question_status: items.questionStatus, orderIndex: items.orderIndex })
+    const questions = await db
+      .select({ id: items.id, text: items.text, question_status: items.questionStatus })
       .from(items)
       .where(and(eq(items.sessionId, session.id), eq(items.isQuestion, true)))
       .orderBy(asc(items.orderIndex), asc(items.createdAt));
 
-    const result = [] as Array<{ id: string; text: string; question_status: string; innspill: Array<{ id: string; text: string; nickname: string; likes: number }> }>;
+    const allInnspill = await db
+      .select({
+        id: innspill.id,
+        text: innspill.text,
+        nickname: innspill.nickname,
+        likes: innspill.likes,
+        participant_id: innspill.participantId,
+        question_id: innspill.questionId,
+        created_at: innspill.createdAt,
+      })
+      .from(innspill)
+      .where(eq(innspill.sessionId, session.id));
 
-    for (const question of questions) {
-      const rows = await db.select({ id: innspill.id, text: innspill.text, nickname: innspill.nickname, likes: innspill.likes })
-        .from(innspill)
-        .where(and(eq(innspill.sessionId, session.id), eq(innspill.questionId, question.id)))
-        .orderBy(desc(innspill.likes), asc(innspill.createdAt));
-      result.push({ id: question.id, text: question.text, question_status: question.question_status, innspill: rows });
-    }
+    const result = questions.map((q) => ({
+      id: q.id,
+      text: q.text,
+      question_status: q.question_status,
+      innspill: allInnspill
+        .filter((i) => i.question_id === q.id)
+        .map((i) => ({
+          id: i.id,
+          text: i.text,
+          nickname: i.nickname,
+          likes: i.likes,
+          participant_id: i.participant_id,
+          created_at: i.created_at,
+        }))
+        .sort((a, b) => b.likes - a.likes),
+    }));
 
     return NextResponse.json({ questions: result });
   } catch (error) {

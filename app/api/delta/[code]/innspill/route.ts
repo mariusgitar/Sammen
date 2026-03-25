@@ -14,23 +14,43 @@ export async function GET(_request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    const activeQuestions = await db
+    const questions = await db
       .select({ id: items.id, text: items.text, question_status: items.questionStatus })
       .from(items)
       .where(and(eq(items.sessionId, session.id), eq(items.isQuestion, true), eq(items.questionStatus, 'active')))
       .orderBy(asc(items.orderIndex), asc(items.createdAt));
 
-    const payload = [] as Array<{ id: string; text: string; question_status: string; innspill: Array<{ id: string; text: string; nickname: string; likes: number; participant_id: string }> }>;
+    const allInnspill = await db
+      .select({
+        id: innspill.id,
+        text: innspill.text,
+        nickname: innspill.nickname,
+        likes: innspill.likes,
+        participant_id: innspill.participantId,
+        question_id: innspill.questionId,
+        created_at: innspill.createdAt,
+      })
+      .from(innspill)
+      .where(eq(innspill.sessionId, session.id));
 
-    for (const question of activeQuestions) {
-      const entries = await db.select({ id: innspill.id, text: innspill.text, nickname: innspill.nickname, likes: innspill.likes, participant_id: innspill.participantId })
-        .from(innspill)
-        .where(and(eq(innspill.sessionId, session.id), eq(innspill.questionId, question.id)))
-        .orderBy(asc(innspill.createdAt));
-      payload.push({ ...question, innspill: entries });
-    }
+    const result = questions.map((q) => ({
+      id: q.id,
+      text: q.text,
+      question_status: q.question_status,
+      innspill: allInnspill
+        .filter((i) => i.question_id === q.id)
+        .map((i) => ({
+          id: i.id,
+          text: i.text,
+          nickname: i.nickname,
+          likes: i.likes,
+          participant_id: i.participant_id,
+          created_at: i.created_at,
+        }))
+        .sort((a, b) => b.likes - a.likes),
+    }));
 
-    return NextResponse.json({ questions: payload });
+    return NextResponse.json({ questions: result });
   } catch (error: any) {
     console.error('GET /api/delta/[code]/innspill error:', error);
     return NextResponse.json(
