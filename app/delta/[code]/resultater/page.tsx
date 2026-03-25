@@ -67,14 +67,14 @@ function hasSplitVotes(item: KartleggingSummaryItem, participantCount: number) {
 
 function getScoreClass(score: number) {
   if (score >= 4) {
-    return 'text-emerald-600';
+    return 'text-sky-500';
   }
 
   if (score >= 2.5) {
     return 'text-amber-500';
   }
 
-  return 'text-rose-500';
+  return 'text-[#3b5bdb]';
 }
 
 export default function ParticipantResultsPage({ params }: PageProps) {
@@ -146,15 +146,15 @@ export default function ParticipantResultsPage({ params }: PageProps) {
 
   if (!isVisible) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
-        <section className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center shadow-xl shadow-slate-950/30">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">{title || `Sesjon ${code}`}</h1>
+      <main className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4">
+        <section className="w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-8 text-center shadow-sm">
+          <h1 className="text-2xl font-semibold text-[#0f172a]">{title || `Sesjon ${code}`}</h1>
           <div className="mt-6 flex items-center justify-center gap-2" aria-hidden>
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-slate-300 [animation-delay:0ms]" />
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-slate-300 [animation-delay:150ms]" />
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-slate-300 [animation-delay:300ms]" />
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:0ms]" />
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:150ms]" />
+            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:300ms]" />
           </div>
-          <p className="mt-4 text-sm text-slate-300">Fasilitator åpner resultatene snart...</p>
+          <p className="mt-4 text-sm text-[#64748b]">Fasilitator åpner resultatene snart...</p>
         </section>
       </main>
     );
@@ -162,10 +162,10 @@ export default function ParticipantResultsPage({ params }: PageProps) {
 
   if (error || !results) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-slate-950 px-4">
-        <section className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-8 text-center">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Kunne ikke laste resultater</h1>
-          {error ? <p className="mt-3 text-sm text-slate-300">{error}</p> : null}
+      <main className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4">
+        <section className="w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-8 text-center shadow-sm">
+          <h1 className="text-2xl font-semibold text-[#0f172a]">Kunne ikke laste resultater</h1>
+          {error ? <p className="mt-3 text-sm text-[#64748b]">{error}</p> : null}
         </section>
       </main>
     );
@@ -198,27 +198,27 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     .sort((a, b) => b.averageScore - a.averageScore);
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-8">
+    <main className="min-h-screen bg-[#f8fafc] px-4 py-8">
       <div className="mx-auto max-w-4xl space-y-4">
-        <h1 className="text-center text-2xl font-semibold tracking-tight text-slate-900">{title}</h1>
+        <h1 className="text-center text-2xl font-semibold text-[#0f172a]">{title}</h1>
 
         {results.mode === 'rangering' ? (
           <>
-            <h2 className="text-xl font-semibold text-slate-900">Rangering-resultater</h2>
+            <h2 className="text-xl font-semibold text-[#0f172a]">Rangering-resultater</h2>
             <div className="space-y-3">
               {rankingItems.map((item, index) => (
-                <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <p className="text-xs text-slate-500">#{index + 1}</p>
-                  <p className="font-medium text-slate-900">{item.text}</p>
-                  <p className="mt-1 text-sm text-slate-700">Snitt posisjon: {item.average_position.toFixed(1)}</p>
-                  <p className="text-xs text-slate-500">{item.vote_count} deltakere</p>
+                <article key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
+                  <p className="text-xs text-[#64748b]">#{index + 1}</p>
+                  <p className="font-medium text-[#0f172a]">{item.text}</p>
+                  <p className="mt-1 text-sm text-[#64748b]">Snitt posisjon: {item.average_position.toFixed(1)}</p>
+                  <p className="text-xs text-[#64748b]">{item.vote_count} deltakere</p>
                 </article>
               ))}
             </div>
           </>
         ) : results.phase === 'kartlegging' ? (
           <>
-            <h2 className="text-xl font-semibold text-slate-900">Kartlegging-resultater</h2>
+            <h2 className="text-xl font-semibold text-[#0f172a]">Kartlegging-resultater</h2>
             <div className="space-y-3">
               {mainKartleggingItems.map((item) => {
                 const splitVotes = hasSplitVotes(item, results.participantCount);
@@ -229,9 +229,9 @@ export default function ParticipantResultsPage({ params }: PageProps) {
                 const maxCount = Math.max(...tagRows.map(([, count]) => count), 1);
 
                 return (
-                  <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                  <article key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-slate-900">{item.text}</p>
+                      <p className="font-medium text-[#0f172a]">{item.text}</p>
                       {splitVotes ? (
                         <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Uenighet</span>
                       ) : null}
@@ -239,13 +239,13 @@ export default function ParticipantResultsPage({ params }: PageProps) {
                     <div className="mt-3 space-y-2">
                       {tagRows.map(([tag, count]) => (
                         <div key={`${item.id}-${tag}`}>
-                          <div className="mb-1 flex justify-between text-xs text-slate-600">
+                          <div className="mb-1 flex justify-between text-xs text-[#64748b]">
                             <span>{tag}</span>
                             <span>{count}</span>
                           </div>
-                          <div className="h-2 rounded bg-slate-200">
+                          <div className="h-2 rounded bg-[#e2e8f0]">
                             <div
-                              className="h-2 rounded bg-sky-500"
+                              className="h-2 rounded bg-[#0ea5e9]"
                               style={{ width: `${Math.max(8, (count / maxCount) * 100)}%` }}
                             />
                           </div>
@@ -259,11 +259,11 @@ export default function ParticipantResultsPage({ params }: PageProps) {
 
             {newKartleggingItems.length > 0 ? (
               <section className="pt-2">
-                <h3 className="text-lg font-semibold text-slate-900">Nye forslag</h3>
+                <h3 className="text-lg font-semibold text-[#0f172a]">Nye forslag</h3>
                 <div className="mt-3 space-y-3">
                   {newKartleggingItems.map((item) => (
-                    <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <p className="font-medium text-slate-900">{item.text}</p>
+                    <article key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
+                      <p className="font-medium text-[#0f172a]">{item.text}</p>
                     </article>
                   ))}
                 </div>
@@ -272,26 +272,26 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           </>
         ) : (
           <>
-            <h2 className="text-xl font-semibold text-slate-900">Stemming-resultater</h2>
+            <h2 className="text-xl font-semibold text-[#0f172a]">Stemming-resultater</h2>
             <div className="space-y-3">
               {results.votingType === 'dots'
                 ? dotItems.map((item) => (
-                    <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <p className="font-medium text-slate-900">{item.text}</p>
-                      <p className="mt-2 text-sm text-slate-700">
-                        Totalt antall prikker: <span className="font-semibold text-slate-900">{Math.round(item.totalDots)}</span> ·{' '}
+                    <article key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
+                      <p className="font-medium text-[#0f172a]">{item.text}</p>
+                      <p className="mt-2 text-sm text-[#64748b]">
+                        Totalt antall prikker: <span className="font-semibold text-[#0f172a]">{Math.round(item.totalDots)}</span> ·{' '}
                         {totalDots > 0 ? ((item.totalDots / totalDots) * 100).toFixed(1) : '0.0'}%
                       </p>
                     </article>
                   ))
                 : scaleItems.map((item) => (
-                    <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                      <p className="font-medium text-slate-900">{item.text}</p>
-                      <p className="mt-2 text-sm text-slate-700">
+                    <article key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
+                      <p className="font-medium text-[#0f172a]">{item.text}</p>
+                      <p className="mt-2 text-sm text-[#64748b]">
                         Snittscore:{' '}
                         <span className={`font-semibold ${getScoreClass(item.averageScore)}`}>{item.averageScore.toFixed(1)}</span>
                       </p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-[#64748b]">
                         1:{item.distribution['1']} &nbsp; 2:{item.distribution['2']} &nbsp; 3:{item.distribution['3']} &nbsp;
                         4:{item.distribution['4']} &nbsp; 5:{item.distribution['5']}
                       </p>

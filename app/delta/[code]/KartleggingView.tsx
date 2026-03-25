@@ -189,15 +189,15 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
 
   if (!hasJoined) {
     return (
-      <main className="min-h-screen px-4 py-10 sm:px-6">
-        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
+        <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
           <div className="mb-8">
-            <h1 className="text-2xl font-semibold tracking-tight text-white">{session.title}</h1>
+            <h1 className="text-2xl font-semibold text-[#0f172a]">{session.title}</h1>
           </div>
 
           <form className="space-y-6" onSubmit={handleJoin}>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-slate-100" htmlFor="nickname">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-[#64748b]" htmlFor="nickname">
                 Skriv inn kallenavnet ditt
               </label>
               <input
@@ -207,14 +207,14 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
                 type="text"
                 value={nickname}
                 onChange={(event) => setNickname(event.target.value)}
-                className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
+                className="w-full rounded-xl border border-[#e2e8f0] bg-white p-3 text-[#0f172a] outline-none transition focus:border-[#3b5bdb]"
               />
             </div>
 
             <button
               type="submit"
               disabled={!nickname.trim()}
-              className="w-full rounded bg-slate-100 px-4 py-2 font-medium text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full rounded-full bg-[#0f172a] px-4 py-3 font-semibold text-white transition hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-70"
             >
               Bli med
             </button>
@@ -226,36 +226,36 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
 
   if (submitted) {
     return (
-      <main className="min-h-screen px-4 py-10 sm:px-6">
-        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Takk for dine svar, {nickname.trim()}!</h1>
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
+        <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
+          <h1 className="text-2xl font-semibold text-[#0f172a]">Takk for dine svar, {nickname.trim()}!</h1>
           <Link
             href={`/delta/${session.code}/resultater`}
-            className="mt-5 inline-flex rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
+            className="mt-5 inline-flex rounded-full bg-[#0f172a] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1e293b]"
           >
             Se resultater →
           </Link>
-          <p className="mt-3 text-sm text-slate-300">Vent på at fasilitator åpner resultatene</p>
+          <p className="mt-3 text-sm text-[#64748b]">Vent på at fasilitator åpner resultatene</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen px-4 py-10 sm:px-6">
-      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+    <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
+      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">{session.title}</h1>
-          <p className="mt-2 text-sm text-slate-300">Hei, {nickname.trim()}</p>
-          <p className="mt-2 text-sm text-slate-300">
+          <h1 className="text-2xl font-semibold text-[#0f172a]">{session.title}</h1>
+          <p className="mt-2 text-sm text-[#64748b]">Hei, {nickname.trim()}</p>
+          <p className="mt-2 text-sm text-[#64748b]">
             Tagg elementene du vil kategorisere. Du kan sende inn uten å tagge alle.
           </p>
         </div>
 
         <div className="space-y-4">
           {originalItems.map((item) => (
-            <section key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4">
-              <p className="text-base text-slate-100">{item.text}</p>
+            <section key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
+              <p className="text-base font-medium text-[#0f172a]">{item.text}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {session.tags.map((tag) => {
                   const selected = responses[item.id] === tag;
@@ -267,8 +267,8 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
                       onClick={() => handleSelectTag(item.id, tag)}
                       className={`rounded-full border px-3 py-1 text-sm transition ${
                         selected
-                          ? 'border-white bg-white text-black'
-                          : 'border-white/30 text-white/70 hover:border-white/50 hover:text-white'
+                          ? 'border-[#0f172a] bg-[#0f172a] text-white'
+                          : 'border-[#e2e8f0] bg-white text-[#0f172a] hover:border-[#cbd5e1]'
                       }`}
                     >
                       {tag}
@@ -280,12 +280,12 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
           ))}
 
           {proposedItems.map((item) => (
-            <section key={item.id} className="rounded-2xl border border-emerald-700/40 bg-emerald-950/20 p-4">
+            <section key={item.id} className="rounded-2xl border border-[#c7d2fe] bg-[#eef2ff] p-4 shadow-sm">
               <div className="flex items-center gap-2">
-                <span className="rounded-full border border-emerald-400/40 bg-emerald-400/20 px-2 py-0.5 text-xs text-emerald-200">
+                <span className="rounded-full border border-[#93c5fd] bg-[#e0f2fe] px-2 py-0.5 text-xs text-[#0369a1]">
                   Ny
                 </span>
-                <p className="text-base text-slate-100">{item.text}</p>
+                <p className="text-base font-medium text-[#0f172a]">{item.text}</p>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
                 {session.tags.map((tag) => {
@@ -298,8 +298,8 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
                       onClick={() => handleSelectTag(item.id, tag)}
                       className={`rounded-full border px-3 py-1 text-sm transition ${
                         selected
-                          ? 'border-white bg-white text-black'
-                          : 'border-white/30 text-white/70 hover:border-white/50 hover:text-white'
+                          ? 'border-[#0f172a] bg-[#0f172a] text-white'
+                          : 'border-[#e2e8f0] bg-white text-[#0f172a] hover:border-[#cbd5e1]'
                       }`}
                     >
                       {tag}
@@ -317,13 +317,13 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
               <button
                 type="button"
                 onClick={() => setShowProposalInput(true)}
-                className="text-sm text-slate-400 transition hover:text-slate-200"
+                className="text-sm text-[#64748b] transition hover:text-[#0f172a]"
               >
                 + Foreslå nytt element
               </button>
             ) : (
-              <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
-                <label htmlFor="proposal" className="text-sm text-slate-300">
+              <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3">
+                <label htmlFor="proposal" className="text-sm text-[#64748b]">
                   Skriv nytt forslag
                 </label>
                 <div className="mt-2 flex flex-col gap-2 sm:flex-row">
@@ -333,13 +333,13 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
                     value={proposalText}
                     onChange={(event) => setProposalText(event.target.value)}
                     placeholder="F.eks. Mer involvering i oppstartsmøter"
-                    className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-sm text-slate-50 outline-none transition focus:border-slate-500"
+                    className="w-full rounded-xl border border-[#e2e8f0] bg-white p-2 text-sm text-[#0f172a] outline-none transition focus:border-[#3b5bdb]"
                   />
                   <button
                     type="button"
                     onClick={handleProposeItem}
                     disabled={!proposalText.trim() || proposalSubmitting}
-                    className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+                    className="rounded-full bg-[#0f172a] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {proposalSubmitting ? 'Sender...' : 'Send forslag'}
                   </button>
@@ -354,12 +354,12 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
             type="button"
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="w-full rounded bg-slate-100 px-4 py-2 font-medium text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-full bg-[#0f172a] px-4 py-3 font-semibold text-white transition hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? 'Sender inn...' : 'Send inn svar'}
           </button>
 
-          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+          {error ? <p className="text-sm text-amber-500">{error}</p> : null}
         </div>
       </div>
     </main>

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 
 export default function LoginPage() {
@@ -40,39 +41,41 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-md rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-        <h1 className="text-3xl font-semibold tracking-tight text-white">Sammen</h1>
-        <p className="mt-2 text-sm text-slate-300">Logg inn for å fortsette</p>
+    <main className="flex min-h-screen items-center justify-center bg-[#ffffff] px-4">
+      <section className="w-full max-w-sm space-y-8">
+        <p className="text-2xl font-bold text-[#0f172a]">●&nbsp;&nbsp;Sammen</p>
 
-        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-100" htmlFor="password">
-              Passord
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
-              autoComplete="current-password"
-              required
-            />
-          </div>
+        <div className="space-y-2">
+          <h1 className="text-4xl font-bold tracking-tight text-[#0f172a]">Logg inn som fasilitator</h1>
+        </div>
+
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            className="w-full rounded-xl border-2 border-[#e2e8f0] p-4 text-center text-2xl font-bold tracking-wide text-[#0f172a] placeholder:text-[#94a3b8] focus:border-[#3b5bdb] focus:outline-none focus:ring-0"
+            autoComplete="current-password"
+            required
+          />
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded bg-slate-100 px-4 py-2 font-medium text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-full bg-[#0f172a] py-4 text-lg font-semibold text-white transition hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-70"
           >
             {isSubmitting ? 'Logger inn...' : 'Logg inn'}
           </button>
 
-          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+          {error ? <p className="text-sm text-amber-500">{error}</p> : null}
         </form>
-      </div>
+
+        <Link href="/" className="text-sm text-[#64748b]">
+          ← Tilbake
+        </Link>
+      </section>
     </main>
   );
 }

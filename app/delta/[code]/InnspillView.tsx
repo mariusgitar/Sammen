@@ -20,12 +20,12 @@ type MyEntry = { id: string; text: string; likes: number; likedByMe: boolean };
 type OtherEntry = { id: string; text: string; nickname: string; likes: number; likedByMe: boolean; participant_id: string };
 
 const columnColors = [
-  'border-t-indigo-500',
-  'border-t-violet-500',
-  'border-t-sky-500',
-  'border-t-emerald-500',
-  'border-t-amber-500',
-  'border-t-rose-500',
+  'border-t-[#3b5bdb]',
+  'border-t-[#818cf8]',
+  'border-t-[#0ea5e9]',
+  'border-t-[#f59e0b]',
+  'border-t-[#38bdf8]',
+  'border-t-[#a78bfa]',
 ];
 
 export function InnspillView({ session, items }: { session: SessionInfo; items: Question[] }) {
@@ -208,14 +208,14 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
 
   if (!hasJoined) {
     return (
-      <main className="min-h-screen bg-slate-950 px-4 py-10 text-slate-100 sm:px-6">
-        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6">
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 text-[#0f172a] sm:px-6">
+        <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
           <h1 className="text-2xl font-semibold">{session.title}</h1>
-          <p className="mt-2 text-sm text-slate-300">Velg et visningsnavn for innspill.</p>
+          <p className="mt-2 text-sm text-[#64748b]">Velg et visningsnavn for innspill.</p>
           <input
             value={nickname}
             onChange={(event) => setNickname(event.target.value)}
-            className="mt-4 w-full rounded border border-slate-700 bg-slate-950 p-2"
+            className="mt-4 w-full rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"
             placeholder="Kallenavn"
           />
           <button
@@ -226,7 +226,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
               localStorage.setItem(participantStorageKey, participantId);
               setHasJoined(true);
             }}
-            className="mt-4 w-full rounded bg-white px-4 py-2 font-medium text-slate-950 disabled:opacity-60"
+            className="mt-4 w-full rounded-full bg-[#0f172a] px-4 py-2 font-semibold text-white disabled:opacity-60"
           >
             Bli med
           </button>
@@ -236,18 +236,18 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
   }
 
   return (
-    <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 sm:px-6">
+    <main className="min-h-screen bg-[#f8fafc] px-4 py-8 text-[#0f172a] sm:px-6">
       <div className="mx-auto w-full max-w-7xl space-y-6">
         <h1 className="text-2xl font-semibold">{session.title}</h1>
 
-        {visibleQuestions.length === 0 ? <p className="rounded-xl border border-slate-800 bg-slate-900 p-4">Vent på at fasilitator åpner neste spørsmål...</p> : null}
+        {visibleQuestions.length === 0 ? <p className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm text-[#64748b]">Vent på at fasilitator åpner neste spørsmål...</p> : null}
 
         {visibleQuestions.length > 0 ? (
           <div className="flex justify-end">
             <button
               type="button"
               onClick={() => setShowOthers((current) => !current)}
-              className="text-sm text-slate-300 underline"
+              className="text-sm text-[#64748b] underline"
             >
               {showOthers ? 'Skjul andres innspill' : 'Vis andres innspill'}
             </button>
@@ -267,22 +267,22 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
             return (
               <section
                 key={question.id}
-                className={`min-h-[300px] rounded-2xl border border-white/10 border-t-2 bg-white/5 flex flex-col ${columnColors[index % columnColors.length]}`}
+                className={`min-h-[300px] rounded-2xl border border-[#e2e8f0] border-t-2 bg-white shadow-sm flex flex-col ${columnColors[index % columnColors.length]}`}
               >
-                <div className="sticky top-0 z-10 rounded-t-2xl border-b border-white/10 bg-[#0f172a] px-4 pb-3 pt-4">
+                <div className="sticky top-0 z-10 rounded-t-2xl border-b border-[#e2e8f0] bg-[#f8fafc] px-4 pb-3 pt-4">
                   <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-sm font-semibold text-white">{question.text}</h2>
-                    <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-white/60">{innspillCount}</span>
+                    <h2 className="text-sm font-semibold text-[#0f172a]">{question.text}</h2>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#64748b] border border-[#e2e8f0]">{innspillCount}</span>
                   </div>
                 </div>
 
                 <div className="flex flex-1 flex-col gap-2 p-3">
                   {mine.map((entry) => (
-                    <div key={entry.id} className="rounded-xl border border-indigo-500/30 bg-indigo-500/20 px-3 py-2 text-sm">
+                    <div key={entry.id} className="rounded-xl border border-[#c7d2fe] bg-[#eef2ff] px-3 py-2 text-sm">
                       <p>{entry.text}</p>
-                      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-white/40">
+                      <div className="mt-1 flex items-center justify-between gap-3 text-xs text-[#64748b]">
                         <span>Ditt innspill</span>
-                        <button type="button" onClick={() => deleteInnspill(entry.id)} className="text-rose-200">
+                        <button type="button" onClick={() => deleteInnspill(entry.id)} className="text-amber-500">
                           Slett
                         </button>
                       </div>
@@ -291,10 +291,10 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
 
                   {showOthers
                     ? others.map((entry) => (
-                        <div key={entry.id} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                        <div key={entry.id} className="rounded-xl border border-[#e2e8f0] bg-white px-3 py-2 text-sm">
                           <div>{entry.text}</div>
                           <div className="mt-1 flex items-center justify-between">
-                            <span className="text-xs text-white/40">{entry.nickname}</span>
+                            <span className="text-xs text-[#64748b]">{entry.nickname}</span>
                             <button type="button" onClick={() => toggleLike(entry.id)}>
                               {entry.likedByMe ? '♥' : '♡'} {entry.likes}
                             </button>
@@ -304,11 +304,11 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
                     : null}
                 </div>
 
-                <div className="border-t border-white/10 p-3">
+                <div className="border-t border-[#e2e8f0] p-3">
                   {question.questionStatus === 'active' ? (
                     <>
                       <textarea
-                        className="w-full resize-none rounded-xl bg-white/5 p-2 text-sm"
+                        className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
                         rows={2}
                         placeholder="Skriv ditt innspill..."
                         value={inputText[question.id] || ''}
@@ -316,7 +316,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
                       />
                       <button
                         type="button"
-                        className="mt-2 w-full rounded-xl bg-indigo-600 py-1.5 text-sm"
+                        className="mt-2 w-full rounded-full bg-[#0f172a] py-2 text-sm font-semibold text-white"
                         onClick={() => submit(question.id)}
                         disabled={submitting[question.id]}
                       >
@@ -324,7 +324,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
                       </button>
                     </>
                   ) : (
-                    <p className="text-sm text-white/50">Dette spørsmålet er lukket for nye innspill.</p>
+                    <p className="text-sm text-[#64748b]">Dette spørsmålet er lukket for nye innspill.</p>
                   )}
                 </div>
               </section>

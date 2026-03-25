@@ -150,15 +150,15 @@ export function StemmingView({ session, items }: StemmingViewProps) {
 
   if (!hasJoined) {
     return (
-      <main className="min-h-screen px-4 py-10 sm:px-6">
-        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
+        <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
           <div className="mb-8">
-            <h1 className="text-2xl font-semibold tracking-tight text-white">{session.title}</h1>
+            <h1 className="text-2xl font-semibold text-[#0f172a]">{session.title}</h1>
           </div>
 
           <form className="space-y-6" onSubmit={handleJoin}>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-slate-100" htmlFor="nickname">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-[#64748b]" htmlFor="nickname">
                 Skriv inn kallenavnet ditt
               </label>
               <input
@@ -168,14 +168,14 @@ export function StemmingView({ session, items }: StemmingViewProps) {
                 type="text"
                 value={nickname}
                 onChange={(event) => setNickname(event.target.value)}
-                className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
+                className="w-full rounded-xl border border-[#e2e8f0] bg-white p-3 text-[#0f172a] outline-none transition focus:border-[#3b5bdb]"
               />
             </div>
 
             <button
               type="submit"
               disabled={!nickname.trim()}
-              className="w-full rounded bg-slate-100 px-4 py-2 font-medium text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full rounded-full bg-[#0f172a] px-4 py-3 font-semibold text-white transition hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-70"
             >
               Bli med
             </button>
@@ -187,34 +187,34 @@ export function StemmingView({ session, items }: StemmingViewProps) {
 
   if (submitted) {
     return (
-      <main className="min-h-screen px-4 py-10 sm:px-6">
-        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Takk for dine svar, {nickname.trim()}!</h1>
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
+        <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
+          <h1 className="text-2xl font-semibold text-[#0f172a]">Takk for dine svar, {nickname.trim()}!</h1>
           <Link
             href={`/delta/${session.code}/resultater`}
-            className="mt-5 inline-flex rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
+            className="mt-5 inline-flex rounded-full bg-[#0f172a] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1e293b]"
           >
             Se resultater →
           </Link>
-          <p className="mt-3 text-sm text-slate-300">Vent på at fasilitator åpner resultatene</p>
+          <p className="mt-3 text-sm text-[#64748b]">Vent på at fasilitator åpner resultatene</p>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen px-4 py-10 sm:px-6">
-      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+    <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
+      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
         <div className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">{session.title}</h1>
-          <p className="mt-2 text-sm text-slate-300">Hei, {nickname.trim()}</p>
+          <h1 className="text-2xl font-semibold text-[#0f172a]">{session.title}</h1>
+          <p className="mt-2 text-sm text-[#64748b]">Hei, {nickname.trim()}</p>
           {isDotVoting ? (
             <>
-              <p className="mt-3 text-sm text-slate-200">
+              <p className="mt-3 text-sm text-[#64748b]">
                 Fordel {session.dotBudget} prikker på kriteriene under.
               </p>
-              <p className="text-sm text-slate-400">Trykk på prikkene for å fordele budsjettet ditt.</p>
-              <p className="mt-2 text-sm text-slate-100">
+              <p className="text-sm text-[#64748b]">Trykk på prikkene for å fordele budsjettet ditt.</p>
+              <p className="mt-2 text-sm text-[#0f172a]">
                 Brukt: {dotsUsed}/{session.dotBudget} · Gjenstår: {dotsRemaining}
               </p>
               {session.dotBudget <= 10 ? (
@@ -227,21 +227,21 @@ export function StemmingView({ session, items }: StemmingViewProps) {
                         key={index}
                         className={`h-5 w-5 rounded-full ${
                           isFilled
-                            ? 'bg-gradient-to-br from-indigo-500 to-violet-500'
-                            : 'border border-white/30 bg-transparent'
+                            ? 'bg-[#3b5bdb]'
+                            : 'border border-[#e2e8f0] bg-white'
                         }`}
                       />
                     );
                   })}
                 </div>
               ) : (
-                <p className="mt-2 text-sm text-slate-400">Budsjett: {session.dotBudget} prikker</p>
+                <p className="mt-2 text-sm text-[#64748b]">Budsjett: {session.dotBudget} prikker</p>
               )}
             </>
           ) : (
             <>
-              <p className="mt-3 text-sm text-slate-200">Gi hvert kriterium en score fra 1 til 5</p>
-              <p className="text-sm text-slate-400">1 = lite viktig, 5 = svært viktig</p>
+              <p className="mt-3 text-sm text-[#64748b]">Gi hvert kriterium en score fra 1 til 5</p>
+              <p className="text-sm text-[#64748b]">1 = lite viktig, 5 = svært viktig</p>
             </>
           )}
         </div>
@@ -257,8 +257,8 @@ export function StemmingView({ session, items }: StemmingViewProps) {
             const hoveredValue = hoveredDot?.itemId === item.id ? hoveredDot.value : 0;
 
             return (
-              <section key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/60 px-4 py-3">
-                <p className="text-base text-slate-100">{item.text}</p>
+              <section key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white px-4 py-3 shadow-sm">
+                <p className="text-base font-medium text-[#0f172a]">{item.text}</p>
                 {isDotVoting ? (
                   <div
                     className="mt-4 flex flex-wrap gap-1.5"
@@ -319,11 +319,11 @@ export function StemmingView({ session, items }: StemmingViewProps) {
                           className={`h-5 w-5 rounded-full transition ${
                             session.allowMultipleDots && hoveredValue > 0
                               ? isHovered
-                                ? 'bg-gradient-to-br from-indigo-500/60 to-violet-500/60'
-                                : 'border border-white/30 bg-transparent'
+                                ? 'bg-[#3b5bdb]/60'
+                                : 'border border-[#e2e8f0] bg-white'
                               : isFilled
-                                ? 'bg-gradient-to-br from-indigo-500 to-violet-500'
-                                : 'border border-white/30 bg-transparent'
+                                ? 'bg-[#3b5bdb]'
+                                : 'border border-[#e2e8f0] bg-white'
                           }`}
                           aria-label={`Sett ${index + 1} prikker`}
                         />
@@ -347,8 +347,8 @@ export function StemmingView({ session, items }: StemmingViewProps) {
                           }}
                           className={`rounded-full border px-3 py-1 text-sm transition ${
                             selected
-                              ? 'border-white bg-white text-black'
-                              : 'border-white/30 text-white/70 hover:border-white/50 hover:text-white'
+                              ? 'border-[#3b5bdb] bg-[#3b5bdb] text-white'
+                              : 'border-[#e2e8f0] bg-white text-[#0f172a] hover:border-[#cbd5e1]'
                           }`}
                         >
                           {score}
@@ -362,13 +362,13 @@ export function StemmingView({ session, items }: StemmingViewProps) {
           })}
         </div>
 
-        {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
+        {error ? <p className="mt-4 text-sm text-amber-500">{error}</p> : null}
 
         <button
           type="button"
           onClick={handleSubmitVotes}
           disabled={!canSubmit || isSubmitting}
-          className="mt-8 w-full rounded bg-slate-100 px-4 py-2 font-medium text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+          className="mt-8 w-full rounded-full bg-[#0f172a] px-4 py-3 font-semibold text-white transition hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-70"
         >
           Send inn stemmer
         </button>
@@ -376,7 +376,7 @@ export function StemmingView({ session, items }: StemmingViewProps) {
 
       {toastMessage ? (
         <div
-          className={`fixed bottom-6 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl bg-gray-800 px-4 py-3 text-sm text-white shadow-lg transition-all duration-200 ${
+          className={`fixed bottom-6 left-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 rounded-xl bg-[#0f172a] px-4 py-3 text-sm text-white shadow-md transition-all duration-200 ${
             isToastVisible ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'
           }`}
           role="status"

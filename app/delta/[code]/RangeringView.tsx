@@ -31,18 +31,18 @@ function SortableRankItem({ item, index }: { item: RankedItem; index: number }) 
     <article
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`rounded-xl border border-slate-700 bg-slate-950/70 px-4 py-4 ${
-        isDragging ? 'scale-105 shadow-lg shadow-slate-950/60' : ''
+      className={`rounded-2xl border border-[#e2e8f0] bg-white px-4 py-4 shadow-sm ${
+        isDragging ? 'scale-105 border-[#3b5bdb] shadow-md' : ''
       }`}
     >
       <div className="flex items-center gap-4">
-        <span className="min-w-8 text-3xl font-semibold text-slate-500">{index + 1}</span>
-        <p className="flex-1 text-slate-100">{item.text}</p>
+        <span className="min-w-8 text-3xl font-semibold text-[#94a3b8]">{index + 1}</span>
+        <p className="flex-1 text-[#0f172a]">{item.text}</p>
         <button
           type="button"
           {...attributes}
           {...listeners}
-          className="rounded border border-slate-700 px-2 py-1 text-lg leading-none text-slate-300"
+          className="rounded-full border border-[#e2e8f0] px-2 py-1 text-lg leading-none text-[#94a3b8]"
           aria-label={`Dra for å flytte ${item.text}`}
         >
           ≡
@@ -164,15 +164,15 @@ export function RangeringView({ session, items }: RangeringViewProps) {
 
   if (!hasJoined) {
     return (
-      <main className="min-h-screen px-4 py-10 sm:px-6">
-        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
+        <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
           <div className="mb-8">
-            <h1 className="text-2xl font-semibold tracking-tight text-white">{session.title}</h1>
+            <h1 className="text-2xl font-semibold text-[#0f172a]">{session.title}</h1>
           </div>
 
           <form className="space-y-6" onSubmit={handleJoin}>
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-slate-100" htmlFor="nickname">
+              <label className="block text-xs font-semibold uppercase tracking-wide text-[#64748b]" htmlFor="nickname">
                 Skriv inn kallenavnet ditt
               </label>
               <input
@@ -182,14 +182,14 @@ export function RangeringView({ session, items }: RangeringViewProps) {
                 type="text"
                 value={nickname}
                 onChange={(event) => setNickname(event.target.value)}
-                className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
+                className="w-full rounded-xl border border-[#e2e8f0] bg-white p-3 text-[#0f172a] outline-none transition focus:border-[#3b5bdb]"
               />
             </div>
 
             <button
               type="submit"
               disabled={!nickname.trim()}
-              className="w-full rounded bg-slate-100 px-4 py-2 font-medium text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full rounded-full bg-[#0f172a] px-4 py-3 font-semibold text-white transition hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-70"
             >
               Bli med
             </button>
@@ -201,12 +201,12 @@ export function RangeringView({ session, items }: RangeringViewProps) {
 
   if (submitted) {
     return (
-      <main className="min-h-screen px-4 py-10 sm:px-6">
-        <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">Takk for din rangering, {nickname.trim()}!</h1>
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
+        <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
+          <h1 className="text-2xl font-semibold text-[#0f172a]">Takk for din rangering, {nickname.trim()}!</h1>
           <Link
             href={`/delta/${session.code}/resultater`}
-            className="mt-5 inline-flex rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
+            className="mt-5 inline-flex rounded-full bg-[#0f172a] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1e293b]"
           >
             Se resultater →
           </Link>
@@ -216,17 +216,17 @@ export function RangeringView({ session, items }: RangeringViewProps) {
   }
 
   return (
-    <main className="min-h-screen px-4 py-10 sm:px-6">
-      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-        <h1 className="text-2xl font-semibold tracking-tight text-white">{session.title}</h1>
-        <p className="mt-2 text-sm text-slate-300">Hei, {nickname.trim()}</p>
+    <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
+      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
+        <h1 className="text-2xl font-semibold text-[#0f172a]">{session.title}</h1>
+        <p className="mt-2 text-sm text-[#64748b]">Hei, {nickname.trim()}</p>
 
         {session.maxRankItems ? (
-          <p className="mt-3 text-sm text-slate-200">
+          <p className="mt-3 text-sm text-[#64748b]">
             Ranger de {session.maxRankItems} viktigste elementene ved å dra dem i ønsket rekkefølge.
           </p>
         ) : (
-          <p className="mt-3 text-sm text-slate-200">
+          <p className="mt-3 text-sm text-[#64748b]">
             Ranger alle elementene ved å dra dem i ønsket rekkefølge. Øverst = viktigst.
           </p>
         )}
@@ -245,12 +245,12 @@ export function RangeringView({ session, items }: RangeringViewProps) {
           type="button"
           onClick={submitRanking}
           disabled={submitting}
-          className="mt-6 w-full rounded bg-slate-100 px-4 py-2 font-medium text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+          className="mt-6 w-full rounded-full bg-[#0f172a] px-4 py-3 font-semibold text-white transition hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-70"
         >
           {submitting ? 'Sender…' : 'Send inn rangering'}
         </button>
 
-        {error ? <p className="mt-3 text-sm text-red-400">{error}</p> : null}
+        {error ? <p className="mt-3 text-sm text-amber-500">{error}</p> : null}
       </div>
     </main>
   );

@@ -112,3 +112,7 @@ API routes:
   only update from PATCH response
 - Drizzle returns snake_case field names (question_id not questionId)
 - db.transaction() not supported — use sequential inserts
+
+## Theme split
+- Participant/public pages use light theme; admin and /vis pages stay dark for role separation
+
