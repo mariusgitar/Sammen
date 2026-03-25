@@ -1,9 +1,11 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 
 type SessionView = {
   id: string;
+  code: string;
   title: string;
   votingType: 'scale' | 'dots';
   dotBudget: number;
@@ -166,7 +168,13 @@ export function StemmingView({ session, items }: StemmingViewProps) {
       <main className="min-h-screen px-4 py-10 sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
           <h1 className="text-2xl font-semibold tracking-tight text-white">Takk for dine svar, {nickname.trim()}!</h1>
-          <p className="mt-2 text-sm text-slate-300">Vent på at fasilitator fortsetter sesjonen.</p>
+          <Link
+            href={`/delta/${session.code}/resultater`}
+            className="mt-5 inline-flex rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white"
+          >
+            Se resultater →
+          </Link>
+          <p className="mt-3 text-sm text-slate-300">Vent på at fasilitator åpner resultatene</p>
         </div>
       </main>
     );
