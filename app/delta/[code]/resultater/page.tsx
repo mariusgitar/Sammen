@@ -15,7 +15,9 @@ type SessionInfoResponse = {
     mode: 'kartlegging' | 'stemming' | 'rangering';
     phase: 'kartlegging' | 'stemming' | 'rangering';
     votingType: 'scale' | 'dots';
-    resultsVisible: boolean;
+    status: 'setup' | 'active' | 'paused' | 'closed';
+    resultsVisible?: boolean;
+    results_visible?: boolean;
   };
 };
 
@@ -81,6 +83,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const code = useMemo(() => params.code.toUpperCase(), [params.code]);
   const [title, setTitle] = useState('');
   const [isVisible, setIsVisible] = useState(false);
+  const [sessionStatus, setSessionStatus] = useState<'setup' | 'active' | 'paused' | 'closed' | null>(null);
   const [results, setResults] = useState<ResultsResponse | null>(null);
   const [error, setError] = useState('');
 
@@ -101,10 +104,16 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           return;
         }
 
-        setTitle(sessionData.session.title);
-        setIsVisible(sessionData.session.resultsVisible);
+        const serverVisibility =
+          typeof sessionData.session.results_visible === 'boolean'
+            ? sessionData.session.results_visible
+            : Boolean(sessionData.session.resultsVisible);
 
-        if (!sessionData.session.resultsVisible) {
+        setTitle(sessionData.session.title);
+        setIsVisible(serverVisibility);
+        setSessionStatus(sessionData.session.status);
+
+        if (!serverVisibility) {
           setResults(null);
           setError('');
           return;
@@ -136,7 +145,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     void fetchData();
     const timer = setInterval(() => {
       void fetchData();
-    }, 5_000);
+    }, 3_000);
 
     return () => {
       isMounted = false;
@@ -145,6 +154,8 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   }, [code]);
 
   if (!isVisible) {
+    const isClosed = sessionStatus === 'closed';
+
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4">
         <section className="w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-8 text-center shadow-sm">
@@ -154,7 +165,10 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:150ms]" />
             <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:300ms]" />
           </div>
-          <p className="mt-4 text-sm text-[#64748b]">Fasilitator åpner resultatene snart...</p>
+          <p className="mt-4 text-sm text-[#64748b]">
+            {isClosed ? 'Denne sesjonen er avsluttet.' : 'Fasilitator åpner resultatene snart...'}
+          </p>
+          {isClosed ? <p className="mt-2 text-sm text-[#64748b]">Ta kontakt med fasilitator for mer informasjon.</p> : null}
         </section>
       </main>
     );

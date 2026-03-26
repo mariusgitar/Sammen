@@ -128,7 +128,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   }
 
   if (session.status === 'setup' || session.status === 'paused') {
-    return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er ikke åpen ennå.</h1><p className="mt-2 text-sm text-[#64748b]">Vent på fasilitator.</p></div></main>;
+    return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er ikke åpen ennå. Vent på fasilitator.</h1></div></main>;
   }
 
   if (session.mode === 'aapne-innspill' && session.status === 'active') {

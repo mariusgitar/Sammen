@@ -59,6 +59,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         phase: sessions.phase,
         status: sessions.status,
         resultsVisible: sessions.resultsVisible,
+        results_visible: sessions.resultsVisible,
         tags: sessions.tags,
         allowNewItems: sessions.allowNewItems,
         visibilityMode: sessions.visibilityMode,
