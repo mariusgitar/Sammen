@@ -5,7 +5,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { type SessionMode, type SessionStatus } from '@/db/schema';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 type SessionListItem = {
   id: string;
