@@ -78,6 +78,28 @@ type AdminPanelProps = {
   items: SessionItem[];
 };
 
+
+const modeLabels: Record<string, string> = {
+  kartlegging: 'Kartlegging',
+  stemming: 'Stemming',
+  'aapne-innspill': 'Åpne innspill',
+  rangering: 'Rangering',
+};
+
+const statusLabels: Record<string, string> = {
+  setup: 'Ikke startet',
+  active: 'Aktiv',
+  paused: 'Innsamling avsluttet',
+  closed: 'Avsluttet',
+};
+
+const phaseLabels: Record<string, string> = {
+  kartlegging: 'Kartlegging pågår',
+  stemming: 'Stemming pågår',
+  innspill: 'Innspill pågår',
+  rangering: 'Rangering pågår',
+};
+
 const tagBadgeClasses = [
   'bg-cyan-500/15 text-cyan-200 border-cyan-500/30',
   'bg-emerald-500/15 text-emerald-200 border-emerald-500/30',
@@ -484,9 +506,9 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Sesjonsinfo</h2>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">{currentSession.title}</h1>
-        <p className="mt-2 text-slate-300">Modus: {currentSession.mode}</p>
-        <p className="text-slate-300">Status: {sessionStatus}</p>
-        <p className="text-slate-300">Fase: {sessionPhase}</p>
+        <p className="mt-2 text-slate-300">Modus: {modeLabels[currentSession.mode] ?? currentSession.mode}</p>
+        <p className="text-slate-300">Status: {statusLabels[sessionStatus] ?? sessionStatus}</p>
+        <p className="text-slate-300">Fase: {phaseLabels[sessionPhase] ?? sessionPhase}</p>
         <Link
           href={`/vis/${currentSession.code}`}
           target="_blank"

@@ -15,10 +15,10 @@ const modeLabels: Record<SessionMode, string> = {
 };
 
 const statusLabels: Record<SessionStatus, string> = {
-  setup: 'Oppsett',
+  setup: 'Ikke startet',
   active: 'Aktiv',
-  paused: 'Pauset',
-  closed: 'Lukket',
+  paused: 'Innsamling avsluttet',
+  closed: 'Avsluttet',
 };
 
 const statusOrder: SessionStatus[] = ['active', 'paused', 'setup', 'closed'];
