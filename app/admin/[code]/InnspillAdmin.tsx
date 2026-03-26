@@ -117,18 +117,14 @@ export function InnspillAdmin({ code, questions, showOthersInnspill }: { code: s
 
       <div>
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Live innspill</h2>
-        <div
-          className={`mt-3 grid grid-cols-1 items-start gap-4 overflow-x-auto md:grid-cols-2 lg:grid-cols-3 ${
-            liveQuestions.length > 3 ? 'xl:grid-flow-col xl:auto-cols-[320px] xl:grid-cols-none' : ''
-          }`}
-        >
+        <div className="mt-3 grid grid-cols-1 items-start gap-4 md:grid-cols-2 lg:grid-cols-3">
           {liveQuestions.map((question, index) => {
             const sortedInnspill = [...question.innspill].sort((a, b) => b.likes - a.likes);
 
             return (
               <article
                 key={question.id}
-                className={`min-h-[300px] rounded-2xl border border-slate-700 border-t-2 bg-slate-950/70 p-4 ${columnColors[index % columnColors.length]}`}
+                className={`min-h-[300px] w-full min-w-0 rounded-2xl border border-slate-700 border-t-2 bg-slate-950/70 p-4 ${columnColors[index % columnColors.length]}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="font-semibold text-slate-100">{question.text}</h3>
