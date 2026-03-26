@@ -19,6 +19,10 @@ type CreateSessionBody = {
   allow_new_items: boolean;
 };
 
+type BulkDeleteBody = {
+  status: 'closed' | 'setup';
+};
+
 function isCreateSessionBody(body: unknown): body is CreateSessionBody {
   if (!body || typeof body !== 'object') {
     return false;
@@ -43,6 +47,15 @@ function isCreateSessionBody(body: unknown): body is CreateSessionBody {
     candidate.tags.every((tag) => typeof tag === 'string') &&
     typeof candidate.allow_new_items === 'boolean'
   );
+}
+
+function isBulkDeleteBody(body: unknown): body is BulkDeleteBody {
+  if (!body || typeof body !== 'object') {
+    return false;
+  }
+
+  const candidate = body as Partial<BulkDeleteBody>;
+  return candidate.status === 'closed' || candidate.status === 'setup';
 }
 
 async function generateUniqueCode() {
@@ -143,6 +156,26 @@ export async function POST(request: NextRequest) {
     await db.insert(items).values(itemRows);
 
     return NextResponse.json({ session: createdSession }, { status: 201 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = (await request.json()) as unknown;
+    if (!isBulkDeleteBody(body)) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+
+    const db = getDb();
+    const deletedRows = await db
+      .delete(sessions)
+      .where(eq(sessions.status, body.status))
+      .returning({ id: sessions.id });
+
+    return NextResponse.json({ ok: true, deleted: deletedRows.length });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });

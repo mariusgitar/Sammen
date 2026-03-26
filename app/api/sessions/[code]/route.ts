@@ -135,3 +135,33 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+export async function DELETE(_request: Request, { params }: RouteContext) {
+  try {
+    const db = getDb();
+    const code = params.code.toUpperCase();
+
+    const [existingSession] = await db
+      .select({ id: sessions.id, status: sessions.status })
+      .from(sessions)
+      .where(eq(sessions.code, code))
+      .limit(1);
+
+    if (!existingSession) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    if (existingSession.status === 'active') {
+      return NextResponse.json(
+        { error: 'Kan ikke slette en aktiv sesjon. Avslutt den først.' },
+        { status: 400 },
+      );
+    }
+
+    await db.delete(sessions).where(eq(sessions.id, existingSession.id));
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
