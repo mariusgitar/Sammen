@@ -26,7 +26,7 @@ const columnColors = [
   'border-t-rose-500',
 ];
 
-export function InnspillAdmin({ code, questions }: { code: string; questions: Question[] }) {
+export function InnspillAdmin({ code, questions, showOthersInnspill }: { code: string; questions: Question[]; showOthersInnspill: boolean }) {
   const [rows, setRows] = useState<SummaryQuestion[]>([]);
   const [localQuestions, setLocalQuestions] = useState<LocalQuestion[]>([]);
   const initialized = useRef(false);
@@ -96,6 +96,7 @@ export function InnspillAdmin({ code, questions }: { code: string; questions: Qu
     <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20 space-y-6">
       <div>
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Spørsmålskontroller</h2>
+        {!showOthersInnspill ? <p className="mt-2 text-xs text-white/50">Gruppetenk-modus: andres innspill skjult</p> : null}
         <div className="mt-3 space-y-3">
           {merged.map((question) => (
             <article key={question.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">

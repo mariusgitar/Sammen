@@ -32,7 +32,8 @@ Deployed on Vercel at samen-alene.vercel.app.
 sessions:
   id, code, title, mode, status, tags, allow_new_items,
   phase, dot_budget, voting_type, allow_multiple_dots,
-  visibility_mode, max_rank_items, results_visible, created_at
+  visibility_mode, max_rank_items, results_visible,
+  show_others_innspill, created_at
 
   mode values: 'kartlegging' | 'stemming' | 'aapne-innspill' | 'rangering'
   status values: 'setup' | 'active' | 'paused' | 'closed'
@@ -116,4 +117,3 @@ API routes:
 
 ## Theme split
 - Participant/public pages use light theme; admin and /vis pages stay dark for role separation
-

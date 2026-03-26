@@ -11,6 +11,7 @@ ALTER TABLE sessions ADD COLUMN allow_multiple_dots boolean NOT NULL DEFAULT tru
 ALTER TABLE sessions ADD COLUMN results_visible boolean NOT NULL DEFAULT false;
 ALTER TABLE sessions ADD COLUMN visibility_mode text NOT NULL DEFAULT 'manual';
 ALTER TABLE sessions ADD COLUMN max_rank_items integer;
+ALTER TABLE sessions ADD COLUMN show_others_innspill boolean NOT NULL DEFAULT true;
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -98,6 +99,7 @@ export const sessions = pgTable('sessions', {
   allowMultipleDots: boolean('allow_multiple_dots').notNull().default(true),
   resultsVisible: boolean('results_visible').notNull().default(false),
   visibilityMode: text('visibility_mode').$type<VisibilityMode>().notNull().default('manual'),
+  showOthersInnspill: boolean('show_others_innspill').notNull().default(true),
   maxRankItems: integer('max_rank_items'),
   tags: text('tags').array().notNull().default([]),
   allowNewItems: boolean('allow_new_items').notNull().default(true),

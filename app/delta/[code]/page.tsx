@@ -32,6 +32,7 @@ type SessionResponse = {
     tags: string[];
     allowNewItems: boolean;
     visibilityMode: 'manual' | 'all';
+    show_others_innspill: boolean;
     maxRankItems: number | null;
   };
   items: Array<{
