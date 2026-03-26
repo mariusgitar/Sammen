@@ -261,11 +261,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
           </div>
         ) : null}
 
-        <div
-          className={`grid grid-cols-1 gap-4 items-start overflow-x-auto md:grid-cols-2 lg:grid-cols-3 ${
-            visibleQuestions.length > 3 ? 'xl:grid-flow-col xl:auto-cols-[320px] xl:grid-cols-none' : ''
-          }`}
-        >
+        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visibleQuestions.map((question, index) => {
             const mine = myInnspill[question.id] ?? [];
             const others = canSeeOthers ? (allInnspill[question.id] ?? []).filter((entry) => entry.participant_id !== participantId) : [];
@@ -274,7 +270,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
             return (
               <section
                 key={question.id}
-                className={`min-h-[300px] rounded-2xl border border-[#e2e8f0] border-t-2 bg-white shadow-sm flex flex-col ${columnColors[index % columnColors.length]}`}
+                className={`flex min-h-[300px] w-full min-w-0 flex-col rounded-2xl border border-[#e2e8f0] border-t-2 bg-white shadow-sm ${columnColors[index % columnColors.length]}`}
               >
                 <div className="sticky top-0 z-10 rounded-t-2xl border-b border-[#e2e8f0] bg-[#f8fafc] px-4 pb-3 pt-4">
                   <div className="flex items-center justify-between gap-3">
