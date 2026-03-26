@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 import { getDb } from '@/db';
-import { items, sessionModes, sessions, visibilityModes, votingTypes } from '@/db/schema';
+import { innspill, innspillLikes, items, responses, sessionModes, sessions, visibilityModes, votingTypes } from '@/db/schema';
 import { generateCode } from '@/lib/generate-code';
 
 type CreateSessionBody = {
@@ -170,9 +170,35 @@ export async function DELETE(request: NextRequest) {
     }
 
     const db = getDb();
+    const matchingSessions = await db
+      .select({ id: sessions.id })
+      .from(sessions)
+      .where(eq(sessions.status, body.status));
+
+    if (matchingSessions.length === 0) {
+      return NextResponse.json({ ok: true, deleted: 0 });
+    }
+
+    const sessionIds = matchingSessions.map((session) => session.id);
+
+    const relatedInnspill = await db
+      .select({ id: innspill.id })
+      .from(innspill)
+      .where(inArray(innspill.sessionId, sessionIds));
+
+    const innspillIds = relatedInnspill.map((entry) => entry.id);
+
+    if (innspillIds.length > 0) {
+      await db.delete(innspillLikes).where(inArray(innspillLikes.innspillId, innspillIds));
+    }
+
+    await db.delete(responses).where(inArray(responses.sessionId, sessionIds));
+    await db.delete(innspill).where(inArray(innspill.sessionId, sessionIds));
+    await db.delete(items).where(inArray(items.sessionId, sessionIds));
+
     const deletedRows = await db
       .delete(sessions)
-      .where(eq(sessions.status, body.status))
+      .where(inArray(sessions.id, sessionIds))
       .returning({ id: sessions.id });
 
     return NextResponse.json({ ok: true, deleted: deletedRows.length });
