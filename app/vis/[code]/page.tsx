@@ -194,7 +194,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
   return (
     <main className={`${inter.className} min-h-screen bg-[#0a0a0f] p-12 text-white`}>
       <div
-        className={`relative mx-auto flex h-[calc(100vh-6rem)] max-w-[1800px] flex-col rounded-3xl border border-white/10 bg-white/[0.02] p-12 transition-all duration-700 ease-out ${
+        className={`relative mx-auto flex min-h-[calc(100vh-6rem)] max-w-[1800px] flex-col rounded-3xl border border-white/10 bg-white/[0.02] p-12 transition-all duration-700 ease-out ${
           visible ? 'opacity-100' : 'opacity-0'
         }`}
       >
@@ -213,28 +213,19 @@ export default function PresentationPage({ params }: { params: { code: string } 
           </div>
         </header>
 
-        <section className="relative flex-1 overflow-hidden">
-          <div
-            className={`absolute inset-0 transition-all duration-1000 ease-out ${
-              waiting ? 'opacity-100' : 'pointer-events-none opacity-0'
-            }`}
-          >
-            <div className="flex h-full flex-col items-center justify-center gap-6 text-center">
+        <section className="relative flex-1">
+          {waiting ? (
+            <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 text-center">
               <p className="animate-pulse font-mono text-6xl tracking-[0.3em] text-white/30">{code}</p>
               <p className="text-xl text-white/20">samen-alene.vercel.app/delta/{code}</p>
               <div className="rounded-3xl border border-white/10 bg-white p-4">
                 <QRCode value={`https://samen-alene.vercel.app/delta/${code}`} size={200} bgColor="#ffffff" fgColor="#000000" />
               </div>
             </div>
-          </div>
-
-          <div
-            className={`absolute inset-0 overflow-auto transition-all duration-1000 ease-out ${
-              waiting ? 'pointer-events-none opacity-0' : 'opacity-100'
-            }`}
-          >
+          ) : (
+            <div className="transition-all duration-1000 ease-out opacity-100">
             {session?.phase === 'kartlegging' ? (
-              <div className={kartleggingItems.length <= 6 ? 'grid h-full grid-cols-2 gap-6 xl:grid-cols-3' : 'space-y-4'}>
+              <div className={kartleggingItems.length <= 6 ? 'grid grid-cols-2 gap-6 xl:grid-cols-3' : 'space-y-4'}>
                 {kartleggingItems.map((item, index) => {
                   const { tag, split } = getDominantTag(item);
                   const tagColor = tagPalette[index % tagPalette.length];
@@ -264,7 +255,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
             ) : null}
 
             {session?.phase === 'stemming' && session.votingType === 'scale' ? (
-              <div className="max-h-full space-y-4 overflow-auto pr-2">
+              <div className="space-y-4 pr-2">
                 {stemmingItems.slice(0, 8).map((item, index) => {
                   const color = colorForScore(item.averageScore);
                   return (
@@ -289,7 +280,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
             ) : null}
 
             {session?.phase === 'stemming' && session.votingType === 'dots' ? (
-              <div className="flex h-full flex-col gap-10">
+              <div className="flex flex-col gap-10">
                 <div className="grid grid-cols-3 items-end gap-6">
                   {[1, 0, 2].map((podiumIndex) => {
                     const item = dotItems.dotSource[podiumIndex];
@@ -311,7 +302,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
                     );
                   })}
                 </div>
-                <div className="space-y-2 overflow-auto">
+                <div className="space-y-2">
                   {dotItems.dotSource.slice(3).map((item) => (
                     <div key={item.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-white/60">
                       <p className="truncate">{item.text}</p>
@@ -351,7 +342,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
             ) : null}
 
             {session?.phase === 'innspill' ? (
-              <div className="grid h-full grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
                 {(innspillData?.questions ?? [])
                   .filter((question) => question.question_status === 'active')
                   .map((question) => {
@@ -359,9 +350,9 @@ export default function PresentationPage({ params }: { params: { code: string } 
                       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                       .slice(0, 6);
                     return (
-                      <div key={question.id} className="flex min-h-0 flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                      <div key={question.id} className="flex flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-5">
                         <h3 className="mb-4 text-xl font-bold">{question.text}</h3>
-                        <div className="space-y-3 overflow-auto">
+                        <div className="space-y-3">
                           {latest.map((entry, idx) => (
                             <article key={entry.id} className="rounded-2xl border border-[#818cf8]/20 bg-[#818cf8]/10 p-3 transition-all duration-700 ease-out" style={{ transitionDelay: `${idx * 80}ms` }}>
                               <p className="text-base text-white/90">{entry.text}</p>
@@ -375,7 +366,8 @@ export default function PresentationPage({ params }: { params: { code: string } 
                   })}
               </div>
             ) : null}
-          </div>
+            </div>
+          )}
         </section>
 
         <p className="absolute bottom-6 right-8 font-mono text-sm text-white/20">Kode: {code}</p>
