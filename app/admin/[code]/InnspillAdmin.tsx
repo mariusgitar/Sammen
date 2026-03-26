@@ -17,6 +17,13 @@ type SummaryQuestion = {
 
 type LocalQuestion = Question & { innspill_count: number };
 
+
+const questionStatusLabels: Record<SummaryQuestion['question_status'], string> = {
+  inactive: 'Inaktiv',
+  active: 'Aktiv',
+  locked: 'Låst',
+};
+
 const columnColors = [
   'border-t-indigo-500',
   'border-t-violet-500',
@@ -102,7 +109,7 @@ export function InnspillAdmin({ code, questions, showOthersInnspill }: { code: s
             <article key={question.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">
               <div className="flex flex-wrap items-center gap-2">
                 <p className="font-medium text-slate-100">{question.text}</p>
-                <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300">{question.question_status === 'inactive' ? 'Inaktiv' : question.question_status === 'active' ? 'Aktiv' : 'Låst'}</span>
+                <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300">{questionStatusLabels[question.question_status]}</span>
                 <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300">{localQuestions.find((localQuestion) => localQuestion.id === question.id)?.innspill_count ?? question.innspill.length} innspill</span>
               </div>
               <div className="mt-3 flex gap-2">
@@ -129,7 +136,7 @@ export function InnspillAdmin({ code, questions, showOthersInnspill }: { code: s
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="font-semibold text-slate-100">{question.text}</h3>
                   <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300">
-                    {question.question_status === 'active' ? 'Aktiv' : 'Låst'}
+                    {questionStatusLabels[question.question_status]}
                   </span>
                 </div>
 
