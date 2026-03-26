@@ -88,8 +88,10 @@ Rangering:
 /delta/[code]/resultater — participant results (polls 5s)
 
 API routes:
-  POST/PATCH /api/sessions
+  POST/PATCH/DELETE /api/sessions
+  GET /api/admin/sessions
   GET /api/sessions/[code]
+  DELETE /api/sessions/[code]
   POST/PATCH /api/items
   PATCH /api/items/[id]
   POST /api/responses

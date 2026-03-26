@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const ADMIN_COOKIE_NAME = 'admin_session';
-const PROTECTED_PREFIXES = ['/admin', '/admin/oversikt', '/ny'];
+const PROTECTED_PREFIXES = ['/admin', '/admin/oversikt', '/ny', '/api/admin'];
 
 async function getSha256Hex(value: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -45,5 +45,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/ny/:path*', '/admin/:path*', '/vis/:path*'],
+  matcher: ['/ny/:path*', '/admin/:path*', '/vis/:path*', '/api/admin/:path*'],
 };
