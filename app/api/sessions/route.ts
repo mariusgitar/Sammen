@@ -12,6 +12,7 @@ type CreateSessionBody = {
   dot_budget?: number;
   allow_multiple_dots?: boolean;
   visibility_mode?: (typeof visibilityModes)[number];
+  show_others_innspill?: boolean;
   max_rank_items?: number | null;
   items: string[];
   tags: string[];
@@ -34,6 +35,7 @@ function isCreateSessionBody(body: unknown): body is CreateSessionBody {
     (typeof candidate.allow_multiple_dots === 'undefined' || typeof candidate.allow_multiple_dots === 'boolean') &&
     (typeof candidate.visibility_mode === 'undefined' ||
       visibilityModes.includes(candidate.visibility_mode as (typeof visibilityModes)[number])) &&
+    (typeof candidate.show_others_innspill === 'undefined' || typeof candidate.show_others_innspill === 'boolean') &&
     (typeof candidate.max_rank_items === 'undefined' || candidate.max_rank_items === null || Number.isInteger(candidate.max_rank_items)) &&
     Array.isArray(candidate.items) &&
     candidate.items.every((item) => typeof item === 'string') &&
@@ -88,6 +90,7 @@ export async function POST(request: NextRequest) {
     const dotBudget = Math.max(3, Math.min(20, body.dot_budget ?? 5));
     const allowMultipleDots = body.allow_multiple_dots ?? true;
     const visibilityMode = body.visibility_mode ?? 'manual';
+    const showOthersInnspill = body.show_others_innspill ?? true;
 
     const [createdSession] = await db
       .insert(sessions)
@@ -107,6 +110,7 @@ export async function POST(request: NextRequest) {
         dotBudget: body.mode === 'stemming' && votingType === 'dots' ? dotBudget : 5,
         allowMultipleDots: body.mode === 'stemming' && votingType === 'dots' ? allowMultipleDots : true,
         visibilityMode,
+        showOthersInnspill,
         maxRankItems: normalizedMaxRankItems,
         tags: body.mode === 'aapne-innspill' || body.mode === 'rangering' ? [] : tags,
         allowNewItems: body.mode === 'aapne-innspill' || body.mode === 'rangering' ? true : body.allow_new_items,

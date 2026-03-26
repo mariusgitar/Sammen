@@ -14,6 +14,7 @@ type SessionView = {
   phase: 'kartlegging' | 'stemming' | 'innspill' | 'rangering';
   status: 'setup' | 'active' | 'paused' | 'closed';
   resultsVisible: boolean;
+  showOthersInnspill: boolean;
 };
 
 type SessionItem = {
@@ -694,6 +695,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       {currentSession.mode === 'aapne-innspill' ? (
         <InnspillAdmin
           code={currentSession.code}
+          showOthersInnspill={currentSession.showOthersInnspill}
           questions={items
             .filter((item) => item.isQuestion)
             .map((item) => ({

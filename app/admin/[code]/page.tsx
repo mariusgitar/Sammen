@@ -28,6 +28,7 @@ export default async function AdminSessionPage({ params }: AdminPageProps) {
       phase: sessions.phase,
       status: sessions.status,
       resultsVisible: sessions.resultsVisible,
+      showOthersInnspill: sessions.showOthersInnspill,
     })
     .from(sessions)
     .where(eq(sessions.code, code))

@@ -63,6 +63,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
         tags: sessions.tags,
         allowNewItems: sessions.allowNewItems,
         visibilityMode: sessions.visibilityMode,
+        show_others_innspill: sessions.showOthersInnspill,
+        showOthersInnspill: sessions.showOthersInnspill,
         maxRankItems: sessions.maxRankItems,
         createdAt: sessions.createdAt,
       })

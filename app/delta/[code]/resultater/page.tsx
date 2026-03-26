@@ -58,6 +58,9 @@ type ResultsResponse = {
   items: Array<KartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
 };
 
+// show_others_innspill only affects InnspillView during collection
+// Results always show everything
+
 function hasSplitVotes(item: KartleggingSummaryItem, participantCount: number) {
   if (participantCount === 0) {
     return false;

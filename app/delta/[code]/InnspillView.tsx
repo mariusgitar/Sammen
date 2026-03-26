@@ -12,6 +12,7 @@ type SessionInfo = {
   id: string;
   code: string;
   title: string;
+  show_others_innspill: boolean;
 };
 
 type Entry = { id: string; text: string; nickname: string; likes: number; participant_id: string };
@@ -37,6 +38,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
   const [myInnspill, setMyInnspill] = useState<Record<string, MyEntry[]>>({});
   const [allInnspill, setAllInnspill] = useState<Record<string, OtherEntry[]>>({});
   const [showOthers, setShowOthers] = useState(false);
+  const canSeeOthers = session.show_others_innspill;
   const initialized = useRef(false);
   const participantStorageKey = 'samen_participant_id';
   const nicknameStorageKey = `samen_nickname_${session.code}`;
@@ -135,8 +137,13 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
 
   const visibleQuestions = useMemo(
     () =>
-      items.filter((item) => item.questionStatus === 'active' || (myInnspill[item.id] ?? []).length > 0 || (allInnspill[item.id] ?? []).length > 0),
-    [allInnspill, items, myInnspill],
+      items.filter(
+        (item) =>
+          item.questionStatus === 'active' ||
+          (myInnspill[item.id] ?? []).length > 0 ||
+          (canSeeOthers && (allInnspill[item.id] ?? []).length > 0),
+      ),
+    [allInnspill, canSeeOthers, items, myInnspill],
   );
 
   async function submit(questionId: string) {
@@ -242,7 +249,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
 
         {visibleQuestions.length === 0 ? <p className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm text-[#64748b]">Vent på at fasilitator åpner neste spørsmål...</p> : null}
 
-        {visibleQuestions.length > 0 ? (
+        {visibleQuestions.length > 0 && canSeeOthers ? (
           <div className="flex justify-end">
             <button
               type="button"
@@ -261,7 +268,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
         >
           {visibleQuestions.map((question, index) => {
             const mine = myInnspill[question.id] ?? [];
-            const others = (allInnspill[question.id] ?? []).filter((entry) => entry.participant_id !== participantId);
+            const others = canSeeOthers ? (allInnspill[question.id] ?? []).filter((entry) => entry.participant_id !== participantId) : [];
             const innspillCount = mine.length + others.length;
 
             return (
@@ -289,7 +296,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
                     </div>
                   ))}
 
-                  {showOthers
+                  {canSeeOthers && showOthers
                     ? others.map((entry) => (
                         <div key={entry.id} className="rounded-xl border border-[#e2e8f0] bg-white px-3 py-2 text-sm">
                           <div>{entry.text}</div>
@@ -322,6 +329,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
                       >
                         {submitting[question.id] ? 'Lagrer...' : 'Legg til'}
                       </button>
+                      {!canSeeOthers ? <p className="mt-2 text-xs text-[#64748b]">Du ser bare dine egne innspill under innsamlingen.</p> : null}
                     </>
                   ) : (
                     <p className="text-sm text-[#64748b]">Dette spørsmålet er lukket for nye innspill.</p>

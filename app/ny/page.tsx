@@ -34,6 +34,7 @@ export default function NewSessionPage() {
   const [votingType, setVotingType] = useState<VotingType>('scale');
   const [dotBudget, setDotBudget] = useState(5);
   const [allowMultipleDots, setAllowMultipleDots] = useState(true);
+  const [showOthersInnspill, setShowOthersInnspill] = useState(true);
   const [error, setError] = useState('');
   const [titleError, setTitleError] = useState('');
   const [itemsError, setItemsError] = useState('');
@@ -94,6 +95,7 @@ export default function NewSessionPage() {
           dot_budget: mode === 'stemming' && votingType === 'dots' ? dotBudget : 5,
           allow_multiple_dots: mode === 'stemming' && votingType === 'dots' ? allowMultipleDots : true,
           visibility_mode: isInnspillMode ? visibilityMode : 'manual',
+          show_others_innspill: isInnspillMode ? showOthersInnspill : true,
           max_rank_items: isRangeringMode ? parsedMaxRankItems : null,
           items: parsedItems,
           tags: isInnspillMode || isRangeringMode ? [] : parsedTags,
@@ -292,35 +294,53 @@ export default function NewSessionPage() {
           ) : null}
 
           {isInnspillMode ? (
-            <fieldset className="space-y-3">
-              <legend className="text-sm font-medium text-slate-100">Synlighet</legend>
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+            <div className="space-y-4">
+              <fieldset className="space-y-3">
+                <legend className="text-sm font-medium text-slate-100">Synlighet</legend>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+                    <input
+                      required
+                      type="radio"
+                      name="visibility-mode"
+                      value="manual"
+                      checked={visibilityMode === 'manual'}
+                      onChange={() => setVisibilityMode('manual')}
+                      className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
+                    />
+                    <span>Manuell styring (fasilitator aktiverer spørsmål enkeltvis)</span>
+                  </label>
+                  <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+                    <input
+                      required
+                      type="radio"
+                      name="visibility-mode"
+                      value="all"
+                      checked={visibilityMode === 'all'}
+                      onChange={() => setVisibilityMode('all')}
+                      className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
+                    />
+                    <span>Alle synlige fra start</span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium text-slate-100">Andres innspill</legend>
+                <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
                   <input
-                    required
-                    type="radio"
-                    name="visibility-mode"
-                    value="manual"
-                    checked={visibilityMode === 'manual'}
-                    onChange={() => setVisibilityMode('manual')}
-                    className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
+                    type="checkbox"
+                    checked={showOthersInnspill}
+                    onChange={(event) => setShowOthersInnspill(event.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-950 text-slate-100"
                   />
-                  <span>Manuell styring (fasilitator aktiverer spørsmål enkeltvis)</span>
+                  <span>Deltakere kan se og skjule andres innspill</span>
                 </label>
-                <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                  <input
-                    required
-                    type="radio"
-                    name="visibility-mode"
-                    value="all"
-                    checked={visibilityMode === 'all'}
-                    onChange={() => setVisibilityMode('all')}
-                    className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                  />
-                  <span>Alle synlige fra start</span>
-                </label>
-              </div>
-            </fieldset>
+                <p className="text-sm text-slate-400">
+                  Skru av for å unngå gruppetenk under innsamlingen. Alle innspill vises uansett på resultatsiden.
+                </p>
+              </fieldset>
+            </div>
           ) : isRangeringMode ? null : (
             <>
               <div className="space-y-2">
