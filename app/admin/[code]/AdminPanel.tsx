@@ -130,6 +130,15 @@ function hasSplitVotes(item: KartleggingSummaryItem, participantCount: number) {
 }
 
 export function AdminPanel({ session, items }: AdminPanelProps) {
+  const PRIMARY_BUTTON_CLASS =
+    'w-full py-3 px-4 rounded-xl font-semibold text-base bg-white text-[#0f172a] hover:bg-white/90 transition-colors disabled:opacity-70';
+  const SECONDARY_BUTTON_CLASS =
+    'py-2 px-4 rounded-xl text-sm font-medium border border-white/20 text-white/70 hover:border-white/40 hover:text-white transition-colors disabled:opacity-70';
+  const TERTIARY_BUTTON_CLASS =
+    'text-sm text-white/40 hover:text-white/60 transition-colors underline-offset-2 hover:underline disabled:opacity-70';
+  const DANGER_BUTTON_CLASS =
+    'text-sm text-rose-400/60 hover:text-rose-400 transition-colors disabled:opacity-70';
+
   const [currentSession, setCurrentSession] = useState(session);
   const [sessionStatus, setSessionStatus] = useState<SessionView['status']>(session.status);
   const [sessionPhase, setSessionPhase] = useState<SessionView['phase']>(session.phase);
@@ -163,6 +172,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const [innspillQuestions, setInnspillQuestions] = useState<InnspillQuestion[]>([]);
   const [selectedInnspill, setSelectedInnspill] = useState<Record<string, boolean>>({});
   const [showInnspillDotOptions, setShowInnspillDotOptions] = useState(false);
+  const [confirmClose, setConfirmClose] = useState(false);
 
   async function fetchSummary() {
     try {
@@ -250,6 +260,22 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     // We intentionally run this only once on mount for initial fetch + polling.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    setConfirmClose(false);
+  }, [sessionStatus]);
+
+  useEffect(() => {
+    if (!confirmClose) {
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setConfirmClose(false);
+    }, 5_000);
+
+    return () => clearTimeout(timer);
+  }, [confirmClose]);
 
   async function updateSessionStatus(status: SessionView['status']) {
     setIsUpdatingStatus(true);
@@ -528,6 +554,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Sesjonsinfo</h2>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">{currentSession.title}</h1>
+        {sessionStatus !== 'setup' ? (
+          <Link
+            href={`/admin/${currentSession.code}/results`}
+            className="mt-2 inline-block text-sm text-white/40 transition-colors hover:text-white/60"
+          >
+            Se resultater →
+          </Link>
+        ) : null}
         <p className="mt-2 text-slate-300">Modus: {modeLabels[currentSession.mode] ?? currentSession.mode}</p>
         <p className="text-slate-300">Status: {statusLabels[sessionStatus] ?? sessionStatus}</p>
         <p className="text-slate-300">Fase: {phaseLabels[sessionPhase] ?? sessionPhase}</p>
@@ -620,15 +654,16 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       )}
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Sesjonskontroller</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-white/40">Sesjonskontroller</h2>
         <div className="mt-4 space-y-3">
           {sessionStatus === 'setup' ? (
             <>
+              <p className="text-sm text-white/60">Klar til oppstart. Åpne sesjonen når deltakerne er klare.</p>
               <button
                 type="button"
                 onClick={() => updateSessionStatus('active')}
                 disabled={isUpdatingStatus}
-                className="w-full rounded-xl bg-slate-800 py-3 text-base font-semibold text-white transition hover:bg-slate-700 disabled:opacity-70"
+                className={PRIMARY_BUTTON_CLASS}
               >
                 Åpne for deltakere →
               </button>
@@ -636,37 +671,42 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
           ) : null}
 
           {sessionStatus === 'active' && sessionPhase !== 'stemming' ? (
-            <button
-              type="button"
-              onClick={() => updateSessionStatus('paused')}
-              disabled={isUpdatingStatus}
-              className="w-full rounded-xl bg-amber-300 py-3 text-base font-semibold text-amber-950 transition hover:bg-amber-200 disabled:opacity-70"
-            >
-              Avslutt innsamling
-            </button>
+            <>
+              <p className="text-sm text-white/60">Innsamling pågår. Avslutt når dere er klare for neste steg.</p>
+              <button
+                type="button"
+                onClick={() => updateSessionStatus('paused')}
+                disabled={isUpdatingStatus}
+                className={PRIMARY_BUTTON_CLASS}
+              >
+                Avslutt innsamling
+              </button>
+            </>
           ) : null}
 
           {sessionStatus === 'paused' && currentSession.mode === 'kartlegging' ? (
             <>
-              <p className="mb-3 text-sm text-white/60">
+              <p className="text-sm text-white/60">
                 Innsamling avsluttet. Kuratér listen nedenfor, velg stemmetype og start stemming.
               </p>
               <button
                 type="button"
                 onClick={() => void startStemming('scale')}
                 disabled={isOpeningVoting}
-                className="w-full rounded-xl bg-slate-100 py-3 text-base font-semibold text-slate-950 transition hover:bg-white disabled:opacity-70"
+                className={PRIMARY_BUTTON_CLASS}
               >
                 Åpne for stemming (skala 1-5) →
               </button>
-              <button
-                type="button"
-                onClick={() => setShowKartleggingDotOptions((current) => !current)}
-                disabled={isOpeningVoting}
-                className="w-full rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-white/40 disabled:opacity-70"
-              >
-                Dot voting →
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowKartleggingDotOptions((current) => !current)}
+                  disabled={isOpeningVoting}
+                  className={SECONDARY_BUTTON_CLASS}
+                >
+                  Dot voting →
+                </button>
+              </div>
               {showKartleggingDotOptions ? (
                 <div className="space-y-3 rounded-lg border border-slate-700 bg-slate-950/60 p-4">
                   <label className="block text-sm text-slate-200">
@@ -702,24 +742,44 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                 type="button"
                 onClick={() => updateSessionStatus('active')}
                 disabled={isUpdatingStatus}
-                className="text-left text-sm text-white/40 transition hover:text-white/70"
+                className={TERTIARY_BUTTON_CLASS}
               >
                 Åpne kartlegging igjen
               </button>
-              <button
-                type="button"
-                onClick={() => updateSessionStatus('closed')}
-                disabled={isUpdatingStatus}
-                className="text-left text-sm text-rose-400/70 transition hover:text-rose-400"
-              >
-                Avslutt sesjon
-              </button>
+              {confirmClose ? (
+                <div className="flex items-center gap-3 rounded-xl bg-rose-500/10 p-3">
+                  <span className="text-sm text-rose-300">Er du sikker? Dette kan ikke angres.</span>
+                  <button
+                    type="button"
+                    onClick={() => updateSessionStatus('closed')}
+                    disabled={isUpdatingStatus}
+                    className="text-sm font-medium text-rose-400"
+                  >
+                    Ja, avslutt
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClose(false)}
+                    className="text-sm text-white/40"
+                  >
+                    Avbryt
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClose(true)}
+                  className={DANGER_BUTTON_CLASS}
+                >
+                  Avslutt sesjon
+                </button>
+              )}
             </>
           ) : null}
 
           {sessionStatus === 'paused' && currentSession.mode === 'aapne-innspill' ? (
             <>
-              <p className="mb-3 text-sm text-white/60">
+              <p className="text-sm text-white/60">
                 Innsamling avsluttet. Velg innspill som skal tas med til stemming nedenfor.
               </p>
               <button
@@ -727,7 +787,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                 onClick={() => {
                   document.getElementById('stemming-oppsett')?.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="w-full rounded-xl bg-slate-100 py-3 text-base font-semibold text-slate-950 transition hover:bg-white"
+                className={PRIMARY_BUTTON_CLASS}
               >
                 Gå til stemmeoppsett ↓
               </button>
@@ -735,67 +795,91 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                 type="button"
                 onClick={() => updateSessionStatus('active')}
                 disabled={isUpdatingStatus}
-                className="text-left text-sm text-white/40 transition hover:text-white/70"
+                className={TERTIARY_BUTTON_CLASS}
               >
                 Åpne innsamling igjen
               </button>
-              <button
-                type="button"
-                onClick={() => updateSessionStatus('closed')}
-                disabled={isUpdatingStatus}
-                className="text-left text-sm text-rose-400/70 transition hover:text-rose-400"
-              >
-                Avslutt sesjon
-              </button>
+              {confirmClose ? (
+                <div className="flex items-center gap-3 rounded-xl bg-rose-500/10 p-3">
+                  <span className="text-sm text-rose-300">Er du sikker? Dette kan ikke angres.</span>
+                  <button
+                    type="button"
+                    onClick={() => updateSessionStatus('closed')}
+                    disabled={isUpdatingStatus}
+                    className="text-sm font-medium text-rose-400"
+                  >
+                    Ja, avslutt
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClose(false)}
+                    className="text-sm text-white/40"
+                  >
+                    Avbryt
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClose(true)}
+                  className={DANGER_BUTTON_CLASS}
+                >
+                  Avslutt sesjon
+                </button>
+              )}
             </>
           ) : null}
 
           {sessionPhase === 'stemming' && sessionStatus === 'active' ? (
             <>
-              <p className="mb-3 text-sm text-white/60">Stemming pågår.</p>
+              <p className="text-sm text-white/60">Stemming pågår.</p>
               <button
                 type="button"
                 onClick={() => updateSessionStatus('closed')}
                 disabled={isUpdatingStatus}
-                className="w-full rounded-xl bg-amber-300 py-3 text-base font-semibold text-amber-950 transition hover:bg-amber-200 disabled:opacity-70"
+                className={PRIMARY_BUTTON_CLASS}
               >
                 Avslutt stemming
-              </button>
-              <Link
-                href={`/admin/${currentSession.code}/results`}
-                className="inline-block rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-white/40"
-              >
-                Se resultater →
-              </Link>
-              <button
-                type="button"
-                onClick={toggleResultsVisibility}
-                disabled={isUpdatingStatus}
-                className="text-left text-sm text-white/40 transition hover:text-white/70"
-              >
-                {resultsVisible ? 'Skjul resultater for deltakere' : 'Vis resultater for deltakere'}
               </button>
             </>
           ) : null}
 
           {sessionStatus === 'closed' ? (
             <>
-              <p className="mb-3 text-sm text-white/60">Sesjonen er avsluttet.</p>
-              <Link
-                href={`/admin/${currentSession.code}/results`}
-                className="inline-block rounded-lg border border-white/20 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-white/40"
-              >
-                Se resultater →
-              </Link>
+              <p className="text-sm text-white/60">Sesjonen er avsluttet.</p>
               <button
                 type="button"
                 onClick={() => updateSessionStatus('active')}
                 disabled={isUpdatingStatus}
-                className="text-left text-sm text-white/40 transition hover:text-white/70"
+                className={TERTIARY_BUTTON_CLASS}
               >
                 Åpne igjen
               </button>
             </>
+          ) : null}
+
+          {sessionStatus !== 'setup' ? (
+            <div className="mt-2 flex items-center justify-between border-t border-white/10 py-3">
+              <div>
+                <p className="text-sm font-medium text-white/70">Resultater synlige for deltakere</p>
+                <p className="text-xs text-white/30">Deltakere kan se resultater på sin enhet</p>
+              </div>
+              <button
+                type="button"
+                onClick={toggleResultsVisibility}
+                disabled={isUpdatingStatus}
+                className={`relative h-6 w-12 rounded-full transition-colors ${
+                  resultsVisible ? 'bg-[#a78bfa]' : 'bg-white/20'
+                }`}
+                aria-label="Bytt synlighet for resultater"
+              >
+                <span
+                  className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${
+                    resultsVisible ? 'translate-x-7' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
           ) : null}
         </div>
         {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
