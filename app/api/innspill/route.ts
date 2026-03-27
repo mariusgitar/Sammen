@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { innspill, items, sessions } from '@/db/schema';
 
-type Body = { sessionId: string; questionId: string; participantId: string; nickname: string; text: string };
+type Body = { sessionId: string; questionId: string; participantId: string; nickname: string; text: string; detaljer?: string };
 
 function isValidBody(candidate: unknown): candidate is Body {
   if (!candidate || typeof candidate !== 'object') return false;
@@ -22,12 +22,13 @@ function parseBody(candidate: unknown): Body | null {
     typeof body.participantId === 'string' ? body.participantId : typeof body.participant_id === 'string' ? body.participant_id : null;
   const nickname = typeof body.nickname === 'string' ? body.nickname : null;
   const text = typeof body.text === 'string' ? body.text : null;
+  const detaljer = typeof body.detaljer === 'string' ? body.detaljer : undefined;
 
   if (!sessionId || !questionId || !participantId || !nickname || !text) {
     return null;
   }
 
-  return { sessionId, questionId, participantId, nickname, text };
+  return { sessionId, questionId, participantId, nickname, text, detaljer };
 }
 
 export async function POST(request: Request) {
@@ -38,9 +39,24 @@ export async function POST(request: Request) {
     }
 
     const db = getDb();
-    const [session] = await db.select({ id: sessions.id, status: sessions.status }).from(sessions).where(eq(sessions.id, parsed.sessionId)).limit(1);
+    const [session] = await db
+      .select({ id: sessions.id, status: sessions.status, innspillMode: sessions.innspillMode, innspillMaxChars: sessions.innspillMaxChars })
+      .from(sessions)
+      .where(eq(sessions.id, parsed.sessionId))
+      .limit(1);
     if (!session || session.status !== 'active') {
       return NextResponse.json({ error: 'Session is not active' }, { status: 409 });
+    }
+
+    const trimmedText = parsed.text.trim();
+    const trimmedDetaljer = parsed.detaljer?.trim() ?? '';
+
+    if (trimmedText.length > session.innspillMaxChars) {
+      return NextResponse.json({ error: `Innspillet kan ikke være lengre enn ${session.innspillMaxChars} tegn` }, { status: 400 });
+    }
+
+    if (trimmedDetaljer.length > 400) {
+      return NextResponse.json({ error: 'Detaljer kan ikke være lengre enn 400 tegn' }, { status: 400 });
     }
 
     const [question] = await db
@@ -60,10 +76,11 @@ export async function POST(request: Request) {
         questionId: parsed.questionId,
         participantId: parsed.participantId,
         nickname: parsed.nickname.trim(),
-        text: parsed.text.trim(),
+        text: trimmedText,
+        detaljer: session.innspillMode === 'detaljert' && trimmedDetaljer ? trimmedDetaljer : null,
         likes: 0,
       })
-      .returning({ id: innspill.id, text: innspill.text, likes: innspill.likes });
+      .returning({ id: innspill.id, text: innspill.text, detaljer: innspill.detaljer, likes: innspill.likes });
 
     return NextResponse.json({ innspill: created }, { status: 201 });
   } catch (error) {

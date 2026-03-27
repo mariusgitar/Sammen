@@ -13,12 +13,14 @@ type SessionInfo = {
   code: string;
   title: string;
   show_others_innspill: boolean;
+  innspill_mode: 'enkel' | 'detaljert';
+  innspill_max_chars: number;
 };
 
-type Entry = { id: string; text: string; nickname: string; likes: number; participant_id: string };
+type Entry = { id: string; text: string; detaljer: string | null; nickname: string; likes: number; participant_id: string };
 
-type MyEntry = { id: string; text: string; likes: number; likedByMe: boolean };
-type OtherEntry = { id: string; text: string; nickname: string; likes: number; likedByMe: boolean; participant_id: string };
+type MyEntry = { id: string; text: string; detaljer: string | null; likes: number; likedByMe: boolean };
+type OtherEntry = { id: string; text: string; detaljer: string | null; nickname: string; likes: number; likedByMe: boolean; participant_id: string };
 
 const columnColors = [
   'border-t-[#3b5bdb]',
@@ -34,6 +36,8 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
   const [hasJoined, setHasJoined] = useState(false);
   const [participantId, setParticipantId] = useState('');
   const [inputText, setInputText] = useState<Record<string, string>>({});
+  const [detailsText, setDetailsText] = useState<Record<string, string>>({});
+  const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
   const [myInnspill, setMyInnspill] = useState<Record<string, MyEntry[]>>({});
   const [allInnspill, setAllInnspill] = useState<Record<string, OtherEntry[]>>({});
@@ -88,11 +92,12 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
       for (const entry of question.innspill) {
         const likedByMe = false;
         if (entry.participant_id === participantId) {
-          mine[question.id].push({ id: entry.id, text: entry.text, likes: entry.likes, likedByMe });
+          mine[question.id].push({ id: entry.id, text: entry.text, detaljer: entry.detaljer, likes: entry.likes, likedByMe });
         } else {
           others[question.id].push({
             id: entry.id,
             text: entry.text,
+            detaljer: entry.detaljer,
             nickname: entry.nickname,
             likes: entry.likes,
             likedByMe,
@@ -148,7 +153,11 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
 
   async function submit(questionId: string) {
     const text = (inputText[questionId] ?? '').trim();
+    const detaljer = (detailsText[questionId] ?? '').trim();
     if (!text || !participantId || !nickname.trim()) {
+      return;
+    }
+    if (text.length > session.innspill_max_chars) {
       return;
     }
 
@@ -164,9 +173,10 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
           participantId,
           nickname: nickname.trim(),
           text,
+          detaljer: session.innspill_mode === 'detaljert' ? detaljer : undefined,
         }),
       });
-      const responseBody = (await response.json()) as { innspill?: { id: string; text: string; likes: number } };
+      const responseBody = (await response.json()) as { innspill?: { id: string; text: string; detaljer: string | null; likes: number } };
 
       if (!response.ok) {
         return;
@@ -182,6 +192,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
               {
                 id: responseBody.innspill!.id,
                 text: responseBody.innspill!.text,
+                detaljer: responseBody.innspill!.detaljer,
                 likes: 0,
                 likedByMe: false,
               },
@@ -190,6 +201,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
         });
       }
       setInputText((current) => ({ ...current, [questionId]: '' }));
+      setDetailsText((current) => ({ ...current, [questionId]: '' }));
     } finally {
       setSubmitting((current) => ({ ...current, [questionId]: false }));
     }
@@ -211,6 +223,45 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
       body: JSON.stringify({ participantId }),
     });
     await fetchInnspill();
+  }
+
+  function getHvaPlaceholder() {
+    if (session.innspill_max_chars <= 60) {
+      return 'Kort og konkret — én setning';
+    }
+    if (session.innspill_max_chars <= 100) {
+      return "f.eks. 'Vi mangler felles rutiner for onboarding'";
+    }
+    return 'Beskriv innspillet ditt';
+  }
+
+  function renderEntryText(entry: { id: string; text: string; detaljer: string | null }) {
+    const showDetailText = session.innspill_mode === 'detaljert' && Boolean(entry.detaljer?.trim());
+    const detailText = entry.detaljer?.trim() ?? '';
+    const requiresToggle = detailText.length > 80;
+    const isExpanded = expandedDetails[entry.id] ?? false;
+
+    return (
+      <>
+        <p className="font-medium text-[#0f172a]">{entry.text}</p>
+        {showDetailText ? (
+          requiresToggle ? (
+            <div className="mt-1">
+              <button
+                type="button"
+                onClick={() => setExpandedDetails((current) => ({ ...current, [entry.id]: !isExpanded }))}
+                className="text-xs text-[#64748b] underline"
+              >
+                {isExpanded ? 'Skjul detaljer ↑' : 'Les mer ↓'}
+              </button>
+              {isExpanded ? <p className="mt-1 text-xs text-[#64748b]">{detailText}</p> : null}
+            </div>
+          ) : (
+            <p className="mt-1 text-xs text-[#64748b]">{detailText}</p>
+          )
+        ) : null}
+      </>
+    );
   }
 
   if (!hasJoined) {
@@ -282,7 +333,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
                 <div className="flex flex-1 flex-col gap-2 p-3">
                   {mine.map((entry) => (
                     <div key={entry.id} className="rounded-xl border border-[#c7d2fe] bg-[#eef2ff] px-3 py-2 text-sm">
-                      <p>{entry.text}</p>
+                      {renderEntryText(entry)}
                       <div className="mt-1 flex items-center justify-between gap-3 text-xs text-[#64748b]">
                         <span>Ditt innspill</span>
                         <button type="button" onClick={() => deleteInnspill(entry.id)} className="text-amber-500">
@@ -295,7 +346,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
                   {canSeeOthers && showOthers
                     ? others.map((entry) => (
                         <div key={entry.id} className="rounded-xl border border-[#e2e8f0] bg-white px-3 py-2 text-sm">
-                          <div>{entry.text}</div>
+                          {renderEntryText(entry)}
                           <div className="mt-1 flex items-center justify-between">
                             <span className="text-xs text-[#64748b]">{entry.nickname}</span>
                             <button type="button" onClick={() => toggleLike(entry.id)}>
@@ -310,18 +361,73 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
                 <div className="border-t border-[#e2e8f0] p-3">
                   {question.questionStatus === 'active' ? (
                     <>
-                      <textarea
-                        className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
-                        rows={2}
-                        placeholder="Skriv ditt innspill..."
-                        value={inputText[question.id] || ''}
-                        onChange={(event) => setInputText((current) => ({ ...current, [question.id]: event.target.value }))}
-                      />
+                      {session.innspill_mode === 'enkel' ? (
+                        <>
+                          <label className="mb-1 block text-xs font-medium text-[#475569]">Ditt innspill</label>
+                          <textarea
+                            className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
+                            rows={2}
+                            placeholder="Skriv én ting — kort nok til å leses på 5 sekunder"
+                            maxLength={session.innspill_max_chars}
+                            value={inputText[question.id] || ''}
+                            onChange={(event) => setInputText((current) => ({ ...current, [question.id]: event.target.value }))}
+                          />
+                        </>
+                      ) : (
+                        <div className="space-y-2">
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-[#475569]">Hva</label>
+                            <textarea
+                              className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
+                              rows={2}
+                              placeholder={getHvaPlaceholder()}
+                              maxLength={session.innspill_max_chars}
+                              value={inputText[question.id] || ''}
+                              onChange={(event) => setInputText((current) => ({ ...current, [question.id]: event.target.value }))}
+                            />
+                          </div>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-[#475569]">Mer detaljer (valgfritt)</label>
+                            <textarea
+                              className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
+                              rows={3}
+                              placeholder="Utdyp gjerne — hva er bakgrunnen eller konteksten?"
+                              maxLength={400}
+                              value={detailsText[question.id] || ''}
+                              onChange={(event) => setDetailsText((current) => ({ ...current, [question.id]: event.target.value }))}
+                            />
+                          </div>
+                        </div>
+                      )}
+                      {(() => {
+                        const currentLength = (inputText[question.id] ?? '').length;
+                        const limit = session.innspill_max_chars;
+                        const showCounter = currentLength >= Math.ceil(limit * 0.6);
+                        const ratio = currentLength / limit;
+                        const counterColor = ratio >= 1 ? 'text-rose-500' : ratio >= 0.85 ? 'text-amber-500' : 'text-slate-400';
+                        const showQuestionTip = currentLength > 40 && (inputText[question.id] ?? '').includes('?');
+                        const detailLength = (detailsText[question.id] ?? '').length;
+                        return (
+                          <>
+                            {showCounter ? <p className={`mt-1 text-xs ${counterColor}`}>{currentLength} / {limit} tegn</p> : null}
+                            {ratio >= 1 ? <p className="mt-1 text-xs text-rose-500">Prøv å korte det ned — ett innspill, én ting</p> : null}
+                            {ratio >= 0.85 && ratio < 1 ? <p className="mt-1 text-xs text-amber-500">Nærmer deg grensen — prøv å si det kortere 😊</p> : null}
+                            {showQuestionTip ? (
+                              <p className="mt-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-xs text-sky-700">
+                                Tips: innspill fungerer best som påstander. F.eks. "Vi trenger X" i stedet for "Har vi X?"
+                              </p>
+                            ) : null}
+                            {session.innspill_mode === 'detaljert' && detailLength >= 300 ? (
+                              <p className="mt-1 text-xs text-slate-400">{detailLength} / 400 tegn</p>
+                            ) : null}
+                          </>
+                        );
+                      })()}
                       <button
                         type="button"
                         className="mt-2 w-full rounded-full bg-[#0f172a] py-2 text-sm font-semibold text-white"
                         onClick={() => submit(question.id)}
-                        disabled={submitting[question.id]}
+                        disabled={submitting[question.id] || (inputText[question.id] ?? '').trim().length > session.innspill_max_chars}
                       >
                         {submitting[question.id] ? 'Lagrer...' : 'Legg til'}
                       </button>

@@ -6,7 +6,7 @@ export function InnspillResults({
   questions: Array<{
     id: string;
     text: string;
-    innspill: Array<{ id: string; text: string; nickname: string; likes: number }>;
+    innspill: Array<{ id: string; text: string; detaljer: string | null; nickname: string; likes: number }>;
   }>;
 }) {
   return (
@@ -19,6 +19,7 @@ export function InnspillResults({
             {question.innspill.map((entry) => (
               <li key={entry.id} className={`rounded border p-3 text-sm ${entry.likes > 0 ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}>
                 <p>{entry.text}</p>
+                {entry.detaljer ? <p className="mt-1 text-xs text-slate-600">{entry.detaljer}</p> : null}
                 <p className="text-xs text-slate-600 mt-1">{entry.nickname} ({entry.likes} likes)</p>
               </li>
             ))}

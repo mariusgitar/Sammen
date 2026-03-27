@@ -33,6 +33,8 @@ type SessionResponse = {
     allowNewItems: boolean;
     visibilityMode: 'manual' | 'all';
     show_others_innspill: boolean;
+    innspill_mode: 'enkel' | 'detaljert';
+    innspill_max_chars: number;
     maxRankItems: number | null;
   };
   items: Array<{

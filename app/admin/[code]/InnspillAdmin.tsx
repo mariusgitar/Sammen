@@ -12,7 +12,7 @@ type SummaryQuestion = {
   id: string;
   text: string;
   question_status: 'inactive' | 'active' | 'locked';
-  innspill: Array<{ id: string; text: string; nickname: string; likes: number }>;
+  innspill: Array<{ id: string; text: string; detaljer: string | null; nickname: string; likes: number }>;
 };
 
 type LocalQuestion = Question & { innspill_count: number };
@@ -144,6 +144,7 @@ export function InnspillAdmin({ code, questions, showOthersInnspill }: { code: s
                   {sortedInnspill.map((entry, entryIndex) => (
                     <div key={entry.id} className={`rounded border p-3 text-sm ${entryIndex < 3 ? 'border-emerald-700/40 bg-emerald-950/20' : 'border-slate-700'}`}>
                       <p className="text-slate-100">{entry.text}</p>
+                      {entry.detaljer ? <p className="mt-1 text-xs text-slate-400">{entry.detaljer}</p> : null}
                       <p className="mt-1 text-xs text-slate-400">{entry.nickname} · {entry.likes} likes</p>
                     </div>
                   ))}

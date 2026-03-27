@@ -59,6 +59,7 @@ type InnspillSummaryResponse = {
     innspill: Array<{
       id: string;
       text: string;
+      detaljer?: string | null;
       nickname: string;
       likes: number;
       participant_id: string;

@@ -36,7 +36,7 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
   const innspillRows = session.mode === 'aapne-innspill'
     // show_others_innspill only affects InnspillView during collection
     // Results always show everything
-    ? await db.select({ id: innspill.id, questionId: innspill.questionId, text: innspill.text, nickname: innspill.nickname, likes: innspill.likes }).from(innspill).where(eq(innspill.sessionId, session.id)).orderBy(desc(innspill.likes), asc(innspill.createdAt))
+    ? await db.select({ id: innspill.id, questionId: innspill.questionId, text: innspill.text, detaljer: innspill.detaljer, nickname: innspill.nickname, likes: innspill.likes }).from(innspill).where(eq(innspill.sessionId, session.id)).orderBy(desc(innspill.likes), asc(innspill.createdAt))
     : [];
 
   const includedItems = allItems.filter((item) => !item.excluded);
