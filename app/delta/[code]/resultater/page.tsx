@@ -64,9 +64,9 @@ type ThemeResponse = {
     name: string;
     description?: string | null;
     color: string;
-    innspill: Array<{ id: string; text: string; detaljer?: string | null }>;
+    innspill: Array<{ id: string; text: string; detaljer?: string | null; likes?: number }>;
   }>;
-  ungrouped: Array<{ id: string; text: string; detaljer?: string | null }>;
+  ungrouped: Array<{ id: string; text: string; detaljer?: string | null; likes?: number }>;
 };
 
 // show_others_innspill only affects InnspillView during collection
@@ -225,28 +225,32 @@ export default function ParticipantResultsPage({ params }: PageProps) {
         <div className="mx-auto max-w-4xl space-y-4">
           <h1 className="text-center text-2xl font-semibold text-[#0f172a]">{title}</h1>
           <h2 className="text-xl font-semibold text-[#0f172a]">Tematiserte innspill</h2>
-          {themeResults.themes.map((theme) => (
-            <section key={theme.id} style={{ borderLeft: `4px solid ${theme.color}` }} className="mb-6 pl-4">
-              <h3 style={{ color: theme.color }} className="text-lg font-semibold">{theme.name}</h3>
-              {theme.description ? <p className="text-sm text-[#64748b]">{theme.description}</p> : null}
-              <div className="mt-3 space-y-2">
-                {theme.innspill.map((entry) => (
-                  <div key={entry.id} className="rounded-xl bg-white p-3 shadow-sm">
-                    <p className="font-medium text-[#0f172a]">{entry.text}</p>
-                    {entry.detaljer ? <p className="text-sm text-slate-500">{entry.detaljer}</p> : null}
-                  </div>
-                ))}
-              </div>
-            </section>
-          ))}
+          <div className={themeResults.themes.length > 2 ? 'grid grid-cols-1 gap-4 md:grid-cols-2' : 'space-y-4'}>
+            {themeResults.themes.map((theme) => (
+              <section key={theme.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm" style={{ borderLeft: `4px solid ${theme.color}` }}>
+                <h3 style={{ color: theme.color }} className="text-lg font-semibold">{theme.name}</h3>
+                {theme.description ? <p className="text-sm text-slate-500">{theme.description}</p> : null}
+                <div className="mt-3 space-y-2">
+                  {theme.innspill.map((entry) => (
+                    <div key={entry.id} className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                      <p className="font-medium text-slate-800">{entry.text}</p>
+                      {entry.detaljer ? <p className="mt-1 text-sm text-slate-500">{entry.detaljer}</p> : null}
+                      <p className="mt-2 text-right text-xs text-slate-400">♥ {entry.likes ?? 0}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
           {themeResults.ungrouped.length > 0 ? (
             <section>
               <h3 className="text-lg font-semibold text-[#0f172a]">Andre innspill</h3>
               <div className="mt-3 space-y-2">
                 {themeResults.ungrouped.map((entry) => (
-                  <div key={entry.id} className="rounded-xl bg-white p-3 shadow-sm">
-                    <p className="font-medium text-[#0f172a]">{entry.text}</p>
-                    {entry.detaljer ? <p className="text-sm text-slate-500">{entry.detaljer}</p> : null}
+                  <div key={entry.id} className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                    <p className="font-medium text-slate-800">{entry.text}</p>
+                    {entry.detaljer ? <p className="mt-1 text-sm text-slate-500">{entry.detaljer}</p> : null}
+                    <p className="mt-2 text-right text-xs text-slate-400">♥ {entry.likes ?? 0}</p>
                   </div>
                 ))}
               </div>

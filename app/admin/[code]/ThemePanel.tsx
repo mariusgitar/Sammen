@@ -274,10 +274,10 @@ export function ThemePanel({ code, session }: ThemePanelProps) {
                 <div className="flex items-start gap-2">
                   <span className="mt-1 inline-block h-3 w-3 rounded-full" style={{ backgroundColor: theme.color }} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate font-semibold">{theme.name}</p>
-                    {theme.description ? <p className="mt-0.5 text-xs text-slate-500">{theme.description}</p> : null}
+                    <p className="truncate text-lg font-bold" style={{ color: theme.color }}>{theme.name}</p>
+                    {theme.description ? <p className="mt-0.5 text-sm text-white/50">{theme.description}</p> : null}
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">{theme.innspill.length}</span>
+                  <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-500">{theme.innspill.length}</span>
                   <button
                     type="button"
                     onClick={() => {
@@ -306,7 +306,11 @@ export function ThemePanel({ code, session }: ThemePanelProps) {
 
                 <div className="mt-3 space-y-2">
                   {theme.innspill.slice(0, 5).map((entry) => (
-                    <div key={entry.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-100 px-2 py-1.5 text-xs">
+                    <div
+                      key={entry.id}
+                      className="flex items-center justify-between rounded-lg border-l-2 bg-white/5 px-3 py-2"
+                      style={{ borderColor: `${theme.color}60` }}
+                    >
                       <span className="truncate">{entry.text.slice(0, 50)}</span>
                       <button type="button" onClick={() => void moveInnspill(entry.id, null)} className="text-slate-500 hover:text-slate-900">×</button>
                     </div>
@@ -318,7 +322,7 @@ export function ThemePanel({ code, session }: ThemePanelProps) {
           </div>
 
           {ungrouped.length > 0 ? (
-            <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950/60 p-4">
+            <div className="mt-6 rounded-2xl border-2 border-dashed border-white/20 p-4">
               <h3 className="text-sm font-semibold text-slate-200">Ikke gruppert ({ungrouped.length})</h3>
               <div className="mt-3 flex flex-wrap gap-2">
                 {ungrouped.map((entry) => (
