@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type Question = {
   id: string;
   text: string;
-  questionStatus: 'inactive' | 'active' | 'locked';
+  questionStatus: "inactive" | "active" | "locked";
 };
 
 type SessionInfo = {
@@ -13,38 +13,69 @@ type SessionInfo = {
   code: string;
   title: string;
   show_others_innspill: boolean;
-  innspill_mode: 'enkel' | 'detaljert';
+  innspill_mode: "enkel" | "detaljert";
   innspill_max_chars: number;
 };
 
-type Entry = { id: string; text: string; detaljer: string | null; nickname: string; likes: number; participant_id: string };
+type Entry = {
+  id: string;
+  text: string;
+  detaljer: string | null;
+  nickname: string;
+  likes: number;
+  participant_id: string;
+};
 
-type MyEntry = { id: string; text: string; detaljer: string | null; likes: number; likedByMe: boolean };
-type OtherEntry = { id: string; text: string; detaljer: string | null; nickname: string; likes: number; likedByMe: boolean; participant_id: string };
+type MyEntry = {
+  id: string;
+  text: string;
+  detaljer: string | null;
+  likes: number;
+  likedByMe: boolean;
+};
+type OtherEntry = {
+  id: string;
+  text: string;
+  detaljer: string | null;
+  nickname: string;
+  likes: number;
+  likedByMe: boolean;
+  participant_id: string;
+};
 
 const columnColors = [
-  'border-t-[#3b5bdb]',
-  'border-t-[#818cf8]',
-  'border-t-[#0ea5e9]',
-  'border-t-[#f59e0b]',
-  'border-t-[#38bdf8]',
-  'border-t-[#a78bfa]',
+  "border-t-[#3b5bdb]",
+  "border-t-[#818cf8]",
+  "border-t-[#0ea5e9]",
+  "border-t-[#f59e0b]",
+  "border-t-[#38bdf8]",
+  "border-t-[#a78bfa]",
 ];
 
-export function InnspillView({ session, items }: { session: SessionInfo; items: Question[] }) {
-  const [nickname, setNickname] = useState('');
+export function InnspillView({
+  session,
+  items,
+}: {
+  session: SessionInfo;
+  items: Question[];
+}) {
+  const [nickname, setNickname] = useState("");
   const [hasJoined, setHasJoined] = useState(false);
-  const [participantId, setParticipantId] = useState('');
+  const [participantId, setParticipantId] = useState("");
   const [inputText, setInputText] = useState<Record<string, string>>({});
   const [detailsText, setDetailsText] = useState<Record<string, string>>({});
-  const [expandedDetails, setExpandedDetails] = useState<Record<string, boolean>>({});
+  const [expandedDetails, setExpandedDetails] = useState<
+    Record<string, boolean>
+  >({});
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
   const [myInnspill, setMyInnspill] = useState<Record<string, MyEntry[]>>({});
-  const [allInnspill, setAllInnspill] = useState<Record<string, OtherEntry[]>>({});
+  const [allInnspill, setAllInnspill] = useState<Record<string, OtherEntry[]>>(
+    {},
+  );
   const [showOthers, setShowOthers] = useState(false);
   const canSeeOthers = session.show_others_innspill;
   const initialized = useRef(false);
-  const participantStorageKey = 'samen_participant_id';
+  const participantStorageKey = "samen_participant_id";
   const nicknameStorageKey = `samen_nickname_${session.code}`;
 
   useEffect(() => {
@@ -72,8 +103,17 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
   }, [nicknameStorageKey, participantStorageKey]);
 
   async function fetchInnspill() {
-    const response = await fetch(`/api/delta/${session.code}/innspill`, { cache: 'no-store' });
-    const data = (await response.json()) as { questions?: Array<{ id: string; text: string; question_status: string; innspill: Entry[] }> };
+    const response = await fetch(`/api/delta/${session.code}/innspill`, {
+      cache: "no-store",
+    });
+    const data = (await response.json()) as {
+      questions?: Array<{
+        id: string;
+        text: string;
+        question_status: string;
+        innspill: Entry[];
+      }>;
+    };
 
     if (!response.ok || !data.questions) {
       return;
@@ -92,7 +132,13 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
       for (const entry of question.innspill) {
         const likedByMe = false;
         if (entry.participant_id === participantId) {
-          mine[question.id].push({ id: entry.id, text: entry.text, detaljer: entry.detaljer, likes: entry.likes, likedByMe });
+          mine[question.id].push({
+            id: entry.id,
+            text: entry.text,
+            detaljer: entry.detaljer,
+            likes: entry.likes,
+            likedByMe,
+          });
         } else {
           others[question.id].push({
             id: entry.id,
@@ -144,7 +190,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
     () =>
       items.filter(
         (item) =>
-          item.questionStatus === 'active' ||
+          item.questionStatus === "active" ||
           (myInnspill[item.id] ?? []).length > 0 ||
           (canSeeOthers && (allInnspill[item.id] ?? []).length > 0),
       ),
@@ -152,8 +198,8 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
   );
 
   async function submit(questionId: string) {
-    const text = (inputText[questionId] ?? '').trim();
-    const detaljer = (detailsText[questionId] ?? '').trim();
+    const text = (inputText[questionId] ?? "").trim();
+    const detaljer = (detailsText[questionId] ?? "").trim();
     if (!text || !participantId || !nickname.trim()) {
       return;
     }
@@ -164,19 +210,27 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
     setSubmitting((current) => ({ ...current, [questionId]: true }));
 
     try {
-      const response = await fetch('/api/innspill', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/innspill", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sessionId: session.id,
           questionId,
           participantId,
           nickname: nickname.trim(),
           text,
-          detaljer: session.innspill_mode === 'detaljert' ? detaljer : undefined,
+          detaljer:
+            session.innspill_mode === "detaljert" ? detaljer : undefined,
         }),
       });
-      const responseBody = (await response.json()) as { innspill?: { id: string; text: string; detaljer: string | null; likes: number } };
+      const responseBody = (await response.json()) as {
+        innspill?: {
+          id: string;
+          text: string;
+          detaljer: string | null;
+          likes: number;
+        };
+      };
 
       if (!response.ok) {
         return;
@@ -200,8 +254,8 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
           };
         });
       }
-      setInputText((current) => ({ ...current, [questionId]: '' }));
-      setDetailsText((current) => ({ ...current, [questionId]: '' }));
+      setInputText((current) => ({ ...current, [questionId]: "" }));
+      setDetailsText((current) => ({ ...current, [questionId]: "" }));
     } finally {
       setSubmitting((current) => ({ ...current, [questionId]: false }));
     }
@@ -209,8 +263,8 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
 
   async function deleteInnspill(id: string) {
     await fetch(`/api/innspill/${id}`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ participantId }),
     });
     await fetchInnspill();
@@ -218,8 +272,8 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
 
   async function toggleLike(id: string) {
     await fetch(`/api/innspill/${id}/like`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ participantId }),
     });
     await fetchInnspill();
@@ -227,34 +281,48 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
 
   function getHvaPlaceholder() {
     if (session.innspill_max_chars <= 60) {
-      return 'Kort og konkret — én setning';
+      return "Kort og konkret — én setning";
     }
     if (session.innspill_max_chars <= 100) {
       return "f.eks. 'Vi mangler felles rutiner for onboarding'";
     }
-    return 'Beskriv innspillet ditt';
+    return "Beskriv innspillet ditt";
   }
 
-  function renderEntryText(entry: { id: string; text: string; detaljer: string | null }) {
-    const showDetailText = session.innspill_mode === 'detaljert' && Boolean(entry.detaljer?.trim());
-    const detailText = entry.detaljer?.trim() ?? '';
+  function renderEntryText(entry: {
+    id: string;
+    text: string;
+    detaljer: string | null;
+  }) {
+    const showDetailText =
+      session.innspill_mode === "detaljert" && Boolean(entry.detaljer?.trim());
+    const detailText = entry.detaljer?.trim() ?? "";
     const requiresToggle = detailText.length > 80;
     const isExpanded = expandedDetails[entry.id] ?? false;
 
     return (
       <>
-        <p className="font-medium text-[#0f172a]">{entry.text}</p>
+        <p className="font-medium whitespace-normal break-words overflow-hidden text-[#0f172a]">
+          {entry.text}
+        </p>
         {showDetailText ? (
           requiresToggle ? (
             <div className="mt-1">
               <button
                 type="button"
-                onClick={() => setExpandedDetails((current) => ({ ...current, [entry.id]: !isExpanded }))}
+                onClick={() =>
+                  setExpandedDetails((current) => ({
+                    ...current,
+                    [entry.id]: !isExpanded,
+                  }))
+                }
                 className="text-xs text-[#64748b] underline"
               >
-                {isExpanded ? 'Skjul detaljer ↑' : 'Les mer ↓'}
+                {isExpanded ? "Skjul detaljer ↑" : "Les mer ↓"}
               </button>
-              {isExpanded ? <p className="mt-1 text-xs text-[#64748b]">{detailText}</p> : null}
+              {isExpanded ? (
+                <p className="mt-1 text-xs text-[#64748b]">{detailText}</p>
+              ) : null}
             </div>
           ) : (
             <p className="mt-1 text-xs text-[#64748b]">{detailText}</p>
@@ -269,7 +337,9 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
       <main className="min-h-screen bg-[#f8fafc] px-4 py-10 text-[#0f172a] sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
           <h1 className="text-2xl font-semibold">{session.title}</h1>
-          <p className="mt-2 text-sm text-[#64748b]">Velg et visningsnavn for innspill.</p>
+          <p className="mt-2 text-sm text-[#64748b]">
+            Velg et visningsnavn for innspill.
+          </p>
           <input
             value={nickname}
             onChange={(event) => setNickname(event.target.value)}
@@ -298,7 +368,11 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
       <div className="mx-auto w-full max-w-7xl space-y-6">
         <h1 className="text-2xl font-semibold">{session.title}</h1>
 
-        {visibleQuestions.length === 0 ? <p className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm text-[#64748b]">Vent på at fasilitator åpner neste spørsmål...</p> : null}
+        {visibleQuestions.length === 0 ? (
+          <p className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm text-[#64748b]">
+            Vent på at fasilitator åpner neste spørsmål...
+          </p>
+        ) : null}
 
         {visibleQuestions.length > 0 && canSeeOthers ? (
           <div className="flex justify-end">
@@ -307,7 +381,7 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
               onClick={() => setShowOthers((current) => !current)}
               className="text-sm text-[#64748b] underline"
             >
-              {showOthers ? 'Skjul andres innspill' : 'Vis andres innspill'}
+              {showOthers ? "Skjul andres innspill" : "Vis andres innspill"}
             </button>
           </div>
         ) : null}
@@ -315,7 +389,11 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
         <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visibleQuestions.map((question, index) => {
             const mine = myInnspill[question.id] ?? [];
-            const others = canSeeOthers ? (allInnspill[question.id] ?? []).filter((entry) => entry.participant_id !== participantId) : [];
+            const others = canSeeOthers
+              ? (allInnspill[question.id] ?? []).filter(
+                  (entry) => entry.participant_id !== participantId,
+                )
+              : [];
             const innspillCount = mine.length + others.length;
 
             return (
@@ -325,18 +403,29 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
               >
                 <div className="sticky top-0 z-10 rounded-t-2xl border-b border-[#e2e8f0] bg-[#f8fafc] px-4 pb-3 pt-4">
                   <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-sm font-semibold text-[#0f172a]">{question.text}</h2>
-                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#64748b] border border-[#e2e8f0]">{innspillCount}</span>
+                    <h2 className="text-sm font-semibold text-[#0f172a]">
+                      {question.text}
+                    </h2>
+                    <span className="rounded-full bg-white px-2 py-0.5 text-xs text-[#64748b] border border-[#e2e8f0]">
+                      {innspillCount}
+                    </span>
                   </div>
                 </div>
 
                 <div className="flex flex-1 flex-col gap-2 p-3">
                   {mine.map((entry) => (
-                    <div key={entry.id} className="rounded-xl border border-[#c7d2fe] bg-[#eef2ff] px-3 py-2 text-sm">
+                    <div
+                      key={entry.id}
+                      className="overflow-hidden rounded-xl border border-[#c7d2fe] bg-[#eef2ff] px-3 py-2 text-sm"
+                    >
                       {renderEntryText(entry)}
                       <div className="mt-1 flex items-center justify-between gap-3 text-xs text-[#64748b]">
                         <span>Ditt innspill</span>
-                        <button type="button" onClick={() => deleteInnspill(entry.id)} className="text-amber-500">
+                        <button
+                          type="button"
+                          onClick={() => deleteInnspill(entry.id)}
+                          className="text-amber-500"
+                        >
                           Slett
                         </button>
                       </div>
@@ -345,12 +434,20 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
 
                   {canSeeOthers && showOthers
                     ? others.map((entry) => (
-                        <div key={entry.id} className="rounded-xl border border-[#e2e8f0] bg-white px-3 py-2 text-sm">
+                        <div
+                          key={entry.id}
+                          className="overflow-hidden rounded-xl border border-[#e2e8f0] bg-white px-3 py-2 text-sm"
+                        >
                           {renderEntryText(entry)}
                           <div className="mt-1 flex items-center justify-between">
-                            <span className="text-xs text-[#64748b]">{entry.nickname}</span>
-                            <button type="button" onClick={() => toggleLike(entry.id)}>
-                              {entry.likedByMe ? '♥' : '♡'} {entry.likes}
+                            <span className="text-xs text-[#64748b]">
+                              {entry.nickname}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => toggleLike(entry.id)}
+                            >
+                              {entry.likedByMe ? "♥" : "♡"} {entry.likes}
                             </button>
                           </div>
                         </div>
@@ -359,82 +456,156 @@ export function InnspillView({ session, items }: { session: SessionInfo; items: 
                 </div>
 
                 <div className="border-t border-[#e2e8f0] p-3">
-                  {question.questionStatus === 'active' ? (
+                  {question.questionStatus === "active" ? (
                     <>
-                      {session.innspill_mode === 'enkel' ? (
-                        <>
-                          <label className="mb-1 block text-xs font-medium text-[#475569]">Ditt innspill</label>
-                          <textarea
-                            className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
-                            rows={2}
-                            placeholder="Skriv én ting — kort nok til å leses på 5 sekunder"
-                            maxLength={session.innspill_max_chars}
-                            value={inputText[question.id] || ''}
-                            onChange={(event) => setInputText((current) => ({ ...current, [question.id]: event.target.value }))}
-                          />
-                        </>
-                      ) : (
-                        <div className="space-y-2">
-                          <div>
-                            <label className="mb-1 block text-xs font-medium text-[#475569]">Hva</label>
+                      {(() => {
+                        const currentLength = (inputText[question.id] ?? "")
+                          .length;
+                        const limit = session.innspill_max_chars;
+                        const showCounter =
+                          currentLength >= Math.ceil(limit * 0.6);
+                        const ratio = currentLength / limit;
+                        const counterColor =
+                          ratio >= 1
+                            ? "text-rose-500"
+                            : ratio >= 0.85
+                              ? "text-amber-500"
+                              : "text-slate-400";
+                        const showQuestionTip =
+                          currentLength > 40 &&
+                          (inputText[question.id] ?? "").includes("?");
+                        const detailLength = (detailsText[question.id] ?? "")
+                          .length;
+
+                        return session.innspill_mode === "enkel" ? (
+                          <>
+                            <label className="mb-1 block text-xs font-medium text-[#475569]">
+                              Ditt innspill
+                            </label>
                             <textarea
                               className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
                               rows={2}
-                              placeholder={getHvaPlaceholder()}
+                              placeholder="Skriv én ting — kort nok til å leses på 5 sekunder"
                               maxLength={session.innspill_max_chars}
-                              value={inputText[question.id] || ''}
-                              onChange={(event) => setInputText((current) => ({ ...current, [question.id]: event.target.value }))}
+                              value={inputText[question.id] || ""}
+                              onChange={(event) =>
+                                setInputText((current) => ({
+                                  ...current,
+                                  [question.id]: event.target.value,
+                                }))
+                              }
                             />
-                          </div>
-                          <div>
-                            <label className="mb-1 block text-xs font-medium text-[#475569]">Mer detaljer (valgfritt)</label>
-                            <textarea
-                              className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
-                              rows={3}
-                              placeholder="Utdyp gjerne — hva er bakgrunnen eller konteksten?"
-                              maxLength={400}
-                              value={detailsText[question.id] || ''}
-                              onChange={(event) => setDetailsText((current) => ({ ...current, [question.id]: event.target.value }))}
-                            />
-                          </div>
-                        </div>
-                      )}
-                      {(() => {
-                        const currentLength = (inputText[question.id] ?? '').length;
-                        const limit = session.innspill_max_chars;
-                        const showCounter = currentLength >= Math.ceil(limit * 0.6);
-                        const ratio = currentLength / limit;
-                        const counterColor = ratio >= 1 ? 'text-rose-500' : ratio >= 0.85 ? 'text-amber-500' : 'text-slate-400';
-                        const showQuestionTip = currentLength > 40 && (inputText[question.id] ?? '').includes('?');
-                        const detailLength = (detailsText[question.id] ?? '').length;
-                        return (
-                          <>
-                            {showCounter ? <p className={`mt-1 text-xs ${counterColor}`}>{currentLength} / {limit} tegn</p> : null}
-                            {ratio >= 1 ? <p className="mt-1 text-xs text-rose-500">Prøv å korte det ned — ett innspill, én ting</p> : null}
-                            {ratio >= 0.85 && ratio < 1 ? <p className="mt-1 text-xs text-amber-500">Nærmer deg grensen — prøv å si det kortere 😊</p> : null}
-                            {showQuestionTip ? (
-                              <p className="mt-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-xs text-sky-700">
-                                Tips: innspill fungerer best som påstander. F.eks. "Vi trenger X" i stedet for "Har vi X?"
+                            {showCounter ? (
+                              <p className={`mt-1 text-xs ${counterColor}`}>
+                                {currentLength} / {limit} tegn
                               </p>
                             ) : null}
-                            {session.innspill_mode === 'detaljert' && detailLength >= 300 ? (
-                              <p className="mt-1 text-xs text-slate-400">{detailLength} / 400 tegn</p>
+                            {ratio >= 1 ? (
+                              <p className="mt-1 text-xs text-rose-500">
+                                Prøv å korte det ned — ett innspill, én ting
+                              </p>
+                            ) : null}
+                            {ratio >= 0.85 && ratio < 1 ? (
+                              <p className="mt-1 text-xs text-amber-500">
+                                Nærmer deg grensen — prøv å si det kortere 😊
+                              </p>
+                            ) : null}
+                            {showQuestionTip ? (
+                              <p className="mt-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-xs text-sky-700">
+                                Tips: innspill fungerer best som påstander.
+                                F.eks. "Vi trenger X" i stedet for "Har vi X?"
+                              </p>
                             ) : null}
                           </>
+                        ) : (
+                          <div className="space-y-2">
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-[#475569]">
+                                Hva
+                              </label>
+                              <textarea
+                                className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
+                                rows={2}
+                                placeholder={getHvaPlaceholder()}
+                                maxLength={session.innspill_max_chars}
+                                value={inputText[question.id] || ""}
+                                onChange={(event) =>
+                                  setInputText((current) => ({
+                                    ...current,
+                                    [question.id]: event.target.value,
+                                  }))
+                                }
+                              />
+                              {showCounter ? (
+                                <p className={`mt-1 text-xs ${counterColor}`}>
+                                  {currentLength} / {limit} tegn
+                                </p>
+                              ) : null}
+                              {ratio >= 1 ? (
+                                <p className="mt-1 text-xs text-rose-500">
+                                  Prøv å korte det ned — ett innspill, én ting
+                                </p>
+                              ) : null}
+                              {ratio >= 0.85 && ratio < 1 ? (
+                                <p className="mt-1 text-xs text-amber-500">
+                                  Nærmer deg grensen — prøv å si det kortere 😊
+                                </p>
+                              ) : null}
+                              {showQuestionTip ? (
+                                <p className="mt-1 rounded-lg border border-sky-200 bg-sky-50 px-2 py-1 text-xs text-sky-700">
+                                  Tips: innspill fungerer best som påstander.
+                                  F.eks. "Vi trenger X" i stedet for "Har vi X?"
+                                </p>
+                              ) : null}
+                            </div>
+                            <div>
+                              <label className="mb-1 block text-xs font-medium text-[#475569]">
+                                Mer detaljer (valgfritt)
+                              </label>
+                              <textarea
+                                className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
+                                rows={3}
+                                placeholder="Utdyp gjerne — hva er bakgrunnen eller konteksten?"
+                                maxLength={400}
+                                value={detailsText[question.id] || ""}
+                                onChange={(event) =>
+                                  setDetailsText((current) => ({
+                                    ...current,
+                                    [question.id]: event.target.value,
+                                  }))
+                                }
+                              />
+                              {detailLength >= 300 ? (
+                                <p className="mt-1 text-xs text-slate-400">
+                                  {detailLength} / 400 tegn
+                                </p>
+                              ) : null}
+                            </div>
+                          </div>
                         );
                       })()}
                       <button
                         type="button"
                         className="mt-2 w-full rounded-full bg-[#0f172a] py-2 text-sm font-semibold text-white"
                         onClick={() => submit(question.id)}
-                        disabled={submitting[question.id] || (inputText[question.id] ?? '').trim().length > session.innspill_max_chars}
+                        disabled={
+                          submitting[question.id] ||
+                          (inputText[question.id] ?? "").trim().length >
+                            session.innspill_max_chars
+                        }
                       >
-                        {submitting[question.id] ? 'Lagrer...' : 'Legg til'}
+                        {submitting[question.id] ? "Lagrer..." : "Legg til"}
                       </button>
-                      {!canSeeOthers ? <p className="mt-2 text-xs text-[#64748b]">Du ser bare dine egne innspill under innsamlingen.</p> : null}
+                      {!canSeeOthers ? (
+                        <p className="mt-2 text-xs text-[#64748b]">
+                          Du ser bare dine egne innspill under innsamlingen.
+                        </p>
+                      ) : null}
                     </>
                   ) : (
-                    <p className="text-sm text-[#64748b]">Dette spørsmålet er lukket for nye innspill.</p>
+                    <p className="text-sm text-[#64748b]">
+                      Dette spørsmålet er lukket for nye innspill.
+                    </p>
                   )}
                 </div>
               </section>
