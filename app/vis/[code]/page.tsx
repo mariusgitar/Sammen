@@ -374,22 +374,58 @@ export default function PresentationPage({ params }: { params: { code: string } 
             {session?.phase === 'innspill' ? (
               <>
                 {session?.mode === 'aapne-innspill' && (themeData?.themes?.length ?? 0) > 0 ? (
-                  <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-                    {themeData?.themes.map((theme) => (
-                      <div key={theme.id} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-                        <h3 className="text-xl font-bold" style={{ color: theme.color }}>{theme.name}</h3>
-                        {theme.description ? <p className="mt-1 text-sm text-white/60">{theme.description}</p> : null}
-                        <div className="mt-4 space-y-3">
-                          {theme.innspill.map((entry) => (
-                            <article key={entry.id} className="rounded-2xl border p-3" style={{ borderColor: `${theme.color}66`, backgroundColor: `${theme.color}1A` }}>
-                              <p className="text-base text-white/90">{entry.text}</p>
-                              {entry.detaljer ? <p className="mt-1 text-sm text-white/60">{entry.detaljer}</p> : null}
-                              <p className="mt-2 text-sm text-white/50">♥ {entry.likes}</p>
-                            </article>
-                          ))}
+                  <>
+                    <div className="space-y-6 md:hidden">
+                      {themeData?.themes.map((theme) => (
+                        <div key={theme.id} className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                          <div className="border-b-2 pb-3" style={{ borderColor: theme.color }}>
+                            <h2 className="text-2xl font-bold text-white">{theme.name}</h2>
+                            {theme.description ? <p className="mt-1 text-sm text-white/50">{theme.description}</p> : null}
+                            <span className="mt-1 block text-xs text-white/30">{theme.innspill.length} innspill</span>
+                          </div>
+                          <div className="flex flex-col gap-2 overflow-y-auto">
+                            {theme.innspill.map((entry) => (
+                              <div
+                                key={entry.id}
+                                className="rounded-xl p-3"
+                                style={{ backgroundColor: `${theme.color}15`, borderLeft: `3px solid ${theme.color}` }}
+                              >
+                                <p className="text-sm font-medium text-white">{entry.text}</p>
+                                {entry.detaljer ? <p className="mt-1 text-xs text-white/50">{entry.detaljer}</p> : null}
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                    <div
+                      className="hidden gap-6 md:grid md:h-full md:items-start"
+                      style={{
+                        gridTemplateColumns: `repeat(${Math.min(themeData?.themes.length ?? 1, 4)}, 1fr)`,
+                      }}
+                    >
+                      {themeData?.themes.map((theme) => (
+                        <div key={theme.id} className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                          <div className="border-b-2 pb-3" style={{ borderColor: theme.color }}>
+                            <h2 className="text-2xl font-bold text-white">{theme.name}</h2>
+                            {theme.description ? <p className="mt-1 text-sm text-white/50">{theme.description}</p> : null}
+                            <span className="mt-1 block text-xs text-white/30">{theme.innspill.length} innspill</span>
+                          </div>
+                          <div className="flex flex-col gap-2 overflow-y-auto">
+                            {theme.innspill.map((entry) => (
+                              <div
+                                key={entry.id}
+                                className="rounded-xl p-3"
+                                style={{ backgroundColor: `${theme.color}15`, borderLeft: `3px solid ${theme.color}` }}
+                              >
+                                <p className="text-sm font-medium text-white">{entry.text}</p>
+                                {entry.detaljer ? <p className="mt-1 text-xs text-white/50">{entry.detaljer}</p> : null}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                     {(themeData?.ungrouped?.length ?? 0) > 0 ? (
                       <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
                         <h3 className="text-xl font-bold text-white/90">Andre innspill</h3>
@@ -402,7 +438,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
                         </div>
                       </div>
                     ) : null}
-                  </div>
+                  </>
                 ) : (
                   <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
                     {(innspillData?.questions ?? [])
