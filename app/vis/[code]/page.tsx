@@ -68,6 +68,27 @@ type InnspillSummaryResponse = {
   }>;
 };
 
+type ThemeResponse = {
+  themes: Array<{
+    id: string;
+    name: string;
+    description?: string | null;
+    color: string;
+    innspill: Array<{
+      id: string;
+      text: string;
+      detaljer?: string | null;
+      likes: number;
+    }>;
+  }>;
+  ungrouped: Array<{
+    id: string;
+    text: string;
+    detaljer?: string | null;
+    likes: number;
+  }>;
+};
+
 const inter = Inter({ subsets: ['latin'] });
 const tagPalette = ['#a78bfa', '#67e8f9', '#86efac', '#fcd34d', '#f9a8d4', '#fb923c'];
 
@@ -108,6 +129,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
   const [sessionData, setSessionData] = useState<SessionResponse | null>(null);
   const [summaryData, setSummaryData] = useState<SummaryResponse | null>(null);
   const [innspillData, setInnspillData] = useState<InnspillSummaryResponse | null>(null);
+  const [themeData, setThemeData] = useState<ThemeResponse | null>(null);
   const [visible, setVisible] = useState(false);
   const initialized = useRef(false);
 
@@ -135,10 +157,17 @@ export default function PresentationPage({ params }: { params: { code: string } 
         }
 
         if (sessionJson?.session?.mode === 'aapne-innspill') {
-          const innspillRes = await fetch(`/api/admin/${code}/innspill-summary`, { cache: 'no-store' });
+          const [innspillRes, themesRes] = await Promise.all([
+            fetch(`/api/admin/${code}/innspill-summary`, { cache: 'no-store' }),
+            fetch(`/api/admin/${code}/themes`, { cache: 'no-store' }),
+          ]);
           const innspillJson = (await innspillRes.json()) as InnspillSummaryResponse;
+          const themesJson = (await themesRes.json()) as ThemeResponse;
           if (innspillRes.ok && active) {
             setInnspillData((current) => (innspillJson.questions.length === 0 && current ? current : innspillJson));
+          }
+          if (themesRes.ok && active) {
+            setThemeData(themesJson);
           }
         }
 
@@ -343,29 +372,63 @@ export default function PresentationPage({ params }: { params: { code: string } 
             ) : null}
 
             {session?.phase === 'innspill' ? (
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                {(innspillData?.questions ?? [])
-                  .filter((question) => question.question_status === 'active')
-                  .map((question) => {
-                    const latest = [...question.innspill]
-                      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                      .slice(0, 6);
-                    return (
-                      <div key={question.id} className="flex flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-                        <h3 className="mb-4 text-xl font-bold">{question.text}</h3>
-                        <div className="space-y-3">
-                          {latest.map((entry, idx) => (
-                            <article key={entry.id} className="rounded-2xl border border-[#818cf8]/20 bg-[#818cf8]/10 p-3 transition-all duration-700 ease-out" style={{ transitionDelay: `${idx * 80}ms` }}>
+              <>
+                {session?.mode === 'aapne-innspill' && (themeData?.themes?.length ?? 0) > 0 ? (
+                  <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+                    {themeData?.themes.map((theme) => (
+                      <div key={theme.id} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                        <h3 className="text-xl font-bold" style={{ color: theme.color }}>{theme.name}</h3>
+                        {theme.description ? <p className="mt-1 text-sm text-white/60">{theme.description}</p> : null}
+                        <div className="mt-4 space-y-3">
+                          {theme.innspill.map((entry) => (
+                            <article key={entry.id} className="rounded-2xl border p-3" style={{ borderColor: `${theme.color}66`, backgroundColor: `${theme.color}1A` }}>
                               <p className="text-base text-white/90">{entry.text}</p>
+                              {entry.detaljer ? <p className="mt-1 text-sm text-white/60">{entry.detaljer}</p> : null}
                               <p className="mt-2 text-sm text-white/50">♥ {entry.likes}</p>
                             </article>
                           ))}
-                          {question.innspill.length > 6 ? <p className="text-sm text-white/40">og {question.innspill.length - 6} til...</p> : null}
                         </div>
                       </div>
-                    );
-                  })}
-              </div>
+                    ))}
+                    {(themeData?.ungrouped?.length ?? 0) > 0 ? (
+                      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                        <h3 className="text-xl font-bold text-white/90">Andre innspill</h3>
+                        <div className="mt-4 space-y-3">
+                          {themeData?.ungrouped.map((entry) => (
+                            <article key={entry.id} className="rounded-2xl border border-white/20 bg-white/[0.04] p-3">
+                              <p className="text-base text-white/90">{entry.text}</p>
+                            </article>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
+                    {(innspillData?.questions ?? [])
+                      .filter((question) => question.question_status === 'active')
+                      .map((question) => {
+                        const latest = [...question.innspill]
+                          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                          .slice(0, 6);
+                        return (
+                          <div key={question.id} className="flex flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                            <h3 className="mb-4 text-xl font-bold">{question.text}</h3>
+                            <div className="space-y-3">
+                              {latest.map((entry, idx) => (
+                                <article key={entry.id} className="rounded-2xl border border-[#818cf8]/20 bg-[#818cf8]/10 p-3 transition-all duration-700 ease-out" style={{ transitionDelay: `${idx * 80}ms` }}>
+                                  <p className="text-base text-white/90">{entry.text}</p>
+                                  <p className="mt-2 text-sm text-white/50">♥ {entry.likes}</p>
+                                </article>
+                              ))}
+                              {question.innspill.length > 6 ? <p className="text-sm text-white/40">og {question.innspill.length - 6} til...</p> : null}
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                )}
+              </>
             ) : null}
             </div>
           )}
