@@ -12,8 +12,8 @@ type SessionInfoResponse = {
   session: {
     code: string;
     title: string;
-    mode: 'kartlegging' | 'stemming' | 'rangering';
-    phase: 'kartlegging' | 'stemming' | 'rangering';
+    mode: 'kartlegging' | 'stemming' | 'rangering' | 'aapne-innspill';
+    phase: 'kartlegging' | 'stemming' | 'rangering' | 'innspill';
     votingType: 'scale' | 'dots';
     status: 'setup' | 'active' | 'paused' | 'closed';
     resultsVisible?: boolean;
@@ -51,11 +51,22 @@ type RangeringSummaryItem = {
 };
 
 type ResultsResponse = {
-  mode: 'kartlegging' | 'stemming' | 'rangering';
-  phase: 'kartlegging' | 'stemming' | 'rangering';
+  mode: 'kartlegging' | 'stemming' | 'rangering' | 'aapne-innspill';
+  phase: 'kartlegging' | 'stemming' | 'rangering' | 'innspill';
   votingType: 'scale' | 'dots';
   participantCount: number;
   items: Array<KartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
+};
+
+type ThemeResponse = {
+  themes: Array<{
+    id: string;
+    name: string;
+    description?: string | null;
+    color: string;
+    innspill: Array<{ id: string; text: string; detaljer?: string | null }>;
+  }>;
+  ungrouped: Array<{ id: string; text: string; detaljer?: string | null }>;
 };
 
 // show_others_innspill only affects InnspillView during collection
@@ -87,7 +98,9 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const [title, setTitle] = useState('');
   const [isVisible, setIsVisible] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<'setup' | 'active' | 'paused' | 'closed' | null>(null);
+  const [sessionMode, setSessionMode] = useState<SessionInfoResponse['session']['mode'] | null>(null);
   const [results, setResults] = useState<ResultsResponse | null>(null);
+  const [themeResults, setThemeResults] = useState<ThemeResponse | null>(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -115,11 +128,28 @@ export default function ParticipantResultsPage({ params }: PageProps) {
         setTitle(sessionData.session.title);
         setIsVisible(serverVisibility);
         setSessionStatus(sessionData.session.status);
+        setSessionMode(sessionData.session.mode);
 
         if (!serverVisibility) {
           setResults(null);
           setError('');
           return;
+        }
+
+        if (sessionData.session.mode === 'aapne-innspill') {
+          const themesResponse = await fetch(`/api/admin/${code}/themes`, { cache: 'no-store' });
+          const themesData = (await themesResponse.json()) as ThemeResponse | { error: string };
+
+          if (!isMounted) {
+            return;
+          }
+
+          if (themesResponse.ok && 'themes' in themesData) {
+            setThemeResults(themesData);
+            setResults(null);
+            setError('');
+            return;
+          }
         }
 
         const resultsResponse = await fetch(`/api/delta/${code}/results`, { cache: 'no-store' });
@@ -136,6 +166,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
 
         setError('');
         setResults(resultsData);
+        setThemeResults(null);
       } catch {
         if (!isMounted) {
           return;
@@ -177,12 +208,60 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     );
   }
 
-  if (error || !results) {
+  if (error || (!results && sessionMode !== 'aapne-innspill')) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4">
         <section className="w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-8 text-center shadow-sm">
           <h1 className="text-2xl font-semibold text-[#0f172a]">Kunne ikke laste resultater</h1>
           {error ? <p className="mt-3 text-sm text-[#64748b]">{error}</p> : null}
+        </section>
+      </main>
+    );
+  }
+
+  if (sessionMode === 'aapne-innspill' && themeResults && themeResults.themes.length > 0) {
+    return (
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-8">
+        <div className="mx-auto max-w-4xl space-y-4">
+          <h1 className="text-center text-2xl font-semibold text-[#0f172a]">{title}</h1>
+          <h2 className="text-xl font-semibold text-[#0f172a]">Tematiserte innspill</h2>
+          {themeResults.themes.map((theme) => (
+            <section key={theme.id} style={{ borderLeft: `4px solid ${theme.color}` }} className="mb-6 pl-4">
+              <h3 style={{ color: theme.color }} className="text-lg font-semibold">{theme.name}</h3>
+              {theme.description ? <p className="text-sm text-[#64748b]">{theme.description}</p> : null}
+              <div className="mt-3 space-y-2">
+                {theme.innspill.map((entry) => (
+                  <div key={entry.id} className="rounded-xl bg-white p-3 shadow-sm">
+                    <p className="font-medium text-[#0f172a]">{entry.text}</p>
+                    {entry.detaljer ? <p className="text-sm text-slate-500">{entry.detaljer}</p> : null}
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+          {themeResults.ungrouped.length > 0 ? (
+            <section>
+              <h3 className="text-lg font-semibold text-[#0f172a]">Andre innspill</h3>
+              <div className="mt-3 space-y-2">
+                {themeResults.ungrouped.map((entry) => (
+                  <div key={entry.id} className="rounded-xl bg-white p-3 shadow-sm">
+                    <p className="font-medium text-[#0f172a]">{entry.text}</p>
+                    {entry.detaljer ? <p className="text-sm text-slate-500">{entry.detaljer}</p> : null}
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </main>
+    );
+  }
+
+  if (!results) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4">
+        <section className="w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-8 text-center shadow-sm">
+          <h1 className="text-2xl font-semibold text-[#0f172a]">Ingen resultater enda</h1>
         </section>
       </main>
     );

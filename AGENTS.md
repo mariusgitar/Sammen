@@ -62,6 +62,12 @@ responses:
   value: tag name (kartlegging), "1"-"5" (scale), 
          dot count as string (dots)
 
+themes:
+  id, session_id, name, description, color, order_index, created_at
+
+innspill_themes:
+  id, innspill_id, theme_id, created_at
+
 ## Session flows
 
 Kartlegging:
@@ -102,6 +108,10 @@ API routes:
   DELETE /api/innspill/[id]
   GET /api/admin/[code]/summary
   GET /api/admin/[code]/innspill-summary
+  POST /api/admin/[code]/suggest-themes
+  GET/POST /api/admin/[code]/themes
+  PATCH/DELETE /api/admin/[code]/themes/[themeId]
+  PATCH /api/innspill/[id]/theme
   GET /api/delta/[code]/innspill
   POST /api/sessions/[code]/start-stemming
   GET /api/delta/[code]/results

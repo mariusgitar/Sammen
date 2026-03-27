@@ -29,6 +29,11 @@ function isProtectedPath(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const isPublicThemesGet = request.method === 'GET' && /^\/api\/admin\/[^/]+\/themes$/.test(pathname);
+
+  if (isPublicThemesGet) {
+    return NextResponse.next();
+  }
 
   if (!isProtectedPath(pathname)) {
     return NextResponse.next();

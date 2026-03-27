@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
 
 import { InnspillAdmin } from './InnspillAdmin';
+import { ThemePanel } from './ThemePanel';
 
 type SessionView = {
   id: string;
@@ -926,6 +927,17 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               questionStatus: item.questionStatus ?? 'inactive',
             }))}
         />
+      ) : null}
+
+      {currentSession.mode === 'aapne-innspill' && sessionStatus === 'paused' ? (
+        <section className="space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-slate-800" />
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-500">Tematisering</p>
+            <div className="h-px flex-1 bg-slate-800" />
+          </div>
+          <ThemePanel code={currentSession.code} session={currentSession} />
+        </section>
       ) : null}
 
       {currentSession.mode === 'aapne-innspill' && sessionStatus === 'paused' ? (

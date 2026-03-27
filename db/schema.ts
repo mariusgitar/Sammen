@@ -16,6 +16,24 @@ ALTER TABLE sessions ADD COLUMN innspill_mode text NOT NULL DEFAULT 'enkel';
 ALTER TABLE sessions ADD COLUMN innspill_max_chars integer NOT NULL DEFAULT 100;
 ALTER TABLE innspill ADD COLUMN detaljer text;
 
+CREATE TABLE themes (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid not null references sessions(id) ON DELETE CASCADE,
+  name text not null,
+  description text,
+  color text not null default '#6366f1',
+  order_index integer not null default 0,
+  created_at timestamp default now()
+);
+
+CREATE TABLE innspill_themes (
+  id uuid primary key default gen_random_uuid(),
+  innspill_id uuid not null references innspill(id) ON DELETE CASCADE,
+  theme_id uuid not null references themes(id) ON DELETE CASCADE,
+  created_at timestamp default now(),
+  UNIQUE(innspill_id, theme_id)
+);
+
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -166,5 +184,28 @@ export const innspillLikes = pgTable('innspill_likes', {
     .notNull()
     .references(() => innspill.id, { onDelete: 'cascade' }),
   participantId: text('participant_id').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const themes = pgTable('themes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  sessionId: uuid('session_id')
+    .notNull()
+    .references(() => sessions.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  description: text('description'),
+  color: text('color').notNull().default('#6366f1'),
+  orderIndex: integer('order_index').notNull().default(0),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});
+
+export const innspillThemes = pgTable('innspill_themes', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  innspillId: uuid('innspill_id')
+    .notNull()
+    .references(() => innspill.id, { onDelete: 'cascade' }),
+  themeId: uuid('theme_id')
+    .notNull()
+    .references(() => themes.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
