@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq, inArray } from 'drizzle-orm';
 
 import { getDb } from '@/db';
-import { innspill, innspillLikes, items, responses, sessionModes, sessions, visibilityModes, votingTypes } from '@/db/schema';
+import { innspill, innspillLikes, innspillModes, items, responses, sessionModes, sessions, visibilityModes, votingTypes } from '@/db/schema';
 import { generateCode } from '@/lib/generate-code';
 
 type CreateSessionBody = {
@@ -13,6 +13,8 @@ type CreateSessionBody = {
   allow_multiple_dots?: boolean;
   visibility_mode?: (typeof visibilityModes)[number];
   show_others_innspill?: boolean;
+  innspill_mode?: (typeof innspillModes)[number];
+  innspill_max_chars?: number;
   max_rank_items?: number | null;
   items: string[];
   tags: string[];
@@ -40,6 +42,9 @@ function isCreateSessionBody(body: unknown): body is CreateSessionBody {
     (typeof candidate.visibility_mode === 'undefined' ||
       visibilityModes.includes(candidate.visibility_mode as (typeof visibilityModes)[number])) &&
     (typeof candidate.show_others_innspill === 'undefined' || typeof candidate.show_others_innspill === 'boolean') &&
+    (typeof candidate.innspill_mode === 'undefined' ||
+      innspillModes.includes(candidate.innspill_mode as (typeof innspillModes)[number])) &&
+    (typeof candidate.innspill_max_chars === 'undefined' || Number.isInteger(candidate.innspill_max_chars)) &&
     (typeof candidate.max_rank_items === 'undefined' || candidate.max_rank_items === null || Number.isInteger(candidate.max_rank_items)) &&
     Array.isArray(candidate.items) &&
     candidate.items.every((item) => typeof item === 'string') &&
@@ -104,6 +109,8 @@ export async function POST(request: NextRequest) {
     const allowMultipleDots = body.allow_multiple_dots ?? true;
     const visibilityMode = body.visibility_mode ?? 'manual';
     const showOthersInnspill = body.show_others_innspill ?? true;
+    const innspillMode = body.innspill_mode ?? 'enkel';
+    const innspillMaxChars = [60, 100, 200].includes(body.innspill_max_chars ?? 100) ? (body.innspill_max_chars ?? 100) : 100;
 
     const [createdSession] = await db
       .insert(sessions)
@@ -124,6 +131,8 @@ export async function POST(request: NextRequest) {
         allowMultipleDots: body.mode === 'stemming' && votingType === 'dots' ? allowMultipleDots : true,
         visibilityMode,
         showOthersInnspill,
+        innspillMode: body.mode === 'aapne-innspill' ? innspillMode : 'enkel',
+        innspillMaxChars: body.mode === 'aapne-innspill' ? innspillMaxChars : 100,
         maxRankItems: normalizedMaxRankItems,
         tags: body.mode === 'aapne-innspill' || body.mode === 'rangering' ? [] : tags,
         allowNewItems: body.mode === 'aapne-innspill' || body.mode === 'rangering' ? true : body.allow_new_items,

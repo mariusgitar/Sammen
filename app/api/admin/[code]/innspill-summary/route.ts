@@ -25,6 +25,7 @@ export async function GET(_request: Request, { params }: { params: { code: strin
       .select({
         id: innspill.id,
         text: innspill.text,
+        detaljer: innspill.detaljer,
         nickname: innspill.nickname,
         likes: innspill.likes,
         participant_id: innspill.participantId,
@@ -43,6 +44,7 @@ export async function GET(_request: Request, { params }: { params: { code: strin
         .map((i) => ({
           id: i.id,
           text: i.text,
+          detaljer: i.detaljer,
           nickname: i.nickname,
           likes: i.likes,
           participant_id: i.participant_id,

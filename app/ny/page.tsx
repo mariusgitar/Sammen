@@ -3,7 +3,7 @@
 import { FormEvent, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import type { SessionMode, VisibilityMode, VotingType } from '@/db/schema';
+import type { InnspillMode, SessionMode, VisibilityMode, VotingType } from '@/db/schema';
 
 type CreateSessionResponse =
   | {
@@ -35,6 +35,8 @@ export default function NewSessionPage() {
   const [dotBudget, setDotBudget] = useState(5);
   const [allowMultipleDots, setAllowMultipleDots] = useState(true);
   const [showOthersInnspill, setShowOthersInnspill] = useState(true);
+  const [innspillMode, setInnspillMode] = useState<InnspillMode>('enkel');
+  const [innspillMaxChars, setInnspillMaxChars] = useState(100);
   const [error, setError] = useState('');
   const [titleError, setTitleError] = useState('');
   const [itemsError, setItemsError] = useState('');
@@ -96,6 +98,8 @@ export default function NewSessionPage() {
           allow_multiple_dots: mode === 'stemming' && votingType === 'dots' ? allowMultipleDots : true,
           visibility_mode: isInnspillMode ? visibilityMode : 'manual',
           show_others_innspill: isInnspillMode ? showOthersInnspill : true,
+          innspill_mode: isInnspillMode ? innspillMode : 'enkel',
+          innspill_max_chars: isInnspillMode ? innspillMaxChars : 100,
           max_rank_items: isRangeringMode ? parsedMaxRankItems : null,
           items: parsedItems,
           tags: isInnspillMode || isRangeringMode ? [] : parsedTags,
@@ -340,6 +344,84 @@ export default function NewSessionPage() {
                   Skru av for å unngå gruppetenk under innsamlingen. Alle innspill vises uansett på resultatsiden.
                 </p>
               </fieldset>
+
+              <fieldset className="space-y-3">
+                <legend className="text-sm font-medium text-slate-100">Innspill-format</legend>
+                <div className="space-y-2">
+                  <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+                    <input
+                      required
+                      type="radio"
+                      name="innspill-mode"
+                      value="enkel"
+                      checked={innspillMode === 'enkel'}
+                      onChange={() => setInnspillMode('enkel')}
+                      className="mt-0.5 h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
+                    />
+                    <span>Enkel (kun én kort tekst per innspill)</span>
+                  </label>
+                  <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+                    <input
+                      required
+                      type="radio"
+                      name="innspill-mode"
+                      value="detaljert"
+                      checked={innspillMode === 'detaljert'}
+                      onChange={() => setInnspillMode('detaljert')}
+                      className="mt-0.5 h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
+                    />
+                    <span>Med kontekst (kort tekst + valgfri beskrivelse)</span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset className="space-y-3">
+                <legend className="text-sm font-medium text-slate-100">Maks lengde per innspill</legend>
+                <div className="space-y-2">
+                  <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+                    <input
+                      required
+                      type="radio"
+                      name="innspill-max-chars"
+                      value="60"
+                      checked={innspillMaxChars === 60}
+                      onChange={() => setInnspillMaxChars(60)}
+                      className="mt-0.5 h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
+                    />
+                    <span>Veldig kort (60 tegn) — én setning, ingen utfyllinger</span>
+                  </label>
+                  <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+                    <input
+                      required
+                      type="radio"
+                      name="innspill-max-chars"
+                      value="100"
+                      checked={innspillMaxChars === 100}
+                      onChange={() => setInnspillMaxChars(100)}
+                      className="mt-0.5 h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
+                    />
+                    <span>Kort (100 tegn) — anbefalt</span>
+                  </label>
+                  <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
+                    <input
+                      required
+                      type="radio"
+                      name="innspill-max-chars"
+                      value="200"
+                      checked={innspillMaxChars === 200}
+                      onChange={() => setInnspillMaxChars(200)}
+                      className="mt-0.5 h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
+                    />
+                    <span>Medium (200 tegn)</span>
+                  </label>
+                </div>
+              </fieldset>
+
+              {innspillMode === 'detaljert' ? (
+                <p className="text-sm text-slate-400">
+                  Deltakere kan legge til en valgfri beskrivelse. Beskrivelsen vises for alle deltakere.
+                </p>
+              ) : null}
             </div>
           ) : isRangeringMode ? null : (
             <>

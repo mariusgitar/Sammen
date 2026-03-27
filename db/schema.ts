@@ -12,6 +12,9 @@ ALTER TABLE sessions ADD COLUMN results_visible boolean NOT NULL DEFAULT false;
 ALTER TABLE sessions ADD COLUMN visibility_mode text NOT NULL DEFAULT 'manual';
 ALTER TABLE sessions ADD COLUMN max_rank_items integer;
 ALTER TABLE sessions ADD COLUMN show_others_innspill boolean NOT NULL DEFAULT true;
+ALTER TABLE sessions ADD COLUMN innspill_mode text NOT NULL DEFAULT 'enkel';
+ALTER TABLE sessions ADD COLUMN innspill_max_chars integer NOT NULL DEFAULT 100;
+ALTER TABLE innspill ADD COLUMN detaljer text;
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -27,6 +30,8 @@ CREATE TABLE IF NOT EXISTS sessions (
   tags text[] NOT NULL DEFAULT ARRAY[]::text[],
   allow_new_items boolean NOT NULL DEFAULT true,
   visibility_mode text NOT NULL DEFAULT 'manual' CHECK (visibility_mode IN ('manual', 'all')),
+  innspill_mode text NOT NULL DEFAULT 'enkel' CHECK (innspill_mode IN ('enkel', 'detaljert')),
+  innspill_max_chars integer NOT NULL DEFAULT 100,
   created_at timestamp NOT NULL DEFAULT now()
 );
 
@@ -59,6 +64,7 @@ CREATE TABLE IF NOT EXISTS innspill (
   participant_id text NOT NULL,
   nickname text NOT NULL,
   text text NOT NULL,
+  detaljer text,
   likes integer NOT NULL DEFAULT 0,
   created_at timestamp NOT NULL DEFAULT now()
 );
@@ -79,6 +85,7 @@ export const sessionStatuses = ['setup', 'active', 'paused', 'closed'] as const;
 export const votingTypes = ['scale', 'dots'] as const;
 export const visibilityModes = ['manual', 'all'] as const;
 export const questionStatuses = ['inactive', 'active', 'locked'] as const;
+export const innspillModes = ['enkel', 'detaljert'] as const;
 
 export type SessionMode = (typeof sessionModes)[number];
 export type SessionPhase = (typeof sessionPhases)[number];
@@ -86,6 +93,7 @@ export type SessionStatus = (typeof sessionStatuses)[number];
 export type VotingType = (typeof votingTypes)[number];
 export type VisibilityMode = (typeof visibilityModes)[number];
 export type QuestionStatus = (typeof questionStatuses)[number];
+export type InnspillMode = (typeof innspillModes)[number];
 
 export const sessions = pgTable('sessions', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -100,6 +108,8 @@ export const sessions = pgTable('sessions', {
   resultsVisible: boolean('results_visible').notNull().default(false),
   visibilityMode: text('visibility_mode').$type<VisibilityMode>().notNull().default('manual'),
   showOthersInnspill: boolean('show_others_innspill').notNull().default(true),
+  innspillMode: text('innspill_mode').$type<InnspillMode>().notNull().default('enkel'),
+  innspillMaxChars: integer('innspill_max_chars').notNull().default(100),
   maxRankItems: integer('max_rank_items'),
   tags: text('tags').array().notNull().default([]),
   allowNewItems: boolean('allow_new_items').notNull().default(true),
@@ -145,6 +155,7 @@ export const innspill = pgTable('innspill', {
   participantId: text('participant_id').notNull(),
   nickname: text('nickname').notNull(),
   text: text('text').notNull(),
+  detaljer: text('detaljer'),
   likes: integer('likes').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
