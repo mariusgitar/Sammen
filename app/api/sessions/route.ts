@@ -5,9 +5,11 @@ import { getDb } from '@/db';
 import { innspill, innspillLikes, innspillModes, items, responses, sessionModes, sessions, visibilityModes, votingTypes } from '@/db/schema';
 import { generateCode } from '@/lib/generate-code';
 
+type CreateSessionMode = (typeof sessionModes)[number] | 'innspill+stemming';
+
 type CreateSessionBody = {
   title: string;
-  mode: (typeof sessionModes)[number];
+  mode: CreateSessionMode;
   voting_type?: (typeof votingTypes)[number];
   dot_budget?: number;
   allow_multiple_dots?: boolean;
@@ -34,7 +36,7 @@ function isCreateSessionBody(body: unknown): body is CreateSessionBody {
 
   return (
     typeof candidate.title === 'string' &&
-    sessionModes.includes(candidate.mode as (typeof sessionModes)[number]) &&
+    (sessionModes.includes(candidate.mode as (typeof sessionModes)[number]) || candidate.mode === 'innspill+stemming') &&
     (typeof candidate.voting_type === 'undefined' ||
       votingTypes.includes(candidate.voting_type as (typeof votingTypes)[number])) &&
     (typeof candidate.dot_budget === 'undefined' || Number.isInteger(candidate.dot_budget)) &&
@@ -98,7 +100,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'At least one item is required' }, { status: 400 });
     }
 
-    const normalizedMaxRankItems = body.mode === 'rangering' && Number.isInteger(body.max_rank_items)
+    const normalizedMode = body.mode === 'innspill+stemming' ? 'aapne-innspill' : body.mode;
+    const includesStemming = body.mode === 'innspill+stemming';
+
+    const normalizedMaxRankItems = normalizedMode === 'rangering' && Number.isInteger(body.max_rank_items)
       ? Math.max(2, body.max_rank_items as number)
       : null;
 
@@ -117,25 +122,26 @@ export async function POST(request: NextRequest) {
       .values({
         code,
         title,
-        mode: body.mode,
+        mode: normalizedMode,
         phase:
-          body.mode === 'stemming'
+          normalizedMode === 'stemming'
             ? 'stemming'
-            : body.mode === 'aapne-innspill'
+            : normalizedMode === 'aapne-innspill'
               ? 'innspill'
-              : body.mode === 'rangering'
+              : normalizedMode === 'rangering'
                 ? 'rangering'
                 : 'kartlegging',
-        votingType: body.mode === 'stemming' ? votingType : 'scale',
-        dotBudget: body.mode === 'stemming' && votingType === 'dots' ? dotBudget : 5,
-        allowMultipleDots: body.mode === 'stemming' && votingType === 'dots' ? allowMultipleDots : true,
+        votingType: normalizedMode === 'stemming' || includesStemming ? votingType : 'scale',
+        dotBudget: (normalizedMode === 'stemming' || includesStemming) && votingType === 'dots' ? dotBudget : 5,
+        allowMultipleDots: (normalizedMode === 'stemming' || includesStemming) && votingType === 'dots' ? allowMultipleDots : true,
         visibilityMode,
         showOthersInnspill,
-        innspillMode: body.mode === 'aapne-innspill' ? innspillMode : 'enkel',
-        innspillMaxChars: body.mode === 'aapne-innspill' ? innspillMaxChars : 100,
+        innspillMode: normalizedMode === 'aapne-innspill' ? innspillMode : 'enkel',
+        innspillMaxChars: normalizedMode === 'aapne-innspill' ? innspillMaxChars : 100,
         maxRankItems: normalizedMaxRankItems,
-        tags: body.mode === 'aapne-innspill' || body.mode === 'rangering' ? [] : tags,
-        allowNewItems: body.mode === 'aapne-innspill' || body.mode === 'rangering' ? true : body.allow_new_items,
+        tags: normalizedMode === 'aapne-innspill' || normalizedMode === 'rangering' ? [] : tags,
+        allowNewItems: normalizedMode === 'aapne-innspill' || normalizedMode === 'rangering' ? true : body.allow_new_items,
+        includesStemming,
       })
       .returning({
         id: sessions.id,
@@ -151,13 +157,13 @@ export async function POST(request: NextRequest) {
 
     const itemRows = itemTexts.map((text, orderIndex) => {
       const questionStatus: 'active' | 'inactive' =
-        body.mode === 'aapne-innspill' && visibilityMode === 'all' ? 'active' : 'inactive';
+        normalizedMode === 'aapne-innspill' && visibilityMode === 'all' ? 'active' : 'inactive';
 
       return {
         sessionId: createdSession.id,
         text,
         orderIndex,
-        isQuestion: body.mode === 'aapne-innspill',
+        isQuestion: normalizedMode === 'aapne-innspill',
         questionStatus,
       };
     });

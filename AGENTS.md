@@ -34,7 +34,7 @@ sessions:
   phase, dot_budget, voting_type, allow_multiple_dots,
   visibility_mode, max_rank_items, results_visible,
   show_others_innspill, innspill_mode, innspill_max_chars,
-  created_at
+  includes_stemming, created_at
 
   mode values: 'kartlegging' | 'stemming' | 'aapne-innspill' | 'rangering'
   status values: 'setup' | 'active' | 'paused' | 'closed'
