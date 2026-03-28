@@ -141,13 +141,15 @@ export async function POST(request: NextRequest, { params }: { params: { code: s
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    const existingThemeIds = await db
+    const existingThemes = await db
       .select({ id: themes.id })
       .from(themes)
       .where(eq(themes.sessionId, session.id));
 
+    const existingThemeIds = existingThemes.map((theme) => theme.id);
+
     if (existingThemeIds.length > 0) {
-      await db.delete(innspillThemes).where(inArray(innspillThemes.themeId, existingThemeIds.map((theme) => theme.id)));
+      await db.delete(innspillThemes).where(inArray(innspillThemes.themeId, existingThemeIds));
     }
 
     await db.delete(themes).where(eq(themes.sessionId, session.id));
@@ -184,7 +186,7 @@ export async function POST(request: NextRequest, { params }: { params: { code: s
     });
 
     if (linksToInsert.length > 0) {
-      await db.insert(innspillThemes).values(linksToInsert);
+      await db.insert(innspillThemes).values(linksToInsert).onConflictDoNothing();
     }
 
     const fullThemes = insertedThemes.map((theme) => ({ ...theme, innspill: [] as Array<{ id: string }> }));
