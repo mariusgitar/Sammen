@@ -10,7 +10,7 @@ export async function GET(_request: Request, { params }: { params: { code: strin
     const code = params.code.toUpperCase();
 
     const [session] = await db
-      .select({ id: sessions.id, resultsVisible: sessions.resultsVisible })
+      .select({ id: sessions.id })
       .from(sessions)
       .where(eq(sessions.code, code))
       .limit(1);
@@ -19,9 +19,6 @@ export async function GET(_request: Request, { params }: { params: { code: strin
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    if (!session.resultsVisible) {
-      return NextResponse.json({ error: 'Resultater er ikke synlige' }, { status: 403 });
-    }
 
     const sessionThemes = await db
       .select({
