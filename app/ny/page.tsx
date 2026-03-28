@@ -1,14 +1,18 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import ToggleButton from "@/app/components/ui/ToggleButton";
+import StyledSelect from "@/app/components/ui/StyledSelect";
 import type {
   InnspillMode,
   SessionMode,
   VisibilityMode,
   VotingType,
 } from "@/db/schema";
+
+type NewSessionMode = SessionMode | "innspill+stemming";
 
 type CreateSessionResponse =
   | {
@@ -20,44 +24,197 @@ type CreateSessionResponse =
       error: string;
     };
 
-const modes: Array<{ label: string; value: SessionMode }> = [
-  { label: "Kartlegging", value: "kartlegging" },
-  { label: "Stemming", value: "stemming" },
-  { label: "Åpne innspill", value: "aapne-innspill" },
-  { label: "Rangering", value: "rangering" },
+const modeCards: Array<{
+  value: NewSessionMode;
+  icon: string;
+  title: string;
+  description: string;
+  badge?: string;
+}> = [
+  {
+    value: "innspill+stemming",
+    icon: "💬",
+    title: "Innspill + Stemming",
+    description: "Anbefalt",
+    badge: "Anbefalt",
+  },
+  {
+    value: "stemming",
+    icon: "🗳️",
+    title: "Stemming på liste",
+    description: "Vurder ferdige elementer",
+  },
+  {
+    value: "kartlegging",
+    icon: "🗂️",
+    title: "Kartlegging med tags",
+    description: "Sorter forslag med kategorier",
+  },
+  {
+    value: "rangering",
+    icon: "📊",
+    title: "Rangering",
+    description: "Prioriter toppvalg",
+  },
 ];
+
+const dotBudgetOptions = [
+  { value: "3", label: "3" },
+  { value: "5", label: "5 (standard)" },
+  { value: "7", label: "7" },
+  { value: "10", label: "10" },
+];
+
+const innspillMaxCharsOptions = [
+  { value: "60", label: "60 tegn" },
+  { value: "100", label: "100 tegn (standard)" },
+  { value: "200", label: "200 tegn" },
+];
+
+const maxRankItemsOptions = [
+  { value: "all", label: "Alle" },
+  { value: "3", label: "3" },
+  { value: "5", label: "5" },
+  { value: "10", label: "10" },
+];
+
+const defaults = {
+  visibilityMode: "all" as VisibilityMode,
+  showOthersInnspill: true,
+  innspillMode: "enkel" as InnspillMode,
+  innspillMaxChars: 100,
+  votingType: "dots" as VotingType,
+  allowMultipleDots: true,
+  dotBudget: 5,
+  allowNewItems: true,
+  maxRankItemsInput: "all",
+};
 
 export default function NewSessionPage() {
   const router = useRouter();
+  const titleInputRef = useRef<HTMLInputElement>(null);
+
   const [title, setTitle] = useState("");
-  const [mode, setMode] = useState<SessionMode>("kartlegging");
+  const [mode, setMode] = useState<NewSessionMode>("innspill+stemming");
   const [items, setItems] = useState("");
   const [tags, setTags] = useState("");
-  const [allowNewItems, setAllowNewItems] = useState(true);
-  const [maxRankItemsInput, setMaxRankItemsInput] = useState("");
-  const [visibilityMode, setVisibilityMode] = useState<VisibilityMode>("all");
-  const [votingType, setVotingType] = useState<VotingType>("scale");
-  const [dotBudget, setDotBudget] = useState(5);
-  const [allowMultipleDots, setAllowMultipleDots] = useState(true);
-  const [showOthersInnspill, setShowOthersInnspill] = useState(true);
-  const [innspillMode, setInnspillMode] = useState<InnspillMode>("enkel");
-  const [innspillMaxChars, setInnspillMaxChars] = useState(100);
+
+  const [allowNewItems, setAllowNewItems] = useState(defaults.allowNewItems);
+  const [maxRankItemsInput, setMaxRankItemsInput] = useState(
+    defaults.maxRankItemsInput,
+  );
+  const [visibilityMode, setVisibilityMode] = useState<VisibilityMode>(
+    defaults.visibilityMode,
+  );
+  const [votingType, setVotingType] = useState<VotingType>(defaults.votingType);
+  const [dotBudget, setDotBudget] = useState(defaults.dotBudget);
+  const [allowMultipleDots, setAllowMultipleDots] = useState(
+    defaults.allowMultipleDots,
+  );
+  const [showOthersInnspill, setShowOthersInnspill] = useState(
+    defaults.showOthersInnspill,
+  );
+  const [innspillMode, setInnspillMode] = useState<InnspillMode>(
+    defaults.innspillMode,
+  );
+  const [innspillMaxChars, setInnspillMaxChars] = useState(
+    defaults.innspillMaxChars,
+  );
+
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [advancedReady, setAdvancedReady] = useState(false);
+
   const [error, setError] = useState("");
   const [titleError, setTitleError] = useState("");
   const [itemsError, setItemsError] = useState("");
-  const [maxRankItemsError, setMaxRankItemsError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const titleInputRef = useRef<HTMLInputElement>(null);
 
-  const isInnspillMode = mode === "aapne-innspill";
-  const isRangeringMode = mode === "rangering";
+  const isInnspillMode = mode === "aapne-innspill" || mode === "innspill+stemming";
+  const hasStemming = mode === "stemming" || mode === "innspill+stemming";
+  const isKartlegging = mode === "kartlegging";
+  const isRangering = mode === "rangering";
+
+  useEffect(() => {
+    const stored = localStorage.getItem("sammen_ny_advanced_open");
+    setAdvancedOpen(stored === "true");
+    setAdvancedReady(true);
+  }, []);
+
+  useEffect(() => {
+    if (!advancedReady) {
+      return;
+    }
+
+    localStorage.setItem("sammen_ny_advanced_open", advancedOpen ? "true" : "false");
+  }, [advancedOpen, advancedReady]);
+
+  const advancedChanges = useMemo(() => {
+    let changes = 0;
+
+    if (isInnspillMode) {
+      if (visibilityMode !== defaults.visibilityMode) {
+        changes += 1;
+      }
+
+      if (showOthersInnspill !== defaults.showOthersInnspill) {
+        changes += 1;
+      }
+
+      if (innspillMode !== defaults.innspillMode) {
+        changes += 1;
+      }
+
+      if (innspillMaxChars !== defaults.innspillMaxChars) {
+        changes += 1;
+      }
+    }
+
+    if (hasStemming) {
+      if (votingType !== defaults.votingType) {
+        changes += 1;
+      }
+
+      if (votingType === "dots") {
+        if (allowMultipleDots !== defaults.allowMultipleDots) {
+          changes += 1;
+        }
+
+        if (dotBudget !== defaults.dotBudget) {
+          changes += 1;
+        }
+      }
+    }
+
+    if (isKartlegging && allowNewItems !== defaults.allowNewItems) {
+      changes += 1;
+    }
+
+    if (isRangering && maxRankItemsInput !== defaults.maxRankItemsInput) {
+      changes += 1;
+    }
+
+    return changes;
+  }, [
+    allowMultipleDots,
+    allowNewItems,
+    dotBudget,
+    hasStemming,
+    innspillMaxChars,
+    innspillMode,
+    isInnspillMode,
+    isKartlegging,
+    isRangering,
+    maxRankItemsInput,
+    showOthersInnspill,
+    visibilityMode,
+    votingType,
+  ]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
     setTitleError("");
     setItemsError("");
-    setMaxRankItemsError("");
 
     if (!title.trim()) {
       setTitleError("Tittel er påkrevd");
@@ -71,11 +228,7 @@ export default function NewSessionPage() {
       .filter(Boolean);
 
     if (parsedItems.length === 0) {
-      setItemsError(
-        isInnspillMode
-          ? "Legg til minst ett spørsmål"
-          : "Legg til minst ett element",
-      );
+      setItemsError(isInnspillMode ? "Legg til minst ett spørsmål" : "Legg til minst ett element");
       return;
     }
 
@@ -85,18 +238,7 @@ export default function NewSessionPage() {
       .filter(Boolean);
 
     const parsedMaxRankItems =
-      maxRankItemsInput.trim() === "" ? null : Number(maxRankItemsInput);
-
-    if (
-      isRangeringMode &&
-      parsedMaxRankItems !== null &&
-      (!Number.isInteger(parsedMaxRankItems) || parsedMaxRankItems < 2)
-    ) {
-      setMaxRankItemsError(
-        "Maks antall å rangere må være et heltall på minst 2",
-      );
-      return;
-    }
+      isRangering && maxRankItemsInput !== "all" ? Number(maxRankItemsInput) : null;
 
     setIsSubmitting(true);
 
@@ -109,31 +251,25 @@ export default function NewSessionPage() {
         body: JSON.stringify({
           title: title.trim(),
           mode,
-          voting_type: mode === "stemming" ? votingType : "scale",
-          dot_budget:
-            mode === "stemming" && votingType === "dots" ? dotBudget : 5,
+          voting_type: hasStemming ? votingType : "scale",
+          dot_budget: hasStemming && votingType === "dots" ? dotBudget : 5,
           allow_multiple_dots:
-            mode === "stemming" && votingType === "dots"
-              ? allowMultipleDots
-              : true,
+            hasStemming && votingType === "dots" ? allowMultipleDots : true,
           visibility_mode: isInnspillMode ? visibilityMode : "manual",
           show_others_innspill: isInnspillMode ? showOthersInnspill : true,
           innspill_mode: isInnspillMode ? innspillMode : "enkel",
           innspill_max_chars: isInnspillMode ? innspillMaxChars : 100,
-          max_rank_items: isRangeringMode ? parsedMaxRankItems : null,
+          max_rank_items: isRangering ? parsedMaxRankItems : null,
           items: parsedItems,
-          tags: isInnspillMode || isRangeringMode ? [] : parsedTags,
-          allow_new_items:
-            isInnspillMode || isRangeringMode ? true : allowNewItems,
+          tags: isKartlegging ? parsedTags : [],
+          allow_new_items: isKartlegging ? allowNewItems : true,
         }),
       });
 
       const data = (await response.json()) as CreateSessionResponse;
 
       if (!response.ok || !("session" in data)) {
-        setError(
-          "error" in data ? data.error : "Kunne ikke opprette sesjonen.",
-        );
+        setError("error" in data ? data.error : "Kunne ikke opprette sesjonen.");
         return;
       }
 
@@ -149,382 +285,103 @@ export default function NewSessionPage() {
     }
   }
 
+  const contentLabel = isInnspillMode
+    ? "Spørsmål / seksjoner"
+    : isKartlegging
+      ? "Elementer å kartlegge"
+      : isRangering
+        ? "Elementer å rangere"
+        : "Elementer å stemme på";
+
+  const contentPlaceholder = isInnspillMode
+    ? "Én per linje — f.eks. 'Hva fungerer bra?'"
+    : "Én per linje";
+
   return (
-    <main className="min-h-screen px-4 py-10 sm:px-6">
-      <div className="mx-auto w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold tracking-tight text-white">
-            Opprett ny sesjon
-          </h1>
-          <p className="mt-2 text-sm text-slate-300">
-            Sett opp en enkel fasilitatorøkt og gå videre til admin-siden.
-          </p>
-        </div>
+    <main className="min-h-screen bg-white px-4 py-8 sm:px-6">
+      <div className="mx-auto w-full max-w-3xl space-y-6">
+        <header className="space-y-2">
+          <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Opprett ny sesjon</h1>
+          <p className="text-sm text-slate-600">Start enkelt og åpne flere valg ved behov.</p>
+        </header>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-2">
-            <label
-              className="block text-sm font-medium text-slate-100"
-              htmlFor="title"
-            >
-              Sesjonstittel
-            </label>
-            <input
-              required
-              ref={titleInputRef}
-              id="title"
-              name="title"
-              type="text"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
-            />
-            {titleError ? (
-              <p className="text-sm text-red-400">{titleError}</p>
-            ) : null}
-          </div>
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">1. Basics</h2>
 
-          <fieldset className="space-y-3">
-            <legend className="text-sm font-medium text-slate-100">
-              Modus
-            </legend>
-            <div className="space-y-2">
-              {modes.map((option) => (
-                <label
-                  key={option.value}
-                  className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200"
-                >
-                  <input
-                    required
-                    type="radio"
-                    name="mode"
-                    value={option.value}
-                    checked={mode === option.value}
-                    onChange={(event) =>
-                      setMode(event.target.value as SessionMode)
-                    }
-                    className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                  />
-                  <span>{option.label}</span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          {mode === "stemming" ? (
-            <fieldset className="space-y-3">
-              <legend className="text-sm font-medium text-slate-100">
-                Stemmetype
-              </legend>
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                  <input
-                    required
-                    type="radio"
-                    name="voting-type"
-                    value="scale"
-                    checked={votingType === "scale"}
-                    onChange={() => setVotingType("scale")}
-                    className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                  />
-                  <span>Skala 1-5</span>
-                </label>
-                <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                  <input
-                    required
-                    type="radio"
-                    name="voting-type"
-                    value="dots"
-                    checked={votingType === "dots"}
-                    onChange={() => setVotingType("dots")}
-                    className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                  />
-                  <span>Dot voting</span>
-                </label>
-              </div>
-            </fieldset>
-          ) : null}
-
-          {mode === "stemming" && votingType === "dots" ? (
-            <div className="space-y-6">
-              <div className="space-y-2">
-                <label
-                  className="block text-sm font-medium text-slate-100"
-                  htmlFor="dot-budget"
-                >
-                  Antall prikker per deltaker
-                </label>
-                <input
-                  id="dot-budget"
-                  name="dot-budget"
-                  type="number"
-                  min={3}
-                  max={20}
-                  value={dotBudget}
-                  onChange={(event) => {
-                    const value = Number(event.target.value);
-                    if (Number.isNaN(value)) {
-                      return;
-                    }
-
-                    setDotBudget(Math.max(3, Math.min(20, value)));
-                  }}
-                  className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
-                />
-              </div>
-
-              <fieldset className="space-y-3">
-                <legend className="text-sm font-medium text-slate-100">
-                  Fordeling av prikker
-                </legend>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                    <input
-                      required
-                      type="radio"
-                      name="dot-distribution"
-                      checked={allowMultipleDots}
-                      onChange={() => setAllowMultipleDots(true)}
-                      className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                    />
-                    <span>Deltakere kan stable prikker på samme element</span>
-                  </label>
-                  <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                    <input
-                      required
-                      type="radio"
-                      name="dot-distribution"
-                      checked={!allowMultipleDots}
-                      onChange={() => setAllowMultipleDots(false)}
-                      className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                    />
-                    <span>Deltakere må spre prikkene (maks 1 per element)</span>
-                  </label>
-                </div>
-              </fieldset>
-            </div>
-          ) : null}
-
-          <div className="space-y-2">
-            <label
-              className="block text-sm font-medium text-slate-100"
-              htmlFor="items"
-            >
-              {isInnspillMode
-                ? "Spørsmål / seksjoner"
-                : isRangeringMode
-                  ? "Elementer å rangere"
-                  : "Kriterier / elementer"}
-            </label>
-            <textarea
-              required
-              id="items"
-              name="items"
-              value={items}
-              onChange={(event) => setItems(event.target.value)}
-              placeholder={
-                isInnspillMode ? "Ett spørsmål per linje" : "Én per linje"
-              }
-              rows={6}
-              className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
-            />
-            <p className="text-sm text-slate-400">
-              {isInnspillMode
-                ? "Hvert spørsmål blir en seksjon deltakerne svarer under"
-                : "Skriv ett element per linje"}
-            </p>
-            {itemsError ? (
-              <p className="text-sm text-red-400">{itemsError}</p>
-            ) : null}
-          </div>
-
-          {isRangeringMode ? (
-            <div className="space-y-2">
-              <label
-                className="block text-sm font-medium text-slate-100"
-                htmlFor="max-rank-items"
-              >
-                Maks antall å rangere (valgfritt)
+            <div className="mt-4 space-y-2">
+              <label className="block text-sm font-medium text-slate-700" htmlFor="title">
+                Sesjonstittel
               </label>
               <input
-                id="max-rank-items"
-                name="max-rank-items"
-                type="number"
-                min={2}
-                placeholder="Alle"
-                value={maxRankItemsInput}
-                onChange={(event) => setMaxRankItemsInput(event.target.value)}
-                className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
+                ref={titleInputRef}
+                id="title"
+                name="title"
+                type="text"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="F.eks. 'Kriterieverksted mai 2026'"
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900 outline-none transition focus:border-[#3b5bdb] focus:ring-2 focus:ring-[#3b5bdb]/20"
               />
-              <p className="text-sm text-slate-400">
-                Sett grense hvis listen er lang, f.eks. 5 = deltakerne rangerer
-                kun topp 5
-              </p>
-              {maxRankItemsError ? (
-                <p className="text-sm text-red-400">{maxRankItemsError}</p>
-              ) : null}
+              {titleError ? <p className="text-sm text-red-600">{titleError}</p> : null}
             </div>
-          ) : null}
 
-          {isInnspillMode ? (
-            <div className="space-y-4">
-              <fieldset className="space-y-3">
-                <legend className="text-sm font-medium text-slate-100">
-                  Synlighet
-                </legend>
-                <div className="space-y-2">
-                  <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                    <input
-                      required
-                      type="radio"
-                      name="visibility-mode"
-                      value="manual"
-                      checked={visibilityMode === "manual"}
-                      onChange={() => setVisibilityMode("manual")}
-                      className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                    />
-                    <span>
-                      Manuell styring (fasilitator aktiverer spørsmål enkeltvis)
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                    <input
-                      required
-                      type="radio"
-                      name="visibility-mode"
-                      value="all"
-                      checked={visibilityMode === "all"}
-                      onChange={() => setVisibilityMode("all")}
-                      className="h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                    />
-                    <span>Alle synlige fra start</span>
-                  </label>
-                </div>
-              </fieldset>
+            <div className="mt-6 space-y-3">
+              <p className="text-sm font-medium text-slate-700">Modus</p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {modeCards.map((card) => {
+                  const active = mode === card.value;
 
-              <fieldset className="space-y-2">
-                <legend className="text-sm font-medium text-slate-100">
-                  Andres innspill
-                </legend>
-                <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                  <input
-                    type="checkbox"
-                    checked={showOthersInnspill}
-                    onChange={(event) =>
-                      setShowOthersInnspill(event.target.checked)
-                    }
-                    className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-950 text-slate-100"
-                  />
-                  <span>Deltakere kan se og skjule andres innspill</span>
-                </label>
-                <p className="text-sm text-slate-400">
-                  Skru av for å unngå gruppetenk under innsamlingen. Alle
-                  innspill vises uansett på resultatsiden.
-                </p>
-              </fieldset>
-
-              <fieldset className="space-y-3">
-                <legend className="text-sm font-medium text-slate-100">
-                  Innspill-format
-                </legend>
-                <div className="space-y-2">
-                  <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                    <input
-                      required
-                      type="radio"
-                      name="innspill-mode"
-                      value="enkel"
-                      checked={innspillMode === "enkel"}
-                      onChange={() => setInnspillMode("enkel")}
-                      className="mt-0.5 h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                    />
-                    <span>Enkel (kun én kort tekst per innspill)</span>
-                  </label>
-                  <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                    <input
-                      required
-                      type="radio"
-                      name="innspill-mode"
-                      value="detaljert"
-                      checked={innspillMode === "detaljert"}
-                      onChange={() => setInnspillMode("detaljert")}
-                      className="mt-0.5 h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                    />
-                    <span>Med kontekst (kort tekst + valgfri beskrivelse)</span>
-                  </label>
-                </div>
-              </fieldset>
-
-              <fieldset className="space-y-3">
-                <legend className="text-sm font-medium text-slate-100">
-                  {innspillMode === "detaljert"
-                    ? "Maks lengde for hovedfeltet (Hva)"
-                    : "Maks lengde per innspill"}
-                </legend>
-                <div className="space-y-2">
-                  <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                    <input
-                      required
-                      type="radio"
-                      name="innspill-max-chars"
-                      value="60"
-                      checked={innspillMaxChars === 60}
-                      onChange={() => setInnspillMaxChars(60)}
-                      className="mt-0.5 h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                    />
-                    <span>
-                      Veldig kort (60 tegn) — én setning, ingen utfyllinger
-                    </span>
-                  </label>
-                  <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                    <input
-                      required
-                      type="radio"
-                      name="innspill-max-chars"
-                      value="100"
-                      checked={innspillMaxChars === 100}
-                      onChange={() => setInnspillMaxChars(100)}
-                      className="mt-0.5 h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                    />
-                    <span>Kort (100 tegn) — anbefalt</span>
-                  </label>
-                  <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                    <input
-                      required
-                      type="radio"
-                      name="innspill-max-chars"
-                      value="200"
-                      checked={innspillMaxChars === 200}
-                      onChange={() => setInnspillMaxChars(200)}
-                      className="mt-0.5 h-4 w-4 border-slate-600 bg-slate-950 text-slate-100"
-                    />
-                    <span>Medium (200 tegn)</span>
-                  </label>
-                </div>
-              </fieldset>
-
-              {innspillMode === "detaljert" ? (
-                <p className="text-sm text-slate-400">
-                  Gjelder kun det korte hovedfeltet. Detaljert beskrivelse har
-                  alltid plass til 400 tegn.
-                </p>
-              ) : null}
-
-              {innspillMode === "detaljert" ? (
-                <p className="text-sm text-slate-400">
-                  Deltakere kan legge til en valgfri beskrivelse. Beskrivelsen
-                  vises for alle deltakere.
-                </p>
-              ) : null}
+                  return (
+                    <button
+                      key={card.value}
+                      type="button"
+                      onClick={() => setMode(card.value)}
+                      className={`relative rounded-2xl p-4 text-left transition ${
+                        active
+                          ? "border-2 border-[#3b5bdb] bg-[#eef2ff]"
+                          : "border border-slate-200 bg-white hover:border-slate-300"
+                      }`}
+                    >
+                      {card.badge ? (
+                        <span className="absolute right-3 top-3 rounded-full bg-[#3b5bdb] px-2 py-0.5 text-xs font-medium text-white">
+                          {card.badge}
+                        </span>
+                      ) : null}
+                      <p className="text-3xl" aria-hidden>
+                        {card.icon}
+                      </p>
+                      <p className="mt-3 text-base font-semibold text-slate-900">{card.title}</p>
+                      <p className="mt-1 text-sm text-slate-600">{card.description}</p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          ) : isRangeringMode ? null : (
-            <>
-              <div className="space-y-2">
-                <label
-                  className="block text-sm font-medium text-slate-100"
-                  htmlFor="tags"
-                >
-                  Tags deltakerne kan velge
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-slate-900">2. Innhold</h2>
+            <div className="mt-4 space-y-2">
+              <label className="block text-sm font-medium text-slate-700" htmlFor="items">
+                {contentLabel}
+              </label>
+              <textarea
+                id="items"
+                name="items"
+                value={items}
+                onChange={(event) => setItems(event.target.value)}
+                placeholder={contentPlaceholder}
+                rows={7}
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#3b5bdb] focus:ring-2 focus:ring-[#3b5bdb]/20"
+              />
+              {itemsError ? <p className="text-sm text-red-600">{itemsError}</p> : null}
+            </div>
+
+            {isKartlegging ? (
+              <div className="mt-4 space-y-2">
+                <label className="block text-sm font-medium text-slate-700" htmlFor="tags">
+                  Tags (kommaseparert)
                 </label>
                 <input
                   id="tags"
@@ -532,37 +389,177 @@ export default function NewSessionPage() {
                   type="text"
                   value={tags}
                   onChange={(event) => setTags(event.target.value)}
-                  placeholder="Flytt til behov, Fjern"
-                  className="w-full rounded border border-slate-700 bg-slate-950 p-2 text-slate-50 outline-none transition focus:border-slate-500"
+                  placeholder="F.eks. Flytt til behov, Fjern"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#3b5bdb] focus:ring-2 focus:ring-[#3b5bdb]/20"
                 />
-                <p className="text-sm text-slate-400">
-                  Kommaseparert. Kun relevant for Kartlegging-modus.
-                </p>
               </div>
+            ) : null}
+          </section>
 
-              <label className="flex items-start gap-3 rounded border border-slate-800 p-3 text-sm text-slate-200">
-                <input
-                  id="allow-new-items"
-                  name="allow-new-items"
-                  type="checkbox"
-                  checked={allowNewItems}
-                  onChange={(event) => setAllowNewItems(event.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded border-slate-600 bg-slate-950 text-slate-100"
-                />
-                <span>Tillat deltakere å foreslå nye elementer</span>
-              </label>
-            </>
-          )}
+          <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setAdvancedOpen((current) => !current)}
+              className="flex w-full items-center justify-between text-left"
+            >
+              <span className="text-lg font-semibold text-slate-900">
+                ⚙️ Tilpasninger
+                {advancedChanges > 0 ? ` · ${advancedChanges} endringer` : ""}
+              </span>
+              <span className={`text-slate-500 transition-transform ${advancedOpen ? "rotate-180" : ""}`}>
+                ▾
+              </span>
+            </button>
+
+            <div
+              className={`overflow-hidden transition-all duration-300 ${advancedOpen ? "mt-5 max-h-[2200px]" : "max-h-0"}`}
+            >
+              <div className="space-y-6 border-t border-slate-100 pt-5">
+                {isInnspillMode ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-slate-700">Spørsmålssynlighet</p>
+                      <ToggleButton
+                        options={[
+                          { value: "all", label: "Alle synlige" },
+                          {
+                            value: "manual",
+                            label: "Manuell styring",
+                            helper: "Manuell: du åpner spørsmål ett om gangen",
+                          },
+                        ]}
+                        value={visibilityMode}
+                        onChange={(value) => setVisibilityMode(value as VisibilityMode)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-slate-700">Gruppetenk-beskyttelse</p>
+                      <ToggleButton
+                        options={[
+                          { value: "on", label: "Av" },
+                          {
+                            value: "off",
+                            label: "På",
+                            helper: "På: deltakere ser ikke hverandres innspill",
+                          },
+                        ]}
+                        value={showOthersInnspill ? "on" : "off"}
+                        onChange={(value) => setShowOthersInnspill(value === "on")}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-slate-700">Innspill-format</p>
+                      <ToggleButton
+                        options={[
+                          { value: "enkel", label: "Enkel" },
+                          { value: "detaljert", label: "Med detaljer" },
+                        ]}
+                        value={innspillMode}
+                        onChange={(value) => setInnspillMode(value as InnspillMode)}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-slate-700">Maks tegn per innspill</p>
+                      <StyledSelect
+                        options={innspillMaxCharsOptions}
+                        value={String(innspillMaxChars)}
+                        onChange={(value) => setInnspillMaxChars(Number(value))}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+
+                {hasStemming ? (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-slate-700">Stemmetype</p>
+                      <ToggleButton
+                        options={[
+                          {
+                            value: "dots",
+                            label: "Dot voting ●●●",
+                            helper:
+                              "Deltakere fordeler prikker fritt — viser energi og prioritet",
+                          },
+                          {
+                            value: "scale",
+                            label: "Skala 1–5",
+                            helper:
+                              "Alle vurderer hvert element — viser konsensus og spredning",
+                          },
+                        ]}
+                        value={votingType}
+                        onChange={(value) => setVotingType(value as VotingType)}
+                      />
+                    </div>
+
+                    {votingType === "dots" ? (
+                      <>
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-slate-700">Dot voting — fordeling</p>
+                          <ToggleButton
+                            options={[
+                              { value: "free", label: "Fri (stable)" },
+                              { value: "spread", label: "Spre (maks 1 per element)" },
+                            ]}
+                            value={allowMultipleDots ? "free" : "spread"}
+                            onChange={(value) => setAllowMultipleDots(value === "free")}
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <p className="text-sm font-medium text-slate-700">Antall prikker</p>
+                          <StyledSelect
+                            options={dotBudgetOptions}
+                            value={String(dotBudget)}
+                            onChange={(value) => setDotBudget(Number(value))}
+                          />
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
+                ) : null}
+
+                {isKartlegging ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-slate-700">Tillat nye forslag</p>
+                    <ToggleButton
+                      options={[
+                        { value: "yes", label: "Ja" },
+                        { value: "no", label: "Nei" },
+                      ]}
+                      value={allowNewItems ? "yes" : "no"}
+                      onChange={(value) => setAllowNewItems(value === "yes")}
+                    />
+                  </div>
+                ) : null}
+
+                {isRangering ? (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-slate-700">Maks antall å rangere</p>
+                    <StyledSelect
+                      options={maxRankItemsOptions}
+                      value={maxRankItemsInput}
+                      onChange={setMaxRankItemsInput}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </section>
 
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full rounded bg-slate-100 px-4 py-2 font-medium text-slate-950 transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
+            className="w-full rounded-full bg-[#0f172a] py-4 text-base font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isSubmitting ? "Oppretter..." : "Opprett sesjon"}
+            {isSubmitting ? "Oppretter..." : "Opprett sesjon →"}
           </button>
 
-          {error ? <p className="text-sm text-red-400">{error}</p> : null}
+          {error ? <p className="text-sm text-red-600">{error}</p> : null}
         </form>
       </div>
     </main>

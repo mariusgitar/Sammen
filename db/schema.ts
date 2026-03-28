@@ -14,6 +14,10 @@ ALTER TABLE sessions ADD COLUMN max_rank_items integer;
 ALTER TABLE sessions ADD COLUMN show_others_innspill boolean NOT NULL DEFAULT true;
 ALTER TABLE sessions ADD COLUMN innspill_mode text NOT NULL DEFAULT 'enkel';
 ALTER TABLE sessions ADD COLUMN innspill_max_chars integer NOT NULL DEFAULT 100;
+ALTER TABLE sessions ADD COLUMN includes_stemming boolean NOT NULL DEFAULT false;
+ALTER TABLE sessions DROP CONSTRAINT IF EXISTS sessions_mode_check;
+ALTER TABLE sessions ADD CONSTRAINT sessions_mode_check
+  CHECK (mode IN ('kartlegging', 'stemming', 'aapne-innspill', 'rangering'));
 ALTER TABLE innspill ADD COLUMN detaljer text;
 
 CREATE TABLE themes (
@@ -50,6 +54,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   visibility_mode text NOT NULL DEFAULT 'manual' CHECK (visibility_mode IN ('manual', 'all')),
   innspill_mode text NOT NULL DEFAULT 'enkel' CHECK (innspill_mode IN ('enkel', 'detaljert')),
   innspill_max_chars integer NOT NULL DEFAULT 100,
+  includes_stemming boolean NOT NULL DEFAULT false,
   created_at timestamp NOT NULL DEFAULT now()
 );
 
@@ -128,6 +133,7 @@ export const sessions = pgTable('sessions', {
   showOthersInnspill: boolean('show_others_innspill').notNull().default(true),
   innspillMode: text('innspill_mode').$type<InnspillMode>().notNull().default('enkel'),
   innspillMaxChars: integer('innspill_max_chars').notNull().default(100),
+  includesStemming: boolean('includes_stemming').notNull().default(false),
   maxRankItems: integer('max_rank_items'),
   tags: text('tags').array().notNull().default([]),
   allowNewItems: boolean('allow_new_items').notNull().default(true),
