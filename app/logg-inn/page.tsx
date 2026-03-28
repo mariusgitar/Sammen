@@ -59,7 +59,7 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="w-full rounded-xl border-2 border-[#e2e8f0] p-4 text-center text-2xl font-bold tracking-wide text-[#0f172a] placeholder:text-[#94a3b8] focus:border-[#3b5bdb] focus:outline-none focus:ring-0"
+            className="w-full border border-slate-200 rounded-xl px-4 py-3 focus:border-[#3b5bdb] focus:ring-0 outline-none text-base"
             autoComplete="current-password"
             required
           />

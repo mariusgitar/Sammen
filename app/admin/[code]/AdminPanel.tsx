@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
+import ToggleButton from '@/app/components/ui/ToggleButton';
 
 import { InnspillAdmin } from './InnspillAdmin';
 import { ThemePanel } from './ThemePanel';
@@ -133,8 +134,6 @@ function hasSplitVotes(item: KartleggingSummaryItem, participantCount: number) {
 export function AdminPanel({ session, items }: AdminPanelProps) {
   const PRIMARY_BUTTON_CLASS =
     'w-full py-3 px-4 rounded-xl font-semibold text-base bg-white text-[#0f172a] hover:bg-white/90 transition-colors disabled:opacity-70';
-  const SECONDARY_BUTTON_CLASS =
-    'py-2 px-4 rounded-xl text-sm font-medium border border-white/20 text-white/70 hover:border-white/40 hover:text-white transition-colors disabled:opacity-70';
   const TERTIARY_BUTTON_CLASS =
     'text-sm text-white/40 hover:text-white/60 transition-colors underline-offset-2 hover:underline disabled:opacity-70';
   const DANGER_BUTTON_CLASS =
@@ -173,6 +172,8 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const [innspillQuestions, setInnspillQuestions] = useState<InnspillQuestion[]>([]);
   const [selectedInnspill, setSelectedInnspill] = useState<Record<string, boolean>>({});
   const [showInnspillDotOptions, setShowInnspillDotOptions] = useState(false);
+  const [kartleggingVotingType, setKartleggingVotingType] = useState<'scale' | 'dots'>('scale');
+  const [innspillVotingType, setInnspillVotingType] = useState<'scale' | 'dots'>('scale');
   const [confirmClose, setConfirmClose] = useState(false);
 
   async function fetchSummary() {
@@ -690,24 +691,28 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               <p className="text-sm text-white/60">
                 Innsamling avsluttet. Kuratér listen nedenfor, velg stemmetype og start stemming.
               </p>
-              <button
-                type="button"
-                onClick={() => void startStemming('scale')}
-                disabled={isOpeningVoting}
-                className={PRIMARY_BUTTON_CLASS}
-              >
-                Åpne for stemming (skala 1-5) →
-              </button>
-              <div className="flex flex-wrap gap-2">
+              <ToggleButton
+                value={kartleggingVotingType}
+                onChange={(value) => {
+                  const next = value as 'scale' | 'dots';
+                  setKartleggingVotingType(next);
+                  setShowKartleggingDotOptions(next === 'dots');
+                }}
+                options={[
+                  { value: 'scale', label: 'Skala 1-5' },
+                  { value: 'dots', label: 'Dot voting' },
+                ]}
+              />
+              {kartleggingVotingType === 'scale' ? (
                 <button
                   type="button"
-                  onClick={() => setShowKartleggingDotOptions((current) => !current)}
+                  onClick={() => void startStemming('scale')}
                   disabled={isOpeningVoting}
-                  className={SECONDARY_BUTTON_CLASS}
+                  className={PRIMARY_BUTTON_CLASS}
                 >
-                  Dot voting →
+                  Åpne for stemming (skala 1-5) →
                 </button>
-              </div>
+              ) : null}
               {showKartleggingDotOptions ? (
                 <div className="space-y-3 rounded-lg border border-slate-700 bg-slate-950/60 p-4">
                   <label className="block text-sm text-slate-200">
@@ -974,22 +979,28 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
           </div>
 
           <div className="mt-6 flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={() => void startStemming('scale', selectedInnspillEntries)}
-              disabled={isOpeningVoting || selectedInnspillEntries.length === 0}
-              className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white disabled:opacity-70"
-            >
-              Åpne for stemming (skala 1-5)
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowInnspillDotOptions((current) => !current)}
-              disabled={isOpeningVoting || selectedInnspillEntries.length === 0}
-              className="rounded border border-slate-600 px-4 py-2 text-left text-sm font-medium text-slate-100 transition hover:border-slate-400 disabled:opacity-70"
-            >
-              Åpne for stemming (dot voting)
-            </button>
+            <ToggleButton
+              value={innspillVotingType}
+              onChange={(value) => {
+                const next = value as 'scale' | 'dots';
+                setInnspillVotingType(next);
+                setShowInnspillDotOptions(next === 'dots');
+              }}
+              options={[
+                { value: 'scale', label: 'Skala 1-5' },
+                { value: 'dots', label: 'Dot voting' },
+              ]}
+            />
+            {innspillVotingType === 'scale' ? (
+              <button
+                type="button"
+                onClick={() => void startStemming('scale', selectedInnspillEntries)}
+                disabled={isOpeningVoting || selectedInnspillEntries.length === 0}
+                className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white disabled:opacity-70"
+              >
+                Åpne for stemming (skala 1-5)
+              </button>
+            ) : null}
             {showInnspillDotOptions ? (
               <div className="rounded-lg border border-slate-700 bg-slate-950/60 p-4 space-y-3">
                 <label className="block text-sm text-slate-200">

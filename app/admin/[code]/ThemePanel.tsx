@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import StyledSelect from '@/app/components/ui/StyledSelect';
 
 type SessionView = {
   id: string;
@@ -38,6 +39,7 @@ export function ThemePanel({ code, session }: ThemePanelProps) {
   const [editingName, setEditingName] = useState('');
   const [editingDescription, setEditingDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [entryThemeSelection, setEntryThemeSelection] = useState<Record<string, string>>({});
 
   const hasThemes = themes.length > 0;
 
@@ -328,21 +330,22 @@ export function ThemePanel({ code, session }: ThemePanelProps) {
                 {ungrouped.map((entry) => (
                   <div key={entry.id} className="flex items-center gap-2 rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-200">
                     <span className="max-w-[220px] truncate">{entry.text.slice(0, 50)}</span>
-                    <select
-                      defaultValue=""
-                      onChange={(event) => {
-                        const value = event.target.value || null;
-                        if (value) {
+                    <div className="w-28">
+                      <StyledSelect
+                        value={entryThemeSelection[entry.id] ?? ''}
+                        onChange={(value) => {
+                          if (!value) {
+                            return;
+                          }
+                          setEntryThemeSelection((current) => ({ ...current, [entry.id]: value }));
                           void moveInnspill(entry.id, value);
-                        }
-                      }}
-                      className="rounded bg-slate-800 px-1 py-0.5 text-xs text-slate-100"
-                    >
-                      <option value="">+</option>
-                      {themes.map((theme) => (
-                        <option key={theme.id} value={theme.id}>{theme.name}</option>
-                      ))}
-                    </select>
+                        }}
+                        options={[
+                          { value: '', label: '+' },
+                          ...themes.map((theme) => ({ value: theme.id, label: theme.name })),
+                        ]}
+                      />
+                    </div>
                   </div>
                 ))}
               </div>

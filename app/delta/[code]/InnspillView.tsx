@@ -387,7 +387,7 @@ export function InnspillView({
           <input
             value={nickname}
             onChange={(event) => setNickname(event.target.value)}
-            className="mt-4 w-full rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-3"
+            className="mt-4 w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#3b5bdb] transition-colors text-sm"
             placeholder="Kallenavn"
           />
           <button
@@ -398,7 +398,7 @@ export function InnspillView({
               localStorage.setItem(participantStorageKey, participantId);
               setHasJoined(true);
             }}
-            className="mt-4 w-full rounded-full bg-[#0f172a] px-4 py-2 font-semibold text-white disabled:opacity-60"
+            className="mt-4 w-full bg-[#0f172a] text-white rounded-full px-6 py-3 font-semibold hover:bg-[#1e293b] transition-colors disabled:opacity-60"
           >
             Bli med
           </button>
@@ -488,7 +488,7 @@ export function InnspillView({
                         <button
                           type="button"
                           onClick={() => deleteInnspill(entry.id)}
-                          className="text-amber-500"
+                          className="text-rose-500 hover:text-rose-600 text-sm"
                         >
                           Slett
                         </button>
@@ -543,11 +543,11 @@ export function InnspillView({
 
                         return session.innspill_mode === "enkel" ? (
                           <>
-                            <label className="mb-1 block text-xs font-medium text-[#475569]">
+                            <label className="text-sm font-medium text-slate-700 mb-1.5 block">
                               Ditt innspill
                             </label>
                             <textarea
-                              className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
+                              className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#3b5bdb] transition-colors text-sm resize-none"
                               rows={2}
                               placeholder="Skriv én ting — kort nok til å leses på 5 sekunder"
                               maxLength={session.innspill_max_chars}
@@ -584,11 +584,11 @@ export function InnspillView({
                         ) : (
                           <div className="space-y-2">
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-[#475569]">
+                              <label className="text-sm font-medium text-slate-700 mb-1.5 block">
                                 Hva
                               </label>
                               <textarea
-                                className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
+                                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#3b5bdb] transition-colors text-sm resize-none"
                                 rows={2}
                                 placeholder={getHvaPlaceholder()}
                                 maxLength={session.innspill_max_chars}
@@ -623,11 +623,11 @@ export function InnspillView({
                               ) : null}
                             </div>
                             <div>
-                              <label className="mb-1 block text-xs font-medium text-[#475569]">
+                              <label className="text-sm font-medium text-slate-700 mb-1.5 block">
                                 Mer detaljer (valgfritt)
                               </label>
                               <textarea
-                                className="w-full resize-none rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-2 text-sm"
+                                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#3b5bdb] transition-colors text-sm resize-none"
                                 rows={3}
                                 placeholder="Utdyp gjerne — hva er bakgrunnen eller konteksten?"
                                 maxLength={400}
@@ -650,7 +650,7 @@ export function InnspillView({
                       })()}
                       <button
                         type="button"
-                        className="mt-2 w-full rounded-full bg-[#0f172a] py-2 text-sm font-semibold text-white"
+                        className="mt-2 w-full bg-[#0f172a] text-white rounded-full px-6 py-3 font-semibold hover:bg-[#1e293b] transition-colors"
                         onClick={() => submit(question.id)}
                         disabled={
                           submitting[question.id] ||
@@ -682,7 +682,7 @@ export function InnspillView({
             <button
               type="button"
               onClick={handleSubmit}
-              className="w-full rounded-full bg-[#0f172a] py-3 font-semibold text-white"
+              className="w-full bg-[#0f172a] text-white rounded-full px-6 py-3 font-semibold hover:bg-[#1e293b] transition-colors"
             >
               Lever svar ({myInnspillCount} innspill)
             </button>
