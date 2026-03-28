@@ -228,6 +228,18 @@ export function InnspillView({
       ),
     [allInnspill, canSeeOthers, items, myInnspill],
   );
+  const myInnspillCount = useMemo(
+    () =>
+      Object.values(myInnspill).reduce(
+        (total, entries) => total + entries.length,
+        0,
+      ),
+    [myInnspill],
+  );
+
+  function handleSubmit() {
+    setSubmitted(true);
+  }
 
   async function submit(questionId: string) {
     const text = (inputText[questionId] ?? "").trim();
@@ -288,7 +300,6 @@ export function InnspillView({
       }
       setInputText((current) => ({ ...current, [questionId]: "" }));
       setDetailsText((current) => ({ ...current, [questionId]: "" }));
-      setSubmitted(true);
     } finally {
       setSubmitting((current) => ({ ...current, [questionId]: false }));
     }
@@ -417,7 +428,7 @@ export function InnspillView({
   }
 
   return (
-    <main className="min-h-screen bg-[#f8fafc] px-4 py-8 text-[#0f172a] sm:px-6">
+    <main className="min-h-screen bg-[#f8fafc] px-4 py-8 pb-32 text-[#0f172a] sm:px-6">
       <div className="mx-auto w-full max-w-7xl space-y-6">
         <h1 className="text-2xl font-semibold">{session.title}</h1>
 
@@ -665,6 +676,21 @@ export function InnspillView({
             );
           })}
         </div>
+
+        {myInnspillCount > 0 ? (
+          <div className="sticky bottom-0 border-t border-slate-100 bg-white/90 p-4 backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={handleSubmit}
+              className="w-full rounded-full bg-[#0f172a] py-3 font-semibold text-white"
+            >
+              Lever svar ({myInnspillCount} innspill)
+            </button>
+            <p className="mt-2 text-center text-xs text-slate-400">
+              Du kan legge til flere innspill før du leverer
+            </p>
+          </div>
+        ) : null}
       </div>
     </main>
   );
