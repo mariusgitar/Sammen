@@ -29,17 +29,26 @@ function isProtectedPath(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  if (pathname.startsWith('/api/delta/')) {
-    return NextResponse.next();
-  }
+
+  console.log('Middleware path:', pathname);
+  console.log('ADMIN_PASSWORD set:', !!process.env.ADMIN_PASSWORD);
 
   if (!isProtectedPath(pathname)) {
     return NextResponse.next();
   }
 
   const sessionCookie = request.cookies.get(ADMIN_COOKIE_NAME)?.value;
+  console.log('Cookie value exists:', !!sessionCookie);
 
-  if (!sessionCookie || !(await isValidCookie(sessionCookie))) {
+  const expectedHash = await getSha256Hex(process.env.ADMIN_PASSWORD || '');
+  console.log('Cookie:', sessionCookie?.substring(0, 10));
+  console.log('Expected:', expectedHash.substring(0, 10));
+  console.log('Match:', sessionCookie === expectedHash);
+
+  const isValid = !!sessionCookie && (await isValidCookie(sessionCookie));
+  console.log('Cookie valid:', isValid);
+
+  if (!isValid) {
     const loginUrl = new URL('/logg-inn', request.url);
     return NextResponse.redirect(loginUrl);
   }
@@ -48,5 +57,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/ny/:path*', '/admin/:path*', '/vis/:path*', '/api/admin/:path*'],
+  matcher: ['/', '/admin/:path*', '/ny', '/ny/:path*', '/api/admin/:path*'],
 };

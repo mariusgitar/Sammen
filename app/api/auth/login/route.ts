@@ -21,16 +21,16 @@ export async function POST(request: Request) {
   }
 
   const cookieHash = await getSha256Hex(password);
-  const response = NextResponse.json({ ok: true, redirect: '/admin/oversikt' });
+  console.log('Setting cookie with hash:', `${cookieHash.substring(0, 10)}...`);
+  console.log('NODE_ENV:', process.env.NODE_ENV);
 
-  response.cookies.set({
-    name: ADMIN_COOKIE_NAME,
-    value: cookieHash,
+  const response = NextResponse.json({ ok: true, redirect: '/admin/oversikt' });
+  response.cookies.set(ADMIN_COOKIE_NAME, cookieHash, {
     httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
     maxAge: ADMIN_COOKIE_MAX_AGE,
     path: '/',
-    sameSite: 'strict',
-    secure: process.env.NODE_ENV === 'production',
   });
 
   return response;
