@@ -29,9 +29,7 @@ function isProtectedPath(pathname: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
-  const isPublicThemesGet = request.method === 'GET' && /^\/api\/admin\/[^/]+\/themes$/.test(pathname);
-
-  if (isPublicThemesGet) {
+  if (pathname.startsWith('/api/delta/')) {
     return NextResponse.next();
   }
 

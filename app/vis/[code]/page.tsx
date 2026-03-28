@@ -375,7 +375,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
               <>
                 {session?.mode === 'aapne-innspill' && (themeData?.themes?.length ?? 0) > 0 ? (
                   <>
-                    <div className="space-y-6 md:hidden">
+                    <div className="grid grid-cols-1 gap-6 md:h-full md:items-start md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                       {themeData?.themes.map((theme) => (
                         <div key={theme.id} className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
                           <div className="border-b-2 pb-3" style={{ borderColor: theme.color }}>
@@ -387,38 +387,10 @@ export default function PresentationPage({ params }: { params: { code: string } 
                             {theme.innspill.map((entry) => (
                               <div
                                 key={entry.id}
-                                className="rounded-xl p-3"
+                                className="min-h-[60px] rounded-xl p-4"
                                 style={{ backgroundColor: `${theme.color}15`, borderLeft: `3px solid ${theme.color}` }}
                               >
-                                <p className="text-sm font-medium text-white">{entry.text}</p>
-                                {entry.detaljer ? <p className="mt-1 text-xs text-white/50">{entry.detaljer}</p> : null}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    <div
-                      className="hidden gap-6 md:grid md:h-full md:items-start"
-                      style={{
-                        gridTemplateColumns: `repeat(${Math.min(themeData?.themes.length ?? 1, 4)}, 1fr)`,
-                      }}
-                    >
-                      {themeData?.themes.map((theme) => (
-                        <div key={theme.id} className="flex flex-col gap-3 rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-                          <div className="border-b-2 pb-3" style={{ borderColor: theme.color }}>
-                            <h2 className="text-2xl font-bold text-white">{theme.name}</h2>
-                            {theme.description ? <p className="mt-1 text-sm text-white/50">{theme.description}</p> : null}
-                            <span className="mt-1 block text-xs text-white/30">{theme.innspill.length} innspill</span>
-                          </div>
-                          <div className="flex flex-col gap-2 overflow-y-auto">
-                            {theme.innspill.map((entry) => (
-                              <div
-                                key={entry.id}
-                                className="rounded-xl p-3"
-                                style={{ backgroundColor: `${theme.color}15`, borderLeft: `3px solid ${theme.color}` }}
-                              >
-                                <p className="text-sm font-medium text-white">{entry.text}</p>
+                                <p className="text-base font-medium text-white">{entry.text}</p>
                                 {entry.detaljer ? <p className="mt-1 text-xs text-white/50">{entry.detaljer}</p> : null}
                               </div>
                             ))}
@@ -431,7 +403,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
                         <h3 className="text-xl font-bold text-white/90">Andre innspill</h3>
                         <div className="mt-4 space-y-3">
                           {themeData?.ungrouped.map((entry) => (
-                            <article key={entry.id} className="rounded-2xl border border-white/20 bg-white/[0.04] p-3">
+                            <article key={entry.id} className="min-h-[60px] rounded-2xl border border-white/20 bg-white/[0.04] p-4">
                               <p className="text-base text-white/90">{entry.text}</p>
                             </article>
                           ))}
