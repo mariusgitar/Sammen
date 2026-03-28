@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 type PageProps = {
@@ -103,6 +103,8 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const [sessionMode, setSessionMode] = useState<SessionInfoResponse['session']['mode'] | null>(null);
   const [results, setResults] = useState<ResultsResponse | null>(null);
   const [themeResults, setThemeResults] = useState<ThemeResponse | null>(null);
+  const [viewMode, setViewMode] = useState<'temaer' | 'alle'>('alle');
+  const viewModeInitialized = useRef(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -194,6 +196,25 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     };
   }, [code, router]);
 
+  useEffect(() => {
+    if (!themeResults) {
+      setViewMode('alle');
+      viewModeInitialized.current = false;
+      return;
+    }
+
+    if (themeResults.themes.length > 0) {
+      if (!viewModeInitialized.current) {
+        setViewMode('temaer');
+        viewModeInitialized.current = true;
+      }
+      return;
+    }
+
+    setViewMode('alle');
+    viewModeInitialized.current = true;
+  }, [themeResults]);
+
   if (!isVisible) {
     return (
       <main className="bg-[#f8fafc] px-4 py-8">
@@ -234,33 +255,83 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   }
 
   if (sessionMode === 'aapne-innspill' && themeResults) {
+    const hasThemes = themeResults.themes.length > 0;
+    const themedInnspill = themeResults.themes.flatMap((theme) => theme.innspill);
+    const allInnspillById = new Map<string, (typeof themeResults.ungrouped)[number]>();
+
+    for (const entry of themedInnspill) {
+      allInnspillById.set(entry.id, entry);
+    }
+
+    for (const entry of themeResults.ungrouped) {
+      allInnspillById.set(entry.id, entry);
+    }
+
+    const allInnspill = Array.from(allInnspillById.values());
+    const shouldShowToggle = hasThemes && themeResults.ungrouped.length > 0;
+
     return (
       <main className="min-h-screen bg-[#f8fafc] px-4 py-8">
         <div className="mx-auto max-w-4xl space-y-4">
           <h1 className="text-center text-2xl font-semibold text-[#0f172a]">{title}</h1>
-          <h2 className="text-xl font-semibold text-[#0f172a]">Tematiserte innspill</h2>
-          <div className={themeResults.themes.length > 2 ? 'grid grid-cols-1 gap-4 md:grid-cols-2' : 'space-y-4'}>
-            {themeResults.themes.map((theme) => (
-              <section key={theme.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm" style={{ borderLeft: `4px solid ${theme.color}` }}>
-                <h3 style={{ color: theme.color }} className="text-lg font-semibold">{theme.name}</h3>
-                {theme.description ? <p className="text-sm text-slate-500">{theme.description}</p> : null}
-                <div className="mt-3 space-y-2">
-                  {theme.innspill.map((entry) => (
-                    <div key={entry.id} className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+
+          {hasThemes ? <h2 className="text-xl font-semibold text-[#0f172a]">Tematiserte innspill</h2> : <h2 className="text-xl font-semibold text-[#0f172a]">Alle innspill</h2>}
+
+          {shouldShowToggle ? (
+            <div className="inline-flex rounded-xl border border-slate-200 bg-white p-1 shadow-sm">
+              <button
+                type="button"
+                onClick={() => setViewMode('temaer')}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${viewMode === 'temaer' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                Temaer
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('alle')}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition ${viewMode === 'alle' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:text-slate-900'}`}
+              >
+                Alle innspill
+              </button>
+            </div>
+          ) : null}
+
+          {hasThemes && viewMode === 'temaer' ? (
+            <>
+              <div className={themeResults.themes.length > 2 ? 'grid grid-cols-1 gap-4 md:grid-cols-2' : 'space-y-4'}>
+                {themeResults.themes.map((theme) => (
+                  <section key={theme.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm" style={{ borderLeft: `4px solid ${theme.color}` }}>
+                    <h3 style={{ color: theme.color }} className="text-lg font-semibold">{theme.name}</h3>
+                    {theme.description ? <p className="text-sm text-slate-500">{theme.description}</p> : null}
+                    <div className="mt-3 space-y-2">
+                      {theme.innspill.map((entry) => (
+                        <div key={entry.id} className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
+                          <p className="font-medium text-slate-800">{entry.text}</p>
+                          {entry.detaljer ? <p className="mt-1 text-sm text-slate-500">{entry.detaljer}</p> : null}
+                          <p className="mt-2 text-right text-xs text-slate-400">♥ {entry.likes ?? 0}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))}
+              </div>
+              {themeResults.ungrouped.length > 0 ? (
+                <div className="mt-6 border-t border-slate-100 pt-4">
+                  <h3 className="mb-3 text-sm font-medium text-slate-400">Andre innspill ({themeResults.ungrouped.length})</h3>
+                  {themeResults.ungrouped.map((entry) => (
+                    <div key={entry.id} className="mb-2 rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
                       <p className="font-medium text-slate-800">{entry.text}</p>
                       {entry.detaljer ? <p className="mt-1 text-sm text-slate-500">{entry.detaljer}</p> : null}
                       <p className="mt-2 text-right text-xs text-slate-400">♥ {entry.likes ?? 0}</p>
                     </div>
                   ))}
                 </div>
-              </section>
-            ))}
-          </div>
-          {themeResults.ungrouped.length > 0 ? (
+              ) : null}
+            </>
+          ) : (
             <section>
-              <h3 className="text-lg font-semibold text-[#0f172a]">Andre innspill</h3>
               <div className="mt-3 space-y-2">
-                {themeResults.ungrouped.map((entry) => (
+                {allInnspill.map((entry) => (
                   <div key={entry.id} className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
                     <p className="font-medium text-slate-800">{entry.text}</p>
                     {entry.detaljer ? <p className="mt-1 text-sm text-slate-500">{entry.detaljer}</p> : null}
@@ -269,7 +340,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
                 ))}
               </div>
             </section>
-          ) : null}
+          )}
         </div>
       </main>
     );
