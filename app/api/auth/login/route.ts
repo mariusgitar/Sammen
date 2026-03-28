@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 const ADMIN_COOKIE_NAME = 'admin_session';
-const ADMIN_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+const ADMIN_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
 
 async function getSha256Hex(value: string): Promise<string> {
   const encoder = new TextEncoder();
