@@ -106,9 +106,9 @@ export function InnspillAdmin({ code, questions, showOthersInnspill }: { code: s
         {!showOthersInnspill ? <p className="mt-2 text-xs text-white/50">Gruppetenk-modus: andres innspill skjult</p> : null}
         <div className="mt-3 space-y-3">
           {merged.map((question) => (
-            <article key={question.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">
+            <article key={question.id} className="overflow-hidden rounded-xl border border-slate-700 bg-slate-950/70 p-4">
               <div className="flex flex-wrap items-center gap-2">
-                <p className="font-medium text-slate-100">{question.text}</p>
+                <p className="min-w-0 overflow-hidden break-words font-medium text-slate-100">{question.text}</p>
                 <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300">{questionStatusLabels[question.question_status]}</span>
                 <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300">{localQuestions.find((localQuestion) => localQuestion.id === question.id)?.innspill_count ?? question.innspill.length} innspill</span>
               </div>
@@ -131,20 +131,20 @@ export function InnspillAdmin({ code, questions, showOthersInnspill }: { code: s
             return (
               <article
                 key={question.id}
-                className={`min-h-[300px] w-full min-w-0 rounded-2xl border border-slate-700 border-t-2 bg-slate-950/70 p-4 ${columnColors[index % columnColors.length]}`}
+                className={`min-h-[300px] w-full min-w-0 overflow-hidden rounded-2xl border border-slate-700 border-t-2 bg-slate-950/70 p-4 ${columnColors[index % columnColors.length]}`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="font-semibold text-slate-100">{question.text}</h3>
+                  <h3 className="min-w-0 overflow-hidden break-words font-semibold text-slate-100">{question.text}</h3>
                   <span className="rounded-full border border-slate-600 px-2 py-0.5 text-xs text-slate-300">
                     {questionStatusLabels[question.question_status]}
                   </span>
                 </div>
 
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 space-y-2 overflow-hidden">
                   {sortedInnspill.map((entry, entryIndex) => (
-                    <div key={entry.id} className={`rounded border p-3 text-sm ${entryIndex < 3 ? 'border-emerald-700/40 bg-emerald-950/20' : 'border-slate-700'}`}>
-                      <p className="text-slate-100">{entry.text}</p>
-                      {entry.detaljer ? <p className="mt-1 text-xs text-slate-400">{entry.detaljer}</p> : null}
+                    <div key={entry.id} className={`overflow-hidden rounded border p-3 text-sm ${entryIndex < 3 ? 'border-emerald-700/40 bg-emerald-950/20' : 'border-slate-700'}`}>
+                      <p className="text-sm break-words overflow-hidden line-clamp-4 text-slate-100">{entry.text}</p>
+                      {entry.detaljer ? <p className="mt-1 text-xs break-words overflow-hidden line-clamp-4 text-slate-400">{entry.detaljer}</p> : null}
                       <p className="mt-1 text-xs text-slate-400">{entry.nickname} · {entry.likes} likes</p>
                     </div>
                   ))}

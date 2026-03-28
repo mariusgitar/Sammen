@@ -17,9 +17,9 @@ export function InnspillResults({
           <h3 className="font-semibold text-slate-900">{question.text}</h3>
           <ul className="mt-2 space-y-2">
             {question.innspill.map((entry) => (
-              <li key={entry.id} className={`rounded border p-3 text-sm ${entry.likes > 0 ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}>
-                <p>{entry.text}</p>
-                {entry.detaljer ? <p className="mt-1 text-xs text-slate-600">{entry.detaljer}</p> : null}
+              <li key={entry.id} className={`overflow-hidden rounded border p-3 text-sm ${entry.likes > 0 ? 'border-emerald-200 bg-emerald-50' : 'border-slate-200 bg-slate-50'}`}>
+                <p className="min-w-0 overflow-hidden break-words">{entry.text}</p>
+                {entry.detaljer ? <p className="mt-1 min-w-0 overflow-hidden break-words text-xs text-slate-600">{entry.detaljer}</p> : null}
                 <p className="text-xs text-slate-600 mt-1">{entry.nickname} ({entry.likes} likes)</p>
               </li>
             ))}
