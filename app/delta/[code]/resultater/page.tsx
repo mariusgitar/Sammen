@@ -130,8 +130,13 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             : Boolean(sessionData.session.resultsVisible);
 
         if (sessionData.session.status === 'active' && sessionData.session.phase === 'stemming') {
-          router.push(`/delta/${code}`);
-          return;
+          const stemmingKey = `samen_stemming_done_${code}`;
+          const alreadyVoted = localStorage.getItem(stemmingKey) === 'true';
+
+          if (!alreadyVoted) {
+            router.push(`/delta/${code}`);
+            return;
+          }
         }
 
         setTitle(sessionData.session.title);

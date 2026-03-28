@@ -165,6 +165,7 @@ export function StemmingView({ session, items }: StemmingViewProps) {
         return;
       }
 
+      localStorage.setItem(`samen_stemming_done_${session.code}`, 'true');
       setSubmitted(true);
     } catch {
       setError('Noe gikk galt. Prøv igjen.');
