@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 type PageProps = {
   params: {
@@ -94,6 +95,7 @@ function getScoreClass(score: number) {
 }
 
 export default function ParticipantResultsPage({ params }: PageProps) {
+  const router = useRouter();
   const code = useMemo(() => params.code.toUpperCase(), [params.code]);
   const [title, setTitle] = useState('');
   const [isVisible, setIsVisible] = useState(false);
@@ -124,6 +126,11 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           typeof sessionData.session.results_visible === 'boolean'
             ? sessionData.session.results_visible
             : Boolean(sessionData.session.resultsVisible);
+
+        if (sessionData.session.status === 'active' && sessionData.session.phase === 'stemming') {
+          router.push(`/delta/${code}`);
+          return;
+        }
 
         setTitle(sessionData.session.title);
         setIsVisible(serverVisibility);
@@ -185,24 +192,31 @@ export default function ParticipantResultsPage({ params }: PageProps) {
       isMounted = false;
       clearInterval(timer);
     };
-  }, [code]);
+  }, [code, router]);
 
   if (!isVisible) {
-    const isClosed = sessionStatus === 'closed';
-
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4">
-        <section className="w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-8 text-center shadow-sm">
-          <h1 className="text-2xl font-semibold text-[#0f172a]">{title || `Sesjon ${code}`}</h1>
-          <div className="mt-6 flex items-center justify-center gap-2" aria-hidden>
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:0ms]" />
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:150ms]" />
-            <span className="h-2.5 w-2.5 animate-pulse rounded-full bg-[#94a3b8] [animation-delay:300ms]" />
+      <main className="bg-[#f8fafc] px-4 py-8">
+        <section className="flex min-h-[60vh] flex-col items-center justify-center space-y-4 p-6 text-center">
+          <div className="flex gap-2" aria-hidden>
+            {[0, 1, 2].map((index) => (
+              <div
+                key={index}
+                className="h-2 w-2 animate-bounce rounded-full bg-slate-300"
+                style={{ animationDelay: `${index * 150}ms` }}
+              />
+            ))}
           </div>
-          <p className="mt-4 text-sm text-[#64748b]">
-            {isClosed ? 'Denne sesjonen er avsluttet.' : 'Fasilitator åpner resultatene snart...'}
-          </p>
-          {isClosed ? <p className="mt-2 text-sm text-[#64748b]">Ta kontakt med fasilitator for mer informasjon.</p> : null}
+
+          <h2 className="text-xl font-semibold text-slate-700">
+            {sessionStatus === 'closed' ? 'Sesjonen er avsluttet' : 'Fasilitator åpner resultatene snart...'}
+          </h2>
+
+          <p className="text-sm text-slate-400">Siden oppdateres automatisk</p>
+
+          <a href={`/delta/${code}`} className="mt-4 text-xs text-slate-400 hover:text-slate-600">
+            ← Tilbake
+          </a>
         </section>
       </main>
     );

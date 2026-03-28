@@ -1,7 +1,6 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 
 type SessionView = {
   id: string;
@@ -80,6 +79,32 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
       setHasJoined(true);
     }
   }, [nicknameStorageKey]);
+
+  useEffect(() => {
+    if (!submitted) {
+      return;
+    }
+
+    const checkSession = async () => {
+      const response = await fetch(`/api/sessions/${session.code}`, { cache: 'no-store' });
+      const data = (await response.json()) as {
+        session?: {
+          status?: string;
+          phase?: string;
+        };
+      };
+
+      if (data.session?.status === 'active' && data.session?.phase === 'stemming') {
+        window.location.reload();
+      }
+    };
+
+    const interval = setInterval(() => {
+      void checkSession();
+    }, 5_000);
+
+    return () => clearInterval(interval);
+  }, [submitted, session.code]);
 
   const originalItems = useMemo(() => items.filter((item) => !item.isNew), [items]);
   const responseItems = useMemo(
@@ -228,14 +253,17 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
     return (
       <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
-          <h1 className="text-2xl font-semibold text-[#0f172a]">Takk for dine svar, {nickname.trim()}!</h1>
-          <Link
-            href={`/delta/${session.code}/resultater`}
-            className="mt-5 inline-flex rounded-full bg-[#0f172a] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1e293b]"
-          >
-            Se resultater →
-          </Link>
-          <p className="mt-3 text-sm text-[#64748b]">Vent på at fasilitator åpner resultatene</p>
+          <div className="space-y-4 text-center">
+            <h2 className="text-2xl font-bold text-[#0f172a]">Takk for dine svar, {nickname.trim()}!</h2>
+            <p className="text-slate-500">Vent på fasilitator for neste steg.</p>
+            <a
+              href={`/delta/${session.code}/resultater`}
+              className="mt-4 inline-block rounded-full bg-[#0f172a] px-6 py-3 text-sm font-medium text-white"
+            >
+              Se resultater →
+            </a>
+            <p className="text-xs text-slate-400">Resultater vises når fasilitator åpner dem</p>
+          </div>
         </div>
       </main>
     );
