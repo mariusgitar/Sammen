@@ -10,7 +10,10 @@ export async function GET(_request: Request, { params }: { params: { code: strin
     const code = params.code.toUpperCase();
 
     const [session] = await db
-      .select({ id: sessions.id })
+      .select({
+        id: sessions.id,
+        results_visible: sessions.resultsVisible,
+      })
       .from(sessions)
       .where(eq(sessions.code, code))
       .limit(1);
@@ -18,7 +21,6 @@ export async function GET(_request: Request, { params }: { params: { code: strin
     if (!session) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
-
 
     const sessionThemes = await db
       .select({
@@ -44,25 +46,32 @@ export async function GET(_request: Request, { params }: { params: { code: strin
       .from(innspill)
       .where(eq(innspill.sessionId, session.id));
 
-    const allThemeIds = sessionThemes.map((theme) => theme.id);
-    const themeLinks = allThemeIds.length === 0
+    const themeIds = sessionThemes.map((theme) => theme.id);
+
+    const linkedInnspill = themeIds.length === 0
       ? []
       : await db
-          .select({ innspill_id: innspillThemes.innspillId, theme_id: innspillThemes.themeId })
+          .select({
+            theme_id: innspillThemes.themeId,
+            innspill_id: innspillThemes.innspillId,
+            text: innspill.text,
+            detaljer: innspill.detaljer,
+            likes: innspill.likes,
+            nickname: innspill.nickname,
+            created_at: innspill.createdAt,
+          })
           .from(innspillThemes)
-          .where(inArray(innspillThemes.themeId, allThemeIds));
+          .innerJoin(innspill, eq(innspillThemes.innspillId, innspill.id))
+          .where(inArray(innspillThemes.themeId, themeIds));
 
-    const themeByInnspillId = new Map<string, string>();
-    for (const link of themeLinks) {
-      themeByInnspillId.set(link.innspill_id, link.theme_id);
-    }
+    const linkedInnspillIds = new Set(linkedInnspill.map((entry) => entry.innspill_id));
 
     const serializedThemes = sessionThemes.map((theme) => ({
       ...theme,
-      innspill: sessionInnspill.filter((entry) => themeByInnspillId.get(entry.id) === theme.id),
+      innspill: linkedInnspill.filter((entry) => entry.theme_id === theme.id),
     }));
 
-    const ungrouped = sessionInnspill.filter((entry) => !themeByInnspillId.has(entry.id));
+    const ungrouped = sessionInnspill.filter((entry) => !linkedInnspillIds.has(entry.id));
 
     return NextResponse.json({ themes: serializedThemes, ungrouped });
   } catch (error) {
