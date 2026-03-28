@@ -73,6 +73,7 @@ export function InnspillView({
     {},
   );
   const [showOthers, setShowOthers] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const canSeeOthers = session.show_others_innspill;
   const initialized = useRef(false);
   const participantStorageKey = "samen_participant_id";
@@ -186,6 +187,37 @@ export function InnspillView({
     return () => clearInterval(timer);
   }, [hasJoined, participantId]);
 
+  useEffect(() => {
+    if (!submitted) {
+      return;
+    }
+
+    const checkSession = async () => {
+      const response = await fetch(`/api/sessions/${session.code}`, {
+        cache: "no-store",
+      });
+      const data = (await response.json()) as {
+        session?: {
+          status?: string;
+          phase?: string;
+        };
+      };
+
+      if (
+        data.session?.status === "active" &&
+        data.session?.phase === "stemming"
+      ) {
+        window.location.reload();
+      }
+    };
+
+    const interval = setInterval(() => {
+      void checkSession();
+    }, 5_000);
+
+    return () => clearInterval(interval);
+  }, [submitted, session.code]);
+
   const visibleQuestions = useMemo(
     () =>
       items.filter(
@@ -256,6 +288,7 @@ export function InnspillView({
       }
       setInputText((current) => ({ ...current, [questionId]: "" }));
       setDetailsText((current) => ({ ...current, [questionId]: "" }));
+      setSubmitted(true);
     } finally {
       setSubmitting((current) => ({ ...current, [questionId]: false }));
     }
@@ -358,6 +391,26 @@ export function InnspillView({
           >
             Bli med
           </button>
+        </div>
+      </main>
+    );
+  }
+
+  if (submitted) {
+    return (
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 text-[#0f172a] sm:px-6">
+        <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
+          <div className="space-y-4 text-center">
+            <h2 className="text-2xl font-bold">Takk for dine svar, {nickname.trim()}!</h2>
+            <p className="text-slate-500">Vent på fasilitator for neste steg.</p>
+            <a
+              href={`/delta/${session.code}/resultater`}
+              className="mt-4 inline-block rounded-full bg-[#0f172a] px-6 py-3 text-sm font-medium text-white"
+            >
+              Se resultater →
+            </a>
+            <p className="text-xs text-slate-400">Resultater vises når fasilitator åpner dem</p>
+          </div>
         </div>
       </main>
     );
