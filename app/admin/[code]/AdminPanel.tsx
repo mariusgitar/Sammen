@@ -319,7 +319,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     }
   }
 
-  async function toggleResultsVisibility() {
+  async function handleToggleResults() {
     setIsUpdatingStatus(true);
     setError('');
 
@@ -357,6 +357,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     } finally {
       setIsUpdatingStatus(false);
     }
+  }
+
+  function scrollToStemming() {
+    document.getElementById('stemming-oppsett')?.scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function handleReopenCollection() {
+    void updateSessionStatus('active');
   }
 
   async function handleCopyCode() {
@@ -784,58 +792,71 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
           ) : null}
 
           {sessionStatus === 'paused' && currentSession.mode === 'aapne-innspill' ? (
-            <>
+            <div className="space-y-4">
               <p className="text-sm text-white/60">
                 Innsamling avsluttet. Velg innspill som skal tas med til stemming nedenfor.
               </p>
+
               <button
                 type="button"
-                onClick={() => {
-                  document.getElementById('stemming-oppsett')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className={PRIMARY_BUTTON_CLASS}
+                onClick={scrollToStemming}
+                className="w-full rounded-xl bg-white py-3 text-sm font-semibold text-[#0f172a] transition-colors hover:bg-white/90"
               >
                 Gå til stemmeoppsett ↓
               </button>
-              <div className="flex flex-col gap-2 pt-2">
+
+              <div className="border-t border-white/10" />
+
+              <div className="flex flex-col gap-2">
                 <button
                   type="button"
-                  onClick={() => updateSessionStatus('active')}
+                  onClick={handleReopenCollection}
                   disabled={isUpdatingStatus}
-                  className="text-left text-sm text-white/40 transition-colors hover:text-white/70 disabled:opacity-70"
+                  className="flex items-center gap-2 text-left text-sm text-white/50 transition-colors hover:text-white/80 disabled:opacity-70"
                 >
-                  ↩ Åpne innsamling igjen
+                  <span>↩</span> Åpne innsamling igjen
                 </button>
-                {confirmClose ? (
-                  <div className="flex items-center gap-3 rounded-xl bg-rose-500/10 p-3">
-                    <span className="text-sm text-rose-300">Er du sikker? Dette kan ikke angres.</span>
-                    <button
-                      type="button"
-                      onClick={() => updateSessionStatus('closed')}
-                      disabled={isUpdatingStatus}
-                      className="text-sm font-medium text-rose-400"
-                    >
-                      Ja, avslutt
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmClose(false)}
-                      className="text-sm text-white/40"
-                    >
-                      Avbryt
-                    </button>
-                  </div>
-                ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClose(true)}
+                  className="text-left text-sm text-rose-400/70 transition-colors hover:text-rose-400"
+                >
+                  Avslutt sesjon
+                </button>
+              </div>
+
+              <div className="border-t border-white/10" />
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-white/70">Resultater synlige for deltakere</p>
+                  <p className="mt-0.5 text-xs text-white/30">Deltakere kan se resultater på sin enhet</p>
+                </div>
+                <div className="flex-shrink-0">
                   <button
                     type="button"
-                    onClick={() => setConfirmClose(true)}
-                    className="text-left text-sm text-rose-400/60 transition-colors hover:text-rose-400 disabled:opacity-70"
+                    onClick={handleToggleResults}
+                    disabled={isUpdatingStatus}
+                    aria-label="Bytt synlighet for resultater"
+                    className={`
+                      relative inline-flex h-5 w-9 flex-shrink-0
+                      cursor-pointer rounded-full border-2 border-transparent 
+                      transition-colors duration-200
+                      ${resultsVisible ? 'bg-violet-400' : 'bg-white/20'}
+                    `}
                   >
-                    Avslutt sesjon
+                    <span
+                      className={`
+                        pointer-events-none inline-block h-4 w-4
+                        transform rounded-full bg-white shadow
+                        transition-transform duration-200
+                        ${resultsVisible ? 'translate-x-4' : 'translate-x-0'}
+                      `}
+                    />
                   </button>
-                )}
+                </div>
               </div>
-            </>
+            </div>
           ) : null}
 
           {sessionPhase === 'stemming' && sessionStatus === 'active' ? (
@@ -866,7 +887,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
             </>
           ) : null}
 
-          {sessionStatus !== 'setup' ? (
+          {sessionStatus !== 'setup' && !(sessionStatus === 'paused' && currentSession.mode === 'aapne-innspill') ? (
             <div className="mt-2 flex items-center justify-between gap-4 border-t border-white/10 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-white/70">Resultater synlige for deltakere</p>
@@ -875,17 +896,23 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               <div className="flex-shrink-0">
                 <button
                   type="button"
-                  onClick={toggleResultsVisibility}
+                  onClick={handleToggleResults}
                   disabled={isUpdatingStatus}
-                  className={`relative h-6 w-12 rounded-full transition-colors ${
-                    resultsVisible ? 'bg-[#a78bfa]' : 'bg-white/20'
-                  }`}
                   aria-label="Bytt synlighet for resultater"
+                  className={`
+                    relative inline-flex h-5 w-9 flex-shrink-0
+                    cursor-pointer rounded-full border-2 border-transparent 
+                    transition-colors duration-200
+                    ${resultsVisible ? 'bg-violet-400' : 'bg-white/20'}
+                  `}
                 >
                   <span
-                    className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${
-                      resultsVisible ? 'translate-x-7' : 'translate-x-1'
-                    }`}
+                    className={`
+                      pointer-events-none inline-block h-4 w-4
+                      transform rounded-full bg-white shadow
+                      transition-transform duration-200
+                      ${resultsVisible ? 'translate-x-4' : 'translate-x-0'}
+                    `}
                   />
                 </button>
               </div>
