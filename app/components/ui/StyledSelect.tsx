@@ -35,7 +35,7 @@ export default function StyledSelect({ options, value, onChange, placeholder }: 
   const selectedOption = options.find((option) => option.value === value);
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className="relative z-50">
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
@@ -62,7 +62,7 @@ export default function StyledSelect({ options, value, onChange, placeholder }: 
       </button>
 
       {open ? (
-        <div className="absolute top-full z-10 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+        <div className="absolute top-full z-50 mt-1 w-full overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
           {options.map((option) => {
             const isSelected = option.value === value;
 

@@ -412,7 +412,8 @@ export default function NewSessionPage() {
             </button>
 
             <div
-              className={`overflow-hidden transition-all duration-300 ${advancedOpen ? "mt-5 max-h-[2200px]" : "max-h-0"}`}
+              className={`transition-[max-height] duration-300 ${advancedOpen ? "mt-5 max-h-[2200px]" : "max-h-0"}`}
+              style={{ overflow: advancedOpen ? "visible" : "hidden" }}
             >
               <div className="space-y-6 border-t border-slate-100 pt-5">
                 {isInnspillMode ? (
