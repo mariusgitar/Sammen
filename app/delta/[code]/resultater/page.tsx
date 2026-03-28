@@ -233,7 +233,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     );
   }
 
-  if (sessionMode === 'aapne-innspill' && themeResults && themeResults.themes.length > 0) {
+  if (sessionMode === 'aapne-innspill' && themeResults) {
     return (
       <main className="min-h-screen bg-[#f8fafc] px-4 py-8">
         <div className="mx-auto max-w-4xl space-y-4">
