@@ -137,7 +137,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
         }
 
         if (sessionData.session.mode === 'aapne-innspill') {
-          const themesResponse = await fetch(`/api/admin/${code}/themes`, { cache: 'no-store' });
+          const themesResponse = await fetch(`/api/delta/${code}/themes`, { cache: 'no-store' });
           const themesData = (await themesResponse.json()) as ThemeResponse | { error: string };
 
           if (!isMounted) {
