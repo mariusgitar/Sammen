@@ -797,42 +797,44 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               >
                 Gå til stemmeoppsett ↓
               </button>
-              <button
-                type="button"
-                onClick={() => updateSessionStatus('active')}
-                disabled={isUpdatingStatus}
-                className={TERTIARY_BUTTON_CLASS}
-              >
-                Åpne innsamling igjen
-              </button>
-              {confirmClose ? (
-                <div className="flex items-center gap-3 rounded-xl bg-rose-500/10 p-3">
-                  <span className="text-sm text-rose-300">Er du sikker? Dette kan ikke angres.</span>
-                  <button
-                    type="button"
-                    onClick={() => updateSessionStatus('closed')}
-                    disabled={isUpdatingStatus}
-                    className="text-sm font-medium text-rose-400"
-                  >
-                    Ja, avslutt
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmClose(false)}
-                    className="text-sm text-white/40"
-                  >
-                    Avbryt
-                  </button>
-                </div>
-              ) : (
+              <div className="flex flex-col gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setConfirmClose(true)}
-                  className={DANGER_BUTTON_CLASS}
+                  onClick={() => updateSessionStatus('active')}
+                  disabled={isUpdatingStatus}
+                  className="text-left text-sm text-white/40 transition-colors hover:text-white/70 disabled:opacity-70"
                 >
-                  Avslutt sesjon
+                  ↩ Åpne innsamling igjen
                 </button>
-              )}
+                {confirmClose ? (
+                  <div className="flex items-center gap-3 rounded-xl bg-rose-500/10 p-3">
+                    <span className="text-sm text-rose-300">Er du sikker? Dette kan ikke angres.</span>
+                    <button
+                      type="button"
+                      onClick={() => updateSessionStatus('closed')}
+                      disabled={isUpdatingStatus}
+                      className="text-sm font-medium text-rose-400"
+                    >
+                      Ja, avslutt
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmClose(false)}
+                      className="text-sm text-white/40"
+                    >
+                      Avbryt
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClose(true)}
+                    className="text-left text-sm text-rose-400/60 transition-colors hover:text-rose-400 disabled:opacity-70"
+                  >
+                    Avslutt sesjon
+                  </button>
+                )}
+              </div>
             </>
           ) : null}
 
@@ -865,26 +867,28 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
           ) : null}
 
           {sessionStatus !== 'setup' ? (
-            <div className="mt-2 flex items-center justify-between border-t border-white/10 py-3">
-              <div>
+            <div className="mt-2 flex items-center justify-between gap-4 border-t border-white/10 py-3">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-white/70">Resultater synlige for deltakere</p>
-                <p className="text-xs text-white/30">Deltakere kan se resultater på sin enhet</p>
+                <p className="mt-0.5 text-xs text-white/30">Deltakere kan se resultater på sin enhet</p>
               </div>
-              <button
-                type="button"
-                onClick={toggleResultsVisibility}
-                disabled={isUpdatingStatus}
-                className={`relative h-6 w-12 rounded-full transition-colors ${
-                  resultsVisible ? 'bg-[#a78bfa]' : 'bg-white/20'
-                }`}
-                aria-label="Bytt synlighet for resultater"
-              >
-                <span
-                  className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${
-                    resultsVisible ? 'translate-x-7' : 'translate-x-1'
+              <div className="flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={toggleResultsVisibility}
+                  disabled={isUpdatingStatus}
+                  className={`relative h-6 w-12 rounded-full transition-colors ${
+                    resultsVisible ? 'bg-[#a78bfa]' : 'bg-white/20'
                   }`}
-                />
-              </button>
+                  aria-label="Bytt synlighet for resultater"
+                >
+                  <span
+                    className={`absolute top-1 h-4 w-4 rounded-full bg-white transition-transform ${
+                      resultsVisible ? 'translate-x-7' : 'translate-x-1'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
           ) : null}
         </div>
