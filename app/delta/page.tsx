@@ -41,14 +41,14 @@ export default function ParticipantEntryPage() {
                 setError('');
               }
             }}
-            className="w-full rounded-xl border-2 border-[#e2e8f0] p-4 text-center text-2xl font-bold uppercase tracking-widest text-[#0f172a] placeholder:text-[#94a3b8] focus:border-[#3b5bdb] focus:outline-none"
+            className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#3b5bdb] transition-colors text-sm text-center font-bold uppercase tracking-widest"
           />
           {error ? <p className="text-sm text-amber-500">{error}</p> : null}
 
           <button
             type="button"
             onClick={handleJoin}
-            className="w-full rounded-full bg-[#0f172a] py-4 text-lg font-semibold text-white transition hover:bg-[#1e293b]"
+            className="w-full rounded-full bg-[#0f172a] text-white px-6 py-3 font-semibold hover:bg-[#1e293b] transition-colors"
           >
             Bli med →
           </button>

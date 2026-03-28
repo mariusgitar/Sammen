@@ -183,7 +183,7 @@ export function StemmingView({ session, items }: StemmingViewProps) {
 
           <form className="space-y-6" onSubmit={handleJoin}>
             <div className="space-y-2">
-              <label className="block text-xs font-semibold uppercase tracking-wide text-[#64748b]" htmlFor="nickname">
+              <label className="text-sm font-medium text-slate-700 mb-1.5 block" htmlFor="nickname">
                 Skriv inn kallenavnet ditt
               </label>
               <input
@@ -193,14 +193,14 @@ export function StemmingView({ session, items }: StemmingViewProps) {
                 type="text"
                 value={nickname}
                 onChange={(event) => setNickname(event.target.value)}
-                className="w-full rounded-xl border border-[#e2e8f0] bg-white p-3 text-[#0f172a] outline-none transition focus:border-[#3b5bdb]"
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#3b5bdb] transition-colors text-sm"
               />
             </div>
 
             <button
               type="submit"
               disabled={!nickname.trim()}
-              className="w-full rounded-full bg-[#0f172a] px-4 py-3 font-semibold text-white transition hover:bg-[#1e293b] disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full bg-[#0f172a] text-white rounded-full px-6 py-3 font-semibold hover:bg-[#1e293b] transition-colors disabled:cursor-not-allowed disabled:opacity-70"
             >
               Bli med
             </button>

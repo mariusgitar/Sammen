@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import ToggleButton from '@/app/components/ui/ToggleButton';
 
 type KartleggingItem = {
   id: string;
@@ -170,51 +171,17 @@ export function KartleggingResults({ items, responses, tags, participantCount }:
     <section className="rounded-xl border border-slate-200 bg-white p-6">
       <h2 className="text-xl font-semibold">Kartlegging-resultater</h2>
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setView('element')}
-          className={`rounded-md border px-3 py-1.5 text-sm font-medium transition ${
-            view === 'element'
-              ? 'border-slate-900 bg-slate-900 text-white'
-              : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
-          }`}
-        >
-          Per element
-        </button>
-        <button
-          type="button"
-          onClick={() => setView('tag')}
-          className={`rounded-md border px-3 py-1.5 text-sm font-medium transition ${
-            view === 'tag'
-              ? 'border-slate-900 bg-slate-900 text-white'
-              : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
-          }`}
-        >
-          Per tag
-        </button>
-        <button
-          type="button"
-          onClick={() => setView('uenighet')}
-          className={`rounded-md border px-3 py-1.5 text-sm font-medium transition ${
-            view === 'uenighet'
-              ? 'border-slate-900 bg-slate-900 text-white'
-              : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
-          }`}
-        >
-          Uenighet først
-        </button>
-        <button
-          type="button"
-          onClick={() => setView('nye')}
-          className={`rounded-md border px-3 py-1.5 text-sm font-medium transition ${
-            view === 'nye'
-              ? 'border-slate-900 bg-slate-900 text-white'
-              : 'border-slate-300 bg-white text-slate-800 hover:bg-slate-100'
-          }`}
-        >
-          Nye forslag
-        </button>
+      <div className="mt-4">
+        <ToggleButton
+          value={view}
+          onChange={(value) => setView(value as ViewMode)}
+          options={[
+            { value: 'element', label: 'Per element' },
+            { value: 'tag', label: 'Per tag' },
+            { value: 'uenighet', label: 'Uenighet først' },
+            { value: 'nye', label: 'Nye forslag' },
+          ]}
+        />
       </div>
 
       {view === 'element' ? (
