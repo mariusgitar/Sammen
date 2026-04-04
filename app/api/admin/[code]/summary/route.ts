@@ -2,7 +2,7 @@ import { asc, eq, inArray } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { getDb } from '@/db';
-import { innspillThemes, items, responses, sessions, themes } from '@/db/schema';
+import { innspill, innspillThemes, items, responses, sessions, themes } from '@/db/schema';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -81,6 +81,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         text: items.text,
         is_new: items.isNew,
         created_by: items.createdBy,
+        is_question: items.isQuestion,
         excluded: items.excluded,
       })
       .from(items)
@@ -120,23 +121,40 @@ export async function GET(_request: Request, { params }: RouteContext) {
             .where(inArray(innspillThemes.themeId, sessionThemes.map((theme) => theme.id)))
         : [];
 
+    const sessionInnspill = await db
+      .select({
+        id: innspill.id,
+        text: innspill.text,
+      })
+      .from(innspill)
+      .where(eq(innspill.sessionId, session.id));
+
+    const innspillTextById = new Map(sessionInnspill.map((entry) => [entry.id, entry.text]));
+    const textToItemId = new Map(
+      allItems
+        .filter((item) => !item.is_question)
+        .map((item) => [item.text, item.id]),
+    );
+
     const themeResults: ThemeSummaryItem[] = sessionThemes.map((theme) => {
       const linkedInnspillIds = innspillThemeLinks.filter((link) => link.theme_id === theme.id).map((link) => link.innspill_id);
-      const linkedInnspillIdSet = new Set(linkedInnspillIds);
-
-      const themeResponses = allResponses.filter((response) => linkedInnspillIdSet.has(response.item_id));
-      const totalDots = themeResponses.reduce((sum, response) => sum + (Number.parseInt(response.value, 10) || 0), 0);
 
       const topInnspill = linkedInnspillIds
-        .map((linkedId) => {
-          const dots = allResponses
-            .filter((response) => response.item_id === linkedId)
-            .reduce((sum, response) => sum + (Number.parseInt(response.value, 10) || 0), 0);
-          const item = allItems.find((candidate) => candidate.id === linkedId);
-          return { id: linkedId, text: item?.text ?? 'Ukjent innspill', dots };
+        .map((innspillId) => {
+          const text = innspillTextById.get(innspillId) ?? 'Ukjent innspill';
+          const itemId = textToItemId.get(text);
+          const dots = itemId
+            ? allResponses
+                .filter((response) => response.item_id === itemId)
+                .reduce((sum, response) => sum + (Number.parseInt(response.value, 10) || 0), 0)
+            : 0;
+
+          return { id: innspillId, text, dots };
         })
         .sort((a, b) => b.dots - a.dots)
         .slice(0, 3);
+
+      const totalDots = topInnspill.reduce((sum, currentInnspill) => sum + currentInnspill.dots, 0);
 
       return {
         id: theme.id,

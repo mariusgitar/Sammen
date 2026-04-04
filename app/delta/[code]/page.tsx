@@ -154,9 +154,11 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   }
 
   if (session.status === 'active' && (session.phase === 'stemming' || session.mode === 'stemming')) {
+    const votableItems = items.filter((item) => !item.excluded && !item.isQuestion);
+
     return (
       <StemmingView
-        items={items.filter((item) => !item.excluded).map((item) => ({ id: item.id, text: item.text }))}
+        items={votableItems.map((item) => ({ id: item.id, text: item.text, isQuestion: item.isQuestion }))}
         session={{
           id: session.id,
           title: session.title,
