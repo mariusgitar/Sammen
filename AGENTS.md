@@ -118,6 +118,15 @@ API routes:
   POST /api/auth/login
   POST /api/auth/logout
 
+Summary API additions (GET /api/admin/[code]/summary and
+GET /api/delta/[code]/results):
+- Root fields now also include: votingType, themes
+- Stemming items now include: stdDev
+- Rangering items now include: minPosition, maxPosition
+- themes[] shape:
+  id, name, color, totalDots,
+  topInnspill[] { id, text, dots }
+
 ## Recurring bugs — NEVER repeat these
 - Empty array insert crashes neon-http — always guard first
 - fetch() in server components crashes with ECONNREFUSED

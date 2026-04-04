@@ -13,36 +13,36 @@ type RangeringResultsProps = {
   items: RangeringResultItem[];
 };
 
-function ordinal(rank: number) {
-  if (rank === 1) return '1st';
-  if (rank === 2) return '2nd';
-  if (rank === 3) return '3rd';
-  return `${rank}th`;
-}
-
 export function RangeringResults({ items }: RangeringResultsProps) {
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6">
       <h2 className="text-xl font-semibold">Rangering-resultater</h2>
-      <div className="mt-4 space-y-4">
+      <div className="mt-4 space-y-2">
         {items.map((item, index) => {
-          const spread = item.minPosition !== null && item.maxPosition !== null ? item.maxPosition - item.minPosition : 0;
-          const spreadWidth = 20 + spread * 18;
+          const totalItems = Math.max(items.length, 1);
+          const spread = item.minPosition !== null && item.maxPosition !== null ? item.maxPosition - item.minPosition : totalItems - 1;
+          const consensusScore = totalItems > 1 ? 1 - spread / (totalItems - 1) : 1;
+          const consensusLabel =
+            consensusScore > 0.7
+              ? { text: 'Høy enighet', color: '#22c55e' }
+              : consensusScore > 0.4
+                ? { text: 'Noe uenighet', color: '#f59e0b' }
+                : { text: 'Stor uenighet', color: '#ef4444' };
 
           return (
-            <article key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">{ordinal(index + 1)}</p>
-              <p className="font-semibold text-slate-900">{item.text}</p>
-              <p className="mt-1 text-sm text-slate-700">Snitt posisjon: {item.averagePosition.toFixed(1)}</p>
-              <p className="text-sm text-slate-700">{item.voteCount} deltakere</p>
-              <div className="mt-2">
-                <p className="text-xs text-slate-500">Enighet (smal = høy, bred = lav)</p>
-                <div className="mt-1 h-2 rounded-full bg-slate-200">
-                  <div className="h-2 rounded-full bg-slate-700" style={{ width: `${Math.min(100, spreadWidth)}%` }} />
+            <article key={item.id} className="mb-2 flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-3">
+              <div className="w-8 flex-shrink-0 text-2xl font-bold text-slate-200">{index + 1}</div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-medium text-slate-800">{item.text}</div>
+                <div className="mt-0.5 text-xs text-slate-400">Snitt posisjon: {item.averagePosition.toFixed(1)}</div>
+              </div>
+              <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${consensusScore * 100}%`, background: consensusLabel.color }} />
                 </div>
-                <p className="mt-1 text-xs text-slate-500">
-                  Min: {item.minPosition ?? '–'} · Maks: {item.maxPosition ?? '–'}
-                </p>
+                <span className="text-xs font-medium" style={{ color: consensusLabel.color }}>
+                  {consensusLabel.text}
+                </span>
               </div>
             </article>
           );
