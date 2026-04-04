@@ -1,8 +1,8 @@
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, inArray } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { getDb } from '@/db';
-import { items, responses, sessions } from '@/db/schema';
+import { innspillThemes, items, responses, sessions, themes } from '@/db/schema';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -31,6 +31,7 @@ type StemmingSummaryItem = {
   excluded: boolean;
   averageScore: number;
   voteCount: number;
+  stdDev: number;
   distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
 };
 
@@ -43,6 +44,20 @@ type RangeringSummaryItem = {
   average_position: number;
   vote_count: number;
   position_distribution: Record<string, number>;
+  minPosition: number | null;
+  maxPosition: number | null;
+};
+
+type ThemeSummaryItem = {
+  id: string;
+  name: string;
+  color: string;
+  totalDots: number;
+  topInnspill: Array<{
+    id: string;
+    text: string;
+    dots: number;
+  }>;
 };
 
 export async function GET(_request: Request, { params }: RouteContext) {
@@ -51,7 +66,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     const code = params.code.toUpperCase();
 
     const [session] = await db
-      .select({ id: sessions.id, mode: sessions.mode, phase: sessions.phase, status: sessions.status })
+      .select({ id: sessions.id, mode: sessions.mode, phase: sessions.phase, status: sessions.status, votingType: sessions.votingType })
       .from(sessions)
       .where(eq(sessions.code, code))
       .limit(1);
@@ -82,6 +97,55 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .where(eq(responses.sessionId, session.id));
 
     const participantCount = new Set(allResponses.map((r) => r.participant_id)).size;
+
+    const sessionThemes = await db
+      .select({
+        id: themes.id,
+        name: themes.name,
+        color: themes.color,
+        order_index: themes.orderIndex,
+      })
+      .from(themes)
+      .where(eq(themes.sessionId, session.id))
+      .orderBy(asc(themes.orderIndex));
+
+    const innspillThemeLinks =
+      sessionThemes.length > 0
+        ? await db
+            .select({
+              innspill_id: innspillThemes.innspillId,
+              theme_id: innspillThemes.themeId,
+            })
+            .from(innspillThemes)
+            .where(inArray(innspillThemes.themeId, sessionThemes.map((theme) => theme.id)))
+        : [];
+
+    const themeResults: ThemeSummaryItem[] = sessionThemes.map((theme) => {
+      const linkedInnspillIds = innspillThemeLinks.filter((link) => link.theme_id === theme.id).map((link) => link.innspill_id);
+      const linkedInnspillIdSet = new Set(linkedInnspillIds);
+
+      const themeResponses = allResponses.filter((response) => linkedInnspillIdSet.has(response.item_id));
+      const totalDots = themeResponses.reduce((sum, response) => sum + (Number.parseInt(response.value, 10) || 0), 0);
+
+      const topInnspill = linkedInnspillIds
+        .map((linkedId) => {
+          const dots = allResponses
+            .filter((response) => response.item_id === linkedId)
+            .reduce((sum, response) => sum + (Number.parseInt(response.value, 10) || 0), 0);
+          const item = allItems.find((candidate) => candidate.id === linkedId);
+          return { id: linkedId, text: item?.text ?? 'Ukjent innspill', dots };
+        })
+        .sort((a, b) => b.dots - a.dots)
+        .slice(0, 3);
+
+      return {
+        id: theme.id,
+        name: theme.name,
+        color: theme.color,
+        totalDots,
+        topInnspill,
+      };
+    });
 
     if (session.mode === 'rangering') {
       const positionByItem = new Map<string, number[]>();
@@ -119,6 +183,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
             average_position: averagePosition,
             vote_count: voteCount,
             position_distribution: positionDistributionByItem.get(item.id) ?? {},
+            minPosition: voteCount > 0 ? Math.min(...itemVotes) : null,
+            maxPosition: voteCount > 0 ? Math.max(...itemVotes) : null,
           };
         })
         .sort((a, b) => a.average_position - b.average_position);
@@ -127,8 +193,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
         mode: session.mode,
         phase: session.phase,
         status: session.status,
+        votingType: session.votingType,
         participantCount,
         items: summaryItems,
+        themes: themeResults,
       });
     }
 
@@ -163,6 +231,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
         const voteCount = itemVotes.length;
         const averageScore = voteCount > 0 ? itemVotes.reduce((sum, vote) => sum + vote, 0) / voteCount : 0;
+        const stdDev =
+          voteCount > 0
+            ? Math.sqrt(itemVotes.reduce((sum, vote) => sum + Math.pow(vote - averageScore, 2), 0) / voteCount)
+            : 0;
 
         return {
           id: item.id,
@@ -172,6 +244,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
           excluded: item.excluded,
           averageScore,
           voteCount,
+          stdDev,
           distribution,
         };
       });
@@ -180,8 +253,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
         mode: session.mode,
         phase: session.phase,
         status: session.status,
+        votingType: session.votingType,
         participantCount,
         items: summaryItems,
+        themes: themeResults,
       });
     }
 
@@ -210,8 +285,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
       mode: session.mode,
       phase: session.phase,
       status: session.status,
+      votingType: session.votingType,
       participantCount,
       items: itemSummaries,
+      themes: themeResults,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

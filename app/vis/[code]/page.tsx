@@ -34,6 +34,7 @@ type StemmingSummaryItem = {
   text: string;
   averageScore: number;
   voteCount: number;
+  stdDev?: number;
 };
 
 type RangeringSummaryItem = {
@@ -42,6 +43,20 @@ type RangeringSummaryItem = {
   average_position: number;
   vote_count: number;
   position_distribution: Record<string, number>;
+  minPosition?: number | null;
+  maxPosition?: number | null;
+};
+
+type ThemeSummaryItem = {
+  id: string;
+  name: string;
+  color: string;
+  totalDots: number;
+  topInnspill: Array<{
+    id: string;
+    text: string;
+    dots: number;
+  }>;
 };
 
 type SummaryResponse = {
@@ -49,6 +64,7 @@ type SummaryResponse = {
   status: 'setup' | 'active' | 'paused' | 'closed';
   participantCount: number;
   items: Array<KartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
+  themes?: ThemeSummaryItem[];
 };
 
 type InnspillSummaryResponse = {
@@ -220,6 +236,8 @@ export default function PresentationPage({ params }: { params: { code: string } 
     const total = dotSource.reduce((sum, item) => sum + item.dots, 0);
     return { dotSource, total };
   }, [stemmingItems]);
+  const themedDots = useMemo(() => [...(summary?.themes ?? [])].sort((a, b) => b.totalDots - a.totalDots), [summary?.themes]);
+  const maxThemeDots = useMemo(() => Math.max(...themedDots.map((theme) => theme.totalDots), 1), [themedDots]);
 
   return (
     <main className={`${inter.className} min-h-screen bg-[#0a0a0f] p-12 text-white`}>
@@ -310,37 +328,63 @@ export default function PresentationPage({ params }: { params: { code: string } 
             ) : null}
 
             {session?.phase === 'stemming' && session.votingType === 'dots' ? (
-              <div className="flex flex-col gap-10">
-                <div className="grid grid-cols-3 items-end gap-6">
-                  {[1, 0, 2].map((podiumIndex) => {
-                    const item = dotItems.dotSource[podiumIndex];
-                    const heights = ['h-48', 'h-64', 'h-40'];
-                    const colors = ['#67e8f9', '#a78bfa', '#86efac'];
-                    if (!item) return <div key={podiumIndex} className="rounded-2xl border border-white/10 bg-white/[0.02]" />;
-                    return (
-                      <div
-                        key={item.id}
-                        className={`flex ${heights[podiumIndex]} flex-col justify-between rounded-3xl border border-white/10 p-5 transition-all duration-700 ease-out`}
-                        style={{ backgroundColor: `${colors[podiumIndex]}22` }}
-                      >
-                        <p className="line-clamp-3 text-lg font-semibold">{item.text}</p>
-                        <div>
-                          <p className="text-4xl font-black" style={{ color: colors[podiumIndex] }}>{item.dots}</p>
-                          <p className="text-sm text-white/50">{dotItems.total > 0 ? Math.round((item.dots / dotItems.total) * 100) : 0}% av dots</p>
-                        </div>
+              themedDots.length > 0 ? (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {themedDots.map((theme) => (
+                    <div key={theme.id} className="rounded-3xl border border-white/10 bg-white/[0.03] p-5">
+                      <div className="mb-3 flex items-center justify-between border-b border-white/10 pb-3">
+                        <p className="text-lg font-semibold text-white">{theme.name}</p>
+                        <p className="text-sm text-white/60">{theme.totalDots} ●</p>
                       </div>
-                    );
-                  })}
-                </div>
-                <div className="space-y-2">
-                  {dotItems.dotSource.slice(3).map((item) => (
-                    <div key={item.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-white/60">
-                      <p className="truncate">{item.text}</p>
-                      <p className="font-semibold">{item.dots}</p>
+                      <div className="mb-3 h-2 rounded-full bg-white/10">
+                        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${(theme.totalDots / maxThemeDots) * 100}%`, background: theme.color }} />
+                      </div>
+                      <div className="space-y-2">
+                        {theme.topInnspill.map((entry, index) => (
+                          <div key={entry.id} className="rounded-xl bg-white/[0.03] px-3 py-2">
+                            <div className="flex items-center justify-between gap-2 text-sm">
+                              <span className="truncate text-white/80">{index + 1}. {entry.text}</span>
+                              <span className="text-white/60">{entry.dots}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
+              ) : (
+                <div className="flex flex-col gap-10">
+                  <div className="grid grid-cols-3 items-end gap-6">
+                    {[1, 0, 2].map((podiumIndex) => {
+                      const item = dotItems.dotSource[podiumIndex];
+                      const heights = ['h-48', 'h-64', 'h-40'];
+                      const colors = ['#67e8f9', '#a78bfa', '#86efac'];
+                      if (!item) return <div key={podiumIndex} className="rounded-2xl border border-white/10 bg-white/[0.02]" />;
+                      return (
+                        <div
+                          key={item.id}
+                          className={`flex ${heights[podiumIndex]} flex-col justify-between rounded-3xl border border-white/10 p-5 transition-all duration-700 ease-out`}
+                          style={{ backgroundColor: `${colors[podiumIndex]}22` }}
+                        >
+                          <p className="line-clamp-3 text-lg font-semibold">{item.text}</p>
+                          <div>
+                            <p className="text-4xl font-black" style={{ color: colors[podiumIndex] }}>{item.dots}</p>
+                            <p className="text-sm text-white/50">{dotItems.total > 0 ? Math.round((item.dots / dotItems.total) * 100) : 0}% av dots</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="space-y-2">
+                    {dotItems.dotSource.slice(3).map((item) => (
+                      <div key={item.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/[0.02] px-4 py-3 text-white/60">
+                        <p className="truncate">{item.text}</p>
+                        <p className="font-semibold">{item.dots}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
             ) : null}
 
             {session?.phase === 'rangering' ? (

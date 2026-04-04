@@ -60,7 +60,8 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
     for (const vote of votes) distribution[String(vote) as keyof VoteDistribution] += 1;
     const voteCount = votes.length;
     const averageScore = voteCount > 0 ? votes.reduce((sum, value) => sum + value, 0) / voteCount : 0;
-    return { id: item.id, text: item.text, averageScore, voteCount, distribution };
+    const stdDev = voteCount > 0 ? Math.sqrt(votes.reduce((sum, value) => sum + Math.pow(value - averageScore, 2), 0) / voteCount) : 0;
+    return { id: item.id, text: item.text, averageScore, voteCount, stdDev, distribution };
   }).sort((a, b) => b.averageScore - a.averageScore);
 
   const rankingItems = includedItems
@@ -110,7 +111,32 @@ export default async function ResultsPage({ params }: ResultsPageProps) {
         {session.mode === 'rangering' ? <RangeringResults items={rankingItems} /> : null}
 
         {hasStemming && session.mode !== 'rangering' ? (
-          <section className="rounded-xl border border-slate-200 bg-white p-6"><h2 className="text-xl font-semibold">Stemming-resultater</h2><div className="mt-4 space-y-4">{voteItems.map((item) => (<article key={item.id} className="rounded-lg border border-slate-200 bg-slate-50 p-4"><p className="font-medium">{item.text}</p><p className="mt-2 text-sm text-slate-700">Snittscore: <span className="font-semibold text-slate-900">{item.averageScore.toFixed(1)}</span></p><p className="text-sm text-slate-700">Antall stemmer: {item.voteCount}</p><p className="mt-1 text-sm text-slate-700">1▪{item.distribution['1']} &nbsp; 2▪{item.distribution['2']} &nbsp; 3▪{item.distribution['3']} &nbsp;4▪{item.distribution['4']} &nbsp; 5▪{item.distribution['5']}</p></article>))}</div></section>
+          <section className="rounded-xl border border-slate-200 bg-white p-6">
+            <h2 className="text-xl font-semibold">Stemming-resultater</h2>
+            <div className="mt-4 space-y-2">
+              {session.phase === 'stemming' && voteItems.map((item) => (
+                <article key={item.id} className="mb-2 flex items-center justify-between rounded-xl border border-slate-100 bg-white p-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium text-slate-800">{item.text}</div>
+                    <div className="mt-1 flex items-center gap-2">
+                      <div className="flex gap-0.5">
+                        {[1, 2, 3, 4, 5].map((n) => (
+                          <span key={n} className={`text-sm ${n <= Math.round(item.averageScore) ? 'text-amber-400' : 'text-slate-200'}`}>★</span>
+                        ))}
+                      </div>
+                      <span className="text-xs font-semibold text-slate-600">{item.averageScore.toFixed(1)}</span>
+                    </div>
+                  </div>
+                  <div className="ml-2 flex flex-shrink-0 items-center gap-1.5">
+                    <div className="h-2 w-2 rounded-full" style={{ background: item.stdDev < 1 ? '#22c55e' : item.stdDev < 1.5 ? '#f59e0b' : '#ef4444' }} />
+                    <span className="text-xs" style={{ color: item.stdDev < 1 ? '#22c55e' : item.stdDev < 1.5 ? '#f59e0b' : '#ef4444' }}>
+                      {item.stdDev < 1 ? 'Enige' : item.stdDev < 1.5 ? 'Delte meninger' : 'Uenige'}
+                    </span>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
         ) : null}
       </div>
     </main>

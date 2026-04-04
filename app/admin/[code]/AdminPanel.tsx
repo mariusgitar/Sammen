@@ -47,6 +47,7 @@ type StemmingSummaryItem = {
   excluded: boolean;
   averageScore: number;
   voteCount: number;
+  stdDev: number;
   distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
 };
 
@@ -59,13 +60,29 @@ type RangeringSummaryItem = {
   average_position: number;
   vote_count: number;
   position_distribution: Record<string, number>;
+  minPosition: number | null;
+  maxPosition: number | null;
+};
+
+type ThemeSummaryItem = {
+  id: string;
+  name: string;
+  color: string;
+  totalDots: number;
+  topInnspill: Array<{
+    id: string;
+    text: string;
+    dots: number;
+  }>;
 };
 
 type SummaryResponse = {
   phase: 'kartlegging' | 'stemming' | 'innspill' | 'rangering';
   status: 'setup' | 'active' | 'paused' | 'closed';
+  votingType?: 'scale' | 'dots';
   participantCount: number;
   items: Array<KartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
+  themes?: ThemeSummaryItem[];
 };
 
 type InnspillQuestion = {
@@ -146,6 +163,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const [summary, setSummary] = useState<SummaryResponse>({
     phase: session.phase,
     status: session.status,
+    votingType: 'scale',
     participantCount: 0,
     items: items.map((item) => ({
       id: item.id,
@@ -156,6 +174,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       tagCounts: {},
       untaggedCount: 0,
     })),
+    themes: [],
   });
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isOpeningVoting, setIsOpeningVoting] = useState(false);
@@ -523,6 +542,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         .filter((item): item is RangeringSummaryItem => 'average_position' in item)
         .sort((a, b) => a.average_position - b.average_position),
     [summary.items],
+  );
+  const themedDotResults = useMemo(
+    () => [...(summary.themes ?? [])].sort((a, b) => b.totalDots - a.totalDots),
+    [summary.themes],
+  );
+  const maxThemeDots = useMemo(
+    () => Math.max(...themedDotResults.map((theme) => theme.totalDots), 1),
+    [themedDotResults],
   );
 
   const participantUrl = typeof window !== 'undefined' ? `${window.location.origin}/delta/${currentSession.code}` : `/delta/${currentSession.code}`;
@@ -1077,43 +1104,75 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         {currentSession.mode === 'rangering' && (sessionPhase === 'rangering' || sessionPhase === 'stemming') ? (
           <div className="mt-4 space-y-3">
             {rankingResults.map((item, index) => {
-              const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : String(index + 1);
-              const sortedDistribution = Object.entries(item.position_distribution).sort((a, b) => Number(a[0]) - Number(b[0]));
+              const totalItems = Math.max(rankingResults.length, 1);
+              const spread = item.minPosition !== null && item.maxPosition !== null ? item.maxPosition - item.minPosition : totalItems - 1;
+              const consensusScore = totalItems > 1 ? 1 - spread / (totalItems - 1) : 1;
+              const consensusLabel =
+                consensusScore > 0.7
+                  ? { text: 'Høy enighet', color: '#22c55e' }
+                  : consensusScore > 0.4
+                    ? { text: 'Noe uenighet', color: '#f59e0b' }
+                    : { text: 'Stor uenighet', color: '#ef4444' };
 
               return (
-                <article key={item.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 text-sm text-slate-100">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{medal}</span>
-                    <p className="font-medium text-slate-50">{item.text}</p>
+                <article key={item.id} className="mb-2 flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-3 text-slate-900">
+                  <div className="w-8 flex-shrink-0 text-2xl font-bold text-slate-200">{index + 1}</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-800">{item.text}</p>
+                    <p className="mt-0.5 text-xs text-slate-400">Snitt posisjon: {Number.isFinite(item.average_position) ? item.average_position.toFixed(1) : '–'}</p>
                   </div>
-                  <p className="mt-2 text-slate-300">Snitt posisjon: {Number.isFinite(item.average_position) ? item.average_position.toFixed(1) : '–'}</p>
-                  <p className="text-slate-300">({item.vote_count} deltakere)</p>
-                  <p className="mt-1 text-slate-300">
-                    {sortedDistribution.length > 0
-                      ? sortedDistribution.map(([position, count]) => `${position}:${count}`).join('  ')
-                      : 'Ingen rangeringer ennå'}
-                  </p>
+                  <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                    <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
+                      <div className="h-full rounded-full transition-all" style={{ width: `${consensusScore * 100}%`, background: consensusLabel.color }} />
+                    </div>
+                    <span className="text-xs font-medium" style={{ color: consensusLabel.color }}>{consensusLabel.text}</span>
+                  </div>
                 </article>
               );
             })}
           </div>
         ) : sessionPhase === 'stemming' ? (
-          <div className="mt-4 space-y-3">
-            {voteResults.map((item) => (
-              <article key={item.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 text-sm text-slate-100">
-                <p className="font-medium text-slate-50">{item.text}</p>
-                <div className="mt-3 flex items-end gap-2">
-                  <p className={`text-4xl font-bold ${getScoreColorClass(item.averageScore)}`}>{item.averageScore.toFixed(1)}</p>
-                  <p className="pb-1 text-slate-400">i snitt</p>
+          summary.votingType === 'dots' && themedDotResults.length > 0 ? (
+            <div className="mt-4 space-y-3">
+              {themedDotResults.map((theme) => (
+                <div key={theme.id} style={{ borderLeft: `4px solid ${theme.color}` }} className="mb-3 rounded-r-xl bg-white/5 py-3 pl-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="font-semibold text-white">{theme.name}</span>
+                    <span className="text-sm text-white/60">{theme.totalDots} ●</span>
+                  </div>
+                  <div className="mb-3 h-1.5 rounded-full bg-white/10">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${(theme.totalDots / maxThemeDots) * 100}%`, background: theme.color }} />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    {theme.topInnspill.map((entry, index) => (
+                      <div key={entry.id} className="flex items-center gap-2 text-xs text-white/50">
+                        <span>{index + 1}.</span>
+                        <span className="flex-1 truncate">{entry.text}</span>
+                        <span>{'●'.repeat(Math.min(entry.dots, 5))}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-                <p className="text-slate-300">Antall stemmer: {item.voteCount}</p>
-                <p className="mt-1 text-slate-300">
-                  1:{item.distribution['1']} &nbsp; 2:{item.distribution['2']} &nbsp; 3:{item.distribution['3']} &nbsp; 4:
-                  {item.distribution['4']} &nbsp; 5:{item.distribution['5']}
-                </p>
-              </article>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3">
+              {voteResults.map((item) => (
+                <article key={item.id} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4 text-sm text-slate-100">
+                  <p className="font-medium text-slate-50">{item.text}</p>
+                  <div className="mt-3 flex items-end gap-2">
+                    <p className={`text-4xl font-bold ${getScoreColorClass(item.averageScore)}`}>{item.averageScore.toFixed(1)}</p>
+                    <p className="pb-1 text-slate-400">i snitt</p>
+                  </div>
+                  <p className="text-slate-300">Antall stemmer: {item.voteCount}</p>
+                  <p className="mt-1 text-slate-300">
+                    1:{item.distribution['1']} &nbsp; 2:{item.distribution['2']} &nbsp; 3:{item.distribution['3']} &nbsp; 4:
+                    {item.distribution['4']} &nbsp; 5:{item.distribution['5']}
+                  </p>
+                </article>
+              ))}
+            </div>
+          )
         ) : (
           <>
             <div className="mt-4 space-y-3">

@@ -38,6 +38,7 @@ type StemmingSummaryItem = {
   excluded: boolean;
   averageScore: number;
   voteCount: number;
+  stdDev: number;
   distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
 };
 
@@ -49,6 +50,20 @@ type RangeringSummaryItem = {
   average_position: number;
   vote_count: number;
   position_distribution: Record<string, number>;
+  minPosition: number | null;
+  maxPosition: number | null;
+};
+
+type ThemeSummaryItem = {
+  id: string;
+  name: string;
+  color: string;
+  totalDots: number;
+  topInnspill: Array<{
+    id: string;
+    text: string;
+    dots: number;
+  }>;
 };
 
 type ResultsResponse = {
@@ -57,6 +72,7 @@ type ResultsResponse = {
   votingType: 'scale' | 'dots';
   participantCount: number;
   items: Array<KartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
+  themes?: ThemeSummaryItem[];
 };
 
 type ThemeResponse = {
@@ -92,6 +108,12 @@ function getScoreClass(score: number) {
   }
 
   return 'text-[#3b5bdb]';
+}
+
+function consensusMeta(score: number) {
+  if (score > 0.7) return { text: 'Høy enighet', color: '#22c55e' };
+  if (score > 0.4) return { text: 'Noe uenighet', color: '#f59e0b' };
+  return { text: 'Stor uenighet', color: '#ef4444' };
 }
 
 export default function ParticipantResultsPage({ params }: PageProps) {
@@ -367,6 +389,8 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const mainKartleggingItems = kartleggingItems.filter((item) => !item.is_new);
   const newKartleggingItems = kartleggingItems.filter((item) => item.is_new);
   const totalDots = results.items.reduce((sum, item) => sum + ('averageScore' in item ? item.averageScore * item.voteCount : 0), 0);
+  const themedDotResults = [...(results.themes ?? [])].sort((a, b) => b.totalDots - a.totalDots);
+  const maxThemeDots = Math.max(...themedDotResults.map((theme) => theme.totalDots), 1);
 
   const dotItems = results.items
     .filter((item): item is StemmingSummaryItem => 'averageScore' in item)
@@ -397,12 +421,27 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             <h2 className="text-xl font-semibold text-[#0f172a]">Rangering-resultater</h2>
             <div className="space-y-3">
               {rankingItems.map((item, index) => (
-                <article key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
-                  <p className="text-xs text-[#64748b]">#{index + 1}</p>
-                  <p className="font-medium text-[#0f172a]">{item.text}</p>
-                  <p className="mt-1 text-sm text-[#64748b]">Snitt posisjon: {item.average_position.toFixed(1)}</p>
-                  <p className="text-xs text-[#64748b]">{item.vote_count} deltakere</p>
-                </article>
+                (() => {
+                  const totalItems = Math.max(rankingItems.length, 1);
+                  const spread = item.minPosition !== null && item.maxPosition !== null ? item.maxPosition - item.minPosition : totalItems - 1;
+                  const consensusScore = totalItems > 1 ? 1 - spread / (totalItems - 1) : 1;
+                  const label = consensusMeta(consensusScore);
+                  return (
+                    <article key={item.id} className="mb-2 flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-3">
+                      <div className="w-8 flex-shrink-0 text-2xl font-bold text-slate-200">{index + 1}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-sm font-medium text-slate-800">{item.text}</div>
+                        <div className="mt-0.5 text-xs text-slate-400">Snitt posisjon: {item.average_position.toFixed(1)}</div>
+                      </div>
+                      <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-100">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${consensusScore * 100}%`, background: label.color }} />
+                        </div>
+                        <span className="text-xs font-medium" style={{ color: label.color }}>{label.text}</span>
+                      </div>
+                    </article>
+                  );
+                })()
               ))}
             </div>
           </>
@@ -465,26 +504,68 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             <h2 className="text-xl font-semibold text-[#0f172a]">Stemming-resultater</h2>
             <div className="space-y-3">
               {results.votingType === 'dots'
-                ? dotItems.map((item) => (
-                    <article key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
-                      <p className="font-medium text-[#0f172a]">{item.text}</p>
-                      <p className="mt-2 text-sm text-[#64748b]">
-                        Totalt antall prikker: <span className="font-semibold text-[#0f172a]">{Math.round(item.totalDots)}</span> ·{' '}
-                        {totalDots > 0 ? ((item.totalDots / totalDots) * 100).toFixed(1) : '0.0'}%
-                      </p>
-                    </article>
-                  ))
+                ? themedDotResults.length > 0
+                  ? themedDotResults.map((theme) => (
+                      <div key={theme.id} style={{ borderLeft: `4px solid ${theme.color}` }} className="mb-3 rounded-r-xl bg-white py-3 pl-4 shadow-sm">
+                        <div className="mb-2 flex items-center justify-between pr-3">
+                          <span className="font-semibold text-slate-900">{theme.name}</span>
+                          <span className="text-sm text-slate-500">{theme.totalDots} ●</span>
+                        </div>
+                        <div className="mb-3 mr-3 h-1.5 rounded-full bg-slate-100">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${(theme.totalDots / maxThemeDots) * 100}%`, background: theme.color }} />
+                        </div>
+                        <div className="flex flex-col gap-1 pr-3">
+                          {theme.topInnspill.map((entry, index) => (
+                            <div key={entry.id} className="flex items-center gap-2 text-xs text-slate-500">
+                              <span>{index + 1}.</span>
+                              <span className="flex-1 truncate">{entry.text}</span>
+                              <span>{'●'.repeat(Math.min(entry.dots, 5))}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  : dotItems.map((item) => (
+                      <article key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
+                        <p className="font-medium text-[#0f172a]">{item.text}</p>
+                        <p className="mt-2 text-sm text-[#64748b]">
+                          Totalt antall prikker: <span className="font-semibold text-[#0f172a]">{Math.round(item.totalDots)}</span> ·{' '}
+                          {totalDots > 0 ? ((item.totalDots / totalDots) * 100).toFixed(1) : '0.0'}%
+                        </p>
+                      </article>
+                    ))
                 : scaleItems.map((item) => (
                     <article key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
-                      <p className="font-medium text-[#0f172a]">{item.text}</p>
-                      <p className="mt-2 text-sm text-[#64748b]">
-                        Snittscore:{' '}
-                        <span className={`font-semibold ${getScoreClass(item.averageScore)}`}>{item.averageScore.toFixed(1)}</span>
-                      </p>
-                      <p className="mt-1 text-xs text-[#64748b]">
-                        1:{item.distribution['1']} &nbsp; 2:{item.distribution['2']} &nbsp; 3:{item.distribution['3']} &nbsp;
-                        4:{item.distribution['4']} &nbsp; 5:{item.distribution['5']}
-                      </p>
+                      <div className="flex items-center justify-between">
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium text-slate-800">{item.text}</div>
+                          <div className="mt-1 flex items-center gap-2">
+                            <div className="flex gap-0.5">
+                              {[1, 2, 3, 4, 5].map((n) => {
+                                const stars = Math.round(item.averageScore);
+                                return (
+                                  <span key={n} className={`text-sm ${n <= stars ? 'text-amber-400' : 'text-slate-200'}`}>
+                                    ★
+                                  </span>
+                                );
+                              })}
+                            </div>
+                            <span className={`text-xs font-semibold ${getScoreClass(item.averageScore)}`}>{item.averageScore.toFixed(1)}</span>
+                          </div>
+                        </div>
+                        <div className="ml-2 flex flex-shrink-0 items-center gap-1.5">
+                          <div
+                            className="h-2 w-2 rounded-full"
+                            style={{ background: item.stdDev < 1 ? '#22c55e' : item.stdDev < 1.5 ? '#f59e0b' : '#ef4444' }}
+                          />
+                          <span
+                            className="text-xs"
+                            style={{ color: item.stdDev < 1 ? '#22c55e' : item.stdDev < 1.5 ? '#f59e0b' : '#ef4444' }}
+                          >
+                            {item.stdDev < 1 ? 'Enige' : item.stdDev < 1.5 ? 'Delte meninger' : 'Uenige'}
+                          </span>
+                        </div>
+                      </div>
                     </article>
                   ))}
             </div>
