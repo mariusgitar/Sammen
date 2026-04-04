@@ -14,6 +14,7 @@ type SessionView = {
 type SessionItem = {
   id: string;
   text: string;
+  isQuestion?: boolean;
 };
 
 type StemmingViewProps = {
@@ -46,11 +47,15 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   const participantStorageKey = 'samen_participant_id';
   const nicknameStorageKey = `samen_nickname_${session.code}`;
 
+  const votableItems = useMemo(() => items.filter((item) => !item.isQuestion), [items]);
   const isDotVoting = session.votingType === 'dots' && session.dotBudget > 0;
-  const allItemsVoted = useMemo(() => items.every((item) => typeof votes[item.id] === 'number'), [items, votes]);
+  const allItemsVoted = useMemo(
+    () => votableItems.every((item) => typeof votes[item.id] === 'number'),
+    [votableItems, votes],
+  );
   const dotsUsed = useMemo(
-    () => items.reduce((sum, item) => sum + (votes[item.id] ?? 0), 0),
-    [items, votes],
+    () => votableItems.reduce((sum, item) => sum + (votes[item.id] ?? 0), 0),
+    [votableItems, votes],
   );
   const dotsRemaining = Math.max(0, session.dotBudget - dotsUsed);
   const canSubmit = isDotVoting ? dotsUsed === session.dotBudget : allItemsVoted;
@@ -151,7 +156,7 @@ export function StemmingView({ session, items }: StemmingViewProps) {
           sessionId: session.id,
           participantId,
           nickname: nickname.trim(),
-          responses: items.map((item) => ({
+          responses: votableItems.map((item) => ({
             itemId: item.id,
             value: String(votes[item.id] ?? 0),
           })),
@@ -276,7 +281,7 @@ export function StemmingView({ session, items }: StemmingViewProps) {
         </div>
 
         <div className="space-y-4">
-          {items.map((item) => {
+          {votableItems.map((item) => {
             const currentDots = votes[item.id] ?? 0;
             const totalUsed = Object.values(votes).reduce((sum, value) => sum + value, 0);
             const remainingBudget = session.dotBudget - totalUsed;
@@ -309,7 +314,7 @@ export function StemmingView({ session, items }: StemmingViewProps) {
                           onClick={() => {
                             setVotes((current) => {
                               const currentValue = current[item.id] ?? 0;
-                              const totalWithoutCurrent = items.reduce(
+                              const totalWithoutCurrent = votableItems.reduce(
                                 (sum, currentItem) =>
                                   sum + (currentItem.id === item.id ? 0 : (current[currentItem.id] ?? 0)),
                                 0,
