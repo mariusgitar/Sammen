@@ -74,6 +74,7 @@ export function InnspillView({
   );
   const [showOthers, setShowOthers] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const canSeeOthers = session.show_others_innspill;
   const initialized = useRef(false);
   const participantStorageKey = "samen_participant_id";
@@ -239,6 +240,7 @@ export function InnspillView({
 
   function handleSubmit() {
     setSubmitted(true);
+    setShowConfirm(false);
   }
 
   async function submit(questionId: string) {
@@ -678,18 +680,42 @@ export function InnspillView({
         </div>
 
         {myInnspillCount > 0 ? (
-          <div className="sticky bottom-0 border-t border-slate-100 bg-white/90 p-4 backdrop-blur-sm">
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className="w-full bg-[#0f172a] text-white rounded-full px-6 py-3 font-semibold hover:bg-[#1e293b] transition-colors"
-            >
-              Lever svar ({myInnspillCount} innspill)
-            </button>
-            <p className="mt-2 text-center text-xs text-slate-400">
-              Du kan legge til flere innspill før du leverer
-            </p>
-          </div>
+          showConfirm ? (
+            <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm border-t border-slate-100 p-4">
+              <p className="text-sm font-medium text-slate-700 text-center mb-3">
+                Er du ferdig med alle innspill?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowConfirm(false)}
+                  className="flex-1 rounded-full border border-slate-300 px-6 py-3 font-semibold text-slate-700 transition-colors hover:bg-slate-50"
+                >
+                  Fortsett å redigere
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSubmit}
+                  className="flex-1 rounded-full bg-[#0f172a] px-6 py-3 font-semibold text-white transition-colors hover:bg-[#1e293b]"
+                >
+                  Ja, lever svar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="sticky bottom-0 border-t border-slate-100 bg-white/90 p-4 backdrop-blur-sm">
+              <button
+                type="button"
+                onClick={() => setShowConfirm(true)}
+                className="w-full bg-[#0f172a] text-white rounded-full px-6 py-3 font-semibold hover:bg-[#1e293b] transition-colors"
+              >
+                Lever svar ({myInnspillCount} innspill)
+              </button>
+              <p className="mt-2 text-center text-xs text-slate-400">
+                Du kan legge til flere innspill før du leverer
+              </p>
+            </div>
+          )
         ) : null}
       </div>
     </main>
