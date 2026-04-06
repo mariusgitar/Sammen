@@ -17,6 +17,7 @@ type SessionView = {
   status: 'setup' | 'active' | 'paused' | 'closed';
   resultsVisible: boolean;
   showOthersInnspill: boolean;
+  tags: string[];
 };
 
 type SessionItem = {
@@ -27,6 +28,7 @@ type SessionItem = {
   createdBy: string;
   isQuestion?: boolean;
   questionStatus?: 'inactive' | 'active' | 'locked';
+  finalTag?: string | null;
 };
 
 type KartleggingSummaryItem = {
@@ -36,6 +38,7 @@ type KartleggingSummaryItem = {
   created_by: string;
   excluded: boolean;
   defaultTag: string | null;
+  finalTag: string | null;
   changedCount: number;
   tagCounts: Record<string, number>;
   untaggedCount: number;
@@ -174,6 +177,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       created_by: item.createdBy,
       excluded: item.excluded,
       defaultTag: null,
+      finalTag: item.finalTag ?? null,
       changedCount: 0,
       tagCounts: {},
       untaggedCount: 0,
@@ -198,6 +202,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const [kartleggingVotingType, setKartleggingVotingType] = useState<'scale' | 'dots'>('scale');
   const [innspillVotingType, setInnspillVotingType] = useState<'scale' | 'dots'>('scale');
   const [confirmClose, setConfirmClose] = useState(false);
+  const [savingFinalTagByItem, setSavingFinalTagByItem] = useState<Record<string, boolean>>({});
 
   async function fetchSummary() {
     try {
@@ -437,6 +442,71 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       await fetchSummary();
     } catch (updateError) {
       setError(updateError instanceof Error ? updateError.message : 'Kunne ikke oppdatere element.');
+    }
+  }
+
+  async function updateFinalTag(itemId: string, nextFinalTag: string | null) {
+    setError('');
+
+    const previousFinalTag =
+      summary.items.find((item): item is KartleggingSummaryItem => 'tagCounts' in item && item.id === itemId)?.finalTag ?? null;
+
+    setSummary((current) => ({
+      ...current,
+      items: current.items.map((item) =>
+        'tagCounts' in item && item.id === itemId
+          ? {
+              ...item,
+              finalTag: nextFinalTag,
+            }
+          : item,
+      ),
+    }));
+    setSavingFinalTagByItem((current) => ({ ...current, [itemId]: true }));
+
+    try {
+      const response = await fetch(`/api/items/${itemId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ final_tag: nextFinalTag }),
+      });
+      const data = (await response.json()) as
+        | { item: { id: string; finalTag?: string | null; final_tag?: string | null } }
+        | { error: string };
+
+      if (!response.ok || !('item' in data)) {
+        throw new Error('error' in data ? data.error : 'Kunne ikke lagre endelig tag.');
+      }
+
+      const persistedFinalTag = data.item.finalTag ?? data.item.final_tag ?? null;
+      setSummary((current) => ({
+        ...current,
+        items: current.items.map((item) =>
+          'tagCounts' in item && item.id === itemId
+            ? {
+                ...item,
+                finalTag: persistedFinalTag,
+              }
+            : item,
+        ),
+      }));
+    } catch (updateError) {
+      setSummary((current) => ({
+        ...current,
+        items: current.items.map((item) =>
+          'tagCounts' in item && item.id === itemId
+            ? {
+                ...item,
+                finalTag: previousFinalTag,
+              }
+            : item,
+        ),
+      }));
+      setError(updateError instanceof Error ? updateError.message : 'Kunne ikke lagre endelig tag.');
+    } finally {
+      setSavingFinalTagByItem((current) => ({ ...current, [itemId]: false }));
     }
   }
 
@@ -952,6 +1022,36 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         </div>
         {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
       </section>
+
+      {sessionStatus === 'paused' && sessionPhase === 'kartlegging' ? (
+        <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+          <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Rediger endelige tagger</h2>
+          <p className="mt-2 text-sm text-slate-300">Velg hvilken tag som skal følge hvert element inn i stemming.</p>
+          <div className="mt-4 space-y-3">
+            {finalListItems.map((item) => (
+              <div key={`final-tag-${item.id}`} className="flex flex-col gap-2 rounded-xl border border-slate-700 bg-slate-950/70 p-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-slate-100">{item.text}</p>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={item.finalTag ?? ''}
+                    onChange={(event) => void updateFinalTag(item.id, event.target.value === '' ? null : event.target.value)}
+                    disabled={Boolean(savingFinalTagByItem[item.id])}
+                    className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                  >
+                    <option value="">Ingen tag</option>
+                    {currentSession.tags.map((tag) => (
+                      <option key={`${item.id}-final-tag-option-${tag}`} value={tag}>
+                        {tag}
+                      </option>
+                    ))}
+                  </select>
+                  {savingFinalTagByItem[item.id] ? <span className="text-xs text-slate-400">Lagrer…</span> : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {sessionStatus === 'paused' && sessionPhase === 'kartlegging' ? (
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">

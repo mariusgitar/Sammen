@@ -47,6 +47,8 @@ type SessionResponse = {
     questionStatus: QuestionStatus;
     defaultTag: string | null;
     default_tag: string | null;
+    finalTag: string | null;
+    final_tag: string | null;
   }>;
 };
 
@@ -156,7 +158,48 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   }
 
   if (session.status === 'active' && (session.phase === 'stemming' || session.mode === 'stemming')) {
-    const votableItems = items.filter((item) => !item.excluded && !item.isQuestion);
+    const tagOrder = new Map(session.tags.map((tag, index) => [tag, index]));
+    const votableItems = items
+      .filter((item) => !item.excluded && !item.isQuestion)
+      .sort((a, b) => {
+        const aFinalTag = a.finalTag ?? a.final_tag;
+        const bFinalTag = b.finalTag ?? b.final_tag;
+
+        if (!aFinalTag && !bFinalTag) {
+          return a.orderIndex - b.orderIndex;
+        }
+
+        if (!aFinalTag) {
+          return 1;
+        }
+
+        if (!bFinalTag) {
+          return -1;
+        }
+
+        const aTagIndex = tagOrder.get(aFinalTag);
+        const bTagIndex = tagOrder.get(bFinalTag);
+
+        if (aTagIndex !== undefined && bTagIndex !== undefined && aTagIndex !== bTagIndex) {
+          return aTagIndex - bTagIndex;
+        }
+
+        if (aTagIndex !== undefined && bTagIndex === undefined) {
+          return -1;
+        }
+
+        if (aTagIndex === undefined && bTagIndex !== undefined) {
+          return 1;
+        }
+
+        const alphabeticalSort = aFinalTag.localeCompare(bFinalTag, 'nb');
+
+        if (alphabeticalSort !== 0) {
+          return alphabeticalSort;
+        }
+
+        return a.orderIndex - b.orderIndex;
+      });
 
     return (
       <StemmingView
