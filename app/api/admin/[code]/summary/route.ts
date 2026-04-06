@@ -62,6 +62,10 @@ type ThemeSummaryItem = {
   }>;
 };
 
+function normalizeTagKey(tag: string) {
+  return tag.trim().toLowerCase();
+}
+
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const db = getDb();
@@ -290,10 +294,9 @@ export async function GET(_request: Request, { params }: RouteContext) {
       }
 
       const taggedCount = new Set(itemResponses.map((r) => r.participant_id)).size;
+      const defaultTag = item.default_tag;
       const changedCount =
-        item.default_tag === null
-          ? 0
-          : itemResponses.filter((response) => response.value !== item.default_tag).length;
+        defaultTag === null ? 0 : itemResponses.filter((response) => normalizeTagKey(response.value) !== normalizeTagKey(defaultTag)).length;
 
       return {
         id: item.id,

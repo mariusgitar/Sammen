@@ -235,7 +235,11 @@ export default function NewSessionPage() {
     const parsedTags = tags
       .split(",")
       .map((tag) => tag.trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .filter((tag, index, allTags) => {
+        const normalizedTag = tag.toLowerCase();
+        return allTags.findIndex((candidate) => candidate.toLowerCase() === normalizedTag) === index;
+      });
 
     const parsedMaxRankItems =
       isRangering && maxRankItemsInput !== "all" ? Number(maxRankItemsInput) : null;
