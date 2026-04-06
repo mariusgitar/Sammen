@@ -122,6 +122,49 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
   }, [submitted, session.code]);
 
   const originalItems = useMemo(() => items.filter((item) => !item.isNew), [items]);
+  const sortedOriginalItems = useMemo(() => {
+    const tagOrder = new Map(session.tags.map((tag, index) => [tag, index]));
+
+    return [...originalItems].sort((a, b) => {
+      const aDefaultTag = a.defaultTag ?? a.default_tag;
+      const bDefaultTag = b.defaultTag ?? b.default_tag;
+
+      if (!aDefaultTag && !bDefaultTag) {
+        return a.orderIndex - b.orderIndex;
+      }
+
+      if (!aDefaultTag) {
+        return 1;
+      }
+
+      if (!bDefaultTag) {
+        return -1;
+      }
+
+      const aTagIndex = tagOrder.get(aDefaultTag);
+      const bTagIndex = tagOrder.get(bDefaultTag);
+
+      if (aTagIndex !== undefined && bTagIndex !== undefined && aTagIndex !== bTagIndex) {
+        return aTagIndex - bTagIndex;
+      }
+
+      if (aTagIndex !== undefined && bTagIndex === undefined) {
+        return -1;
+      }
+
+      if (aTagIndex === undefined && bTagIndex !== undefined) {
+        return 1;
+      }
+
+      const alphabeticalSort = aDefaultTag.localeCompare(bDefaultTag, 'nb');
+
+      if (alphabeticalSort !== 0) {
+        return alphabeticalSort;
+      }
+
+      return a.orderIndex - b.orderIndex;
+    });
+  }, [originalItems, session.tags]);
   const responseItems = useMemo(
     () => [...originalItems, ...proposedItems.map((item, index) => ({ ...item, orderIndex: index, isNew: true }))],
     [originalItems, proposedItems],
@@ -297,7 +340,7 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
         </div>
 
         <div className="space-y-4">
-          {originalItems.map((item) => (
+          {sortedOriginalItems.map((item) => (
             <section key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
               <p className="text-base font-medium text-[#0f172a]">{item.text}</p>
               <div className="mt-4 flex flex-wrap gap-2">
