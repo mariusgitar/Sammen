@@ -1092,14 +1092,23 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
           <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Kuratér til stemming</h2>
           <p className="mt-2 text-sm text-slate-300">Grupper etter enighet, velg endelig tag og om elementet tas med videre.</p>
           <div className="mt-4 space-y-6">
-            {[
+            {(() => {
+              const getGroupingStats = (item: KartleggingSummaryItem) => {
+                const totalVotes = Object.values(item.tagCounts).reduce((sum, count) => sum + count, 0);
+                const highestCount = Object.values(item.tagCounts).length > 0 ? Math.max(...Object.values(item.tagCounts)) : 0;
+                const ratio = totalVotes > 0 ? highestCount / totalVotes : 0;
+
+                return { totalVotes, ratio };
+              };
+
+              return [
               {
                 key: 'klar',
                 title: 'Klar',
                 description: 'Høyeste tag har 100% av stemmene.',
                 items: finalListItems.filter((item) => {
-                  const highestTagCount = Object.values(item.tagCounts).reduce((max, count) => Math.max(max, count), 0);
-                  return summary.participantCount > 0 && highestTagCount === summary.participantCount;
+                  const { totalVotes, ratio } = getGroupingStats(item);
+                  return totalVotes > 0 && ratio === 1;
                 }),
               },
               {
@@ -1107,14 +1116,8 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                 title: 'Noe uenighet',
                 description: 'Høyeste tag har mer enn 50%, men ikke 100% av stemmene.',
                 items: finalListItems.filter((item) => {
-                  if (summary.participantCount === 0) {
-                    return false;
-                  }
-
-                  const highestTagCount = Object.values(item.tagCounts).reduce((max, count) => Math.max(max, count), 0);
-                  const share = highestTagCount / summary.participantCount;
-
-                  return share > 0.5 && share < 1;
+                  const { totalVotes, ratio } = getGroupingStats(item);
+                  return totalVotes > 0 && ratio > 0.5 && ratio < 1;
                 }),
               },
               {
@@ -1122,15 +1125,21 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                 title: 'Diskuter først',
                 description: 'Ingen tag har mer enn 50% av stemmene.',
                 items: finalListItems.filter((item) => {
-                  if (summary.participantCount === 0) {
-                    return true;
-                  }
-
-                  const highestTagCount = Object.values(item.tagCounts).reduce((max, count) => Math.max(max, count), 0);
-                  return highestTagCount / summary.participantCount <= 0.5;
+                  const { totalVotes, ratio } = getGroupingStats(item);
+                  return totalVotes > 0 && ratio <= 0.5;
                 }),
               },
-            ].map((group) => (
+              {
+                key: 'ikke-tagget',
+                title: 'Ikke tagget',
+                description: 'Ingen registrerte tag-stemmer ennå.',
+                items: finalListItems.filter((item) => {
+                  const { totalVotes } = getGroupingStats(item);
+                  return totalVotes === 0;
+                }),
+              },
+            ];
+            })().map((group) => (
               <article key={group.key} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">
                 <h3 className="text-sm font-semibold text-slate-100">{group.title}</h3>
                 <p className="mt-1 text-xs text-slate-400">{group.description}</p>
