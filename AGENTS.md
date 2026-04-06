@@ -45,7 +45,7 @@ sessions:
 
 items:
   id, session_id, text, created_by, is_new, order_index,
-  excluded, is_question, question_status, created_at
+  excluded, is_question, question_status, default_tag, created_at
 
   question_status values: 'inactive' | 'active' | 'locked'
   is_question: true for Åpne innspill questions

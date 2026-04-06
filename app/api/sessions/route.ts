@@ -89,14 +89,14 @@ export async function POST(request: NextRequest) {
     }
 
     const title = body.title.trim();
-    const itemTexts = body.items.map((item) => item.trim()).filter(Boolean);
+    const itemLines = body.items.map((item) => item.trim()).filter(Boolean);
     const tags = body.tags.map((tag) => tag.trim()).filter(Boolean);
 
     if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
     }
 
-    if (itemTexts.length === 0) {
+    if (itemLines.length === 0) {
       return NextResponse.json({ error: 'At least one item is required' }, { status: 400 });
     }
 
@@ -155,7 +155,26 @@ export async function POST(request: NextRequest) {
         tags: sessions.tags,
       });
 
-    const itemRows = itemTexts.map((text, orderIndex) => {
+    const parsedItems = itemLines
+      .map((line, orderIndex) => {
+        const parts = line.split(';');
+        const text = parts[0]?.trim() ?? '';
+        const defaultTag = parts[1]?.trim() || null;
+        const validDefaultTag = defaultTag && tags.includes(defaultTag) ? defaultTag : null;
+
+        return {
+          text,
+          orderIndex,
+          defaultTag: normalizedMode === 'kartlegging' ? validDefaultTag : null,
+        };
+      })
+      .filter((item) => item.text.length > 0);
+
+    if (parsedItems.length === 0) {
+      return NextResponse.json({ error: 'At least one item is required' }, { status: 400 });
+    }
+
+    const itemRows = parsedItems.map(({ text, orderIndex, defaultTag }) => {
       const questionStatus: 'active' | 'inactive' =
         normalizedMode === 'aapne-innspill' && visibilityMode === 'all' ? 'active' : 'inactive';
 
@@ -165,6 +184,7 @@ export async function POST(request: NextRequest) {
         orderIndex,
         isQuestion: normalizedMode === 'aapne-innspill',
         questionStatus,
+        defaultTag,
       };
     });
 

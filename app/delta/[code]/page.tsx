@@ -45,6 +45,8 @@ type SessionResponse = {
     orderIndex: number;
     isQuestion: boolean;
     questionStatus: QuestionStatus;
+    defaultTag: string | null;
+    default_tag: string | null;
   }>;
 };
 

@@ -88,6 +88,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
         excluded: items.excluded,
         isQuestion: items.isQuestion,
         questionStatus: items.questionStatus,
+        defaultTag: items.defaultTag,
+        default_tag: items.defaultTag,
         orderIndex: items.orderIndex,
         createdAt: items.createdAt,
       })
