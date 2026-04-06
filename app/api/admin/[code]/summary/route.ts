@@ -20,6 +20,7 @@ type KartleggingSummaryItem = {
   created_by: string;
   excluded: boolean;
   defaultTag: string | null;
+  finalTag: string | null;
   changedCount: number;
   tagCounts: Record<string, number>;
   untaggedCount: number;
@@ -90,6 +91,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         is_question: items.isQuestion,
         excluded: items.excluded,
         default_tag: items.defaultTag,
+        final_tag: items.finalTag,
       })
       .from(items)
       .where(eq(items.sessionId, session.id))
@@ -305,6 +307,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         created_by: item.created_by,
         excluded: item.excluded,
         defaultTag: item.default_tag,
+        finalTag: item.final_tag,
         changedCount,
         tagCounts,
         untaggedCount: participantCount - taggedCount,

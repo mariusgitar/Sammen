@@ -5,6 +5,7 @@ ALTER TABLE items ADD COLUMN excluded boolean NOT NULL DEFAULT false;
 ALTER TABLE items ADD COLUMN is_question boolean NOT NULL DEFAULT false;
 ALTER TABLE items ADD COLUMN question_status text NOT NULL DEFAULT 'inactive';
 ALTER TABLE items ADD COLUMN default_tag text;
+ALTER TABLE items ADD COLUMN final_tag text;
 ALTER TABLE sessions ADD COLUMN phase text NOT NULL DEFAULT 'kartlegging';
 ALTER TABLE sessions ADD COLUMN dot_budget integer NOT NULL DEFAULT 5;
 ALTER TABLE sessions ADD COLUMN voting_type text NOT NULL DEFAULT 'scale';
@@ -68,6 +69,7 @@ CREATE TABLE IF NOT EXISTS items (
   is_question boolean NOT NULL DEFAULT false,
   question_status text NOT NULL DEFAULT 'inactive' CHECK (question_status IN ('inactive', 'active', 'locked')),
   default_tag text,
+  final_tag text,
   excluded boolean NOT NULL DEFAULT false,
   order_index integer NOT NULL DEFAULT 0,
   created_at timestamp NOT NULL DEFAULT now()
@@ -153,6 +155,7 @@ export const items = pgTable('items', {
   isQuestion: boolean('is_question').notNull().default(false),
   questionStatus: text('question_status').$type<QuestionStatus>().notNull().default('inactive'),
   defaultTag: text('default_tag'),
+  finalTag: text('final_tag'),
   excluded: boolean('excluded').notNull().default(false),
   orderIndex: integer('order_index').notNull().default(0),
   createdAt: timestamp('created_at').notNull().defaultNow(),

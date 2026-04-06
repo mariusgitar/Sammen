@@ -209,6 +209,7 @@ export async function POST(request: NextRequest) {
         isQuestion: normalizedMode === 'aapne-innspill',
         questionStatus,
         defaultTag,
+        finalTag: defaultTag,
       };
     });
 

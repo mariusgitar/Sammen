@@ -29,6 +29,7 @@ export default async function AdminSessionPage({ params }: AdminPageProps) {
       status: sessions.status,
       resultsVisible: sessions.resultsVisible,
       showOthersInnspill: sessions.showOthersInnspill,
+      tags: sessions.tags,
     })
     .from(sessions)
     .where(eq(sessions.code, code))
@@ -54,6 +55,7 @@ export default async function AdminSessionPage({ params }: AdminPageProps) {
       createdBy: items.createdBy,
       isQuestion: items.isQuestion,
       questionStatus: items.questionStatus,
+      finalTag: items.finalTag,
     })
     .from(items)
     .where(eq(items.sessionId, session.id))
