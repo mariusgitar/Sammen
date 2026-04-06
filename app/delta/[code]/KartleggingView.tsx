@@ -15,6 +15,8 @@ type SessionItem = {
   text: string;
   isNew: boolean;
   orderIndex: number;
+  defaultTag?: string | null;
+  default_tag?: string | null;
 };
 
 type ProposedItem = {
@@ -50,7 +52,20 @@ type CreateItemResult =
 export function KartleggingView({ session, items }: KartleggingViewProps) {
   const [nickname, setNickname] = useState('');
   const [hasJoined, setHasJoined] = useState(false);
-  const [responses, setResponses] = useState<Record<string, string>>({});
+  const [responses, setResponses] = useState<Record<string, string>>(() => {
+    const initial: Record<string, string> = {};
+
+    items.forEach((item) => {
+      const defaultTag = item.defaultTag ?? item.default_tag;
+
+      if (defaultTag) {
+        initial[item.id] = defaultTag;
+      }
+    });
+
+    return initial;
+  });
+  const [changedByUser, setChangedByUser] = useState<Set<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
   const [participantId, setParticipantId] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -129,6 +144,7 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
       ...current,
       [itemId]: value,
     }));
+    setChangedByUser((current) => new Set([...current, itemId]));
   }
 
   async function handleProposeItem() {
@@ -287,20 +303,28 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
               <div className="mt-4 flex flex-wrap gap-2">
                 {session.tags.map((tag) => {
                   const selected = responses[item.id] === tag;
+                  const hasDefaultTag = Boolean(item.defaultTag ?? item.default_tag);
+                  const suggested = selected && hasDefaultTag && !changedByUser.has(item.id);
 
                   return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => handleSelectTag(item.id, tag)}
-                      className={`rounded-full border px-3 py-1 text-sm transition ${
-                        selected
-                          ? 'border-[#0f172a] bg-[#0f172a] text-white'
-                          : 'border-[#e2e8f0] bg-white text-[#0f172a] hover:border-[#cbd5e1]'
-                      }`}
-                    >
-                      {tag}
-                    </button>
+                    <div key={tag} className="flex flex-col items-start gap-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectTag(item.id, tag)}
+                        className={`rounded-full border px-3 py-1 text-sm transition ${
+                          selected
+                            ? suggested
+                              ? 'border-slate-700 bg-slate-700 text-white/70'
+                              : 'border-[#0f172a] bg-[#0f172a] text-white'
+                            : 'border-[#e2e8f0] bg-white text-[#0f172a] hover:border-[#cbd5e1]'
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                      {suggested ? (
+                        <p className="text-xs text-slate-400">← foreslått av fasilitator</p>
+                      ) : null}
+                    </div>
                   );
                 })}
               </div>

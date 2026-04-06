@@ -35,6 +35,8 @@ type KartleggingSummaryItem = {
   is_new: boolean;
   created_by: string;
   excluded: boolean;
+  defaultTag: string | null;
+  changedCount: number;
   tagCounts: Record<string, number>;
   untaggedCount: number;
 };
@@ -171,6 +173,8 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       is_new: item.isNew,
       created_by: item.createdBy,
       excluded: item.excluded,
+      defaultTag: null,
+      changedCount: 0,
       tagCounts: {},
       untaggedCount: 0,
     })),
@@ -1190,6 +1194,16 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                       {splitVotes ? (
                         <span className="rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200">
                           ⚠ Uenighet
+                        </span>
+                      ) : null}
+                      {item.defaultTag && item.changedCount > 0 ? (
+                        <span className="rounded-full border border-amber-500/30 bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-200">
+                          {item.changedCount} endret forslag
+                        </span>
+                      ) : null}
+                      {item.defaultTag && item.changedCount === 0 && Object.keys(item.tagCounts).length > 0 ? (
+                        <span className="rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-200">
+                          Alle enige
                         </span>
                       ) : null}
                     </div>
