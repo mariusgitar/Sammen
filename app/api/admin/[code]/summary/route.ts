@@ -290,13 +290,17 @@ export async function GET(_request: Request, { params }: RouteContext) {
     const itemSummaries: KartleggingSummaryItem[] = allItems.map((item) => {
       const itemResponses = allResponses.filter((r) => r.item_id === item.id);
       const tagCounts: Record<string, number> = {};
+      const defaultTag = item.default_tag;
+
+      if (defaultTag !== null) {
+        tagCounts[defaultTag] = (tagCounts[defaultTag] ?? 0) + 1;
+      }
 
       for (const r of itemResponses) {
         tagCounts[r.value] = (tagCounts[r.value] ?? 0) + 1;
       }
 
       const taggedCount = new Set(itemResponses.map((r) => r.participant_id)).size;
-      const defaultTag = item.default_tag;
       const changedCount =
         defaultTag === null ? 0 : itemResponses.filter((response) => normalizeTagKey(response.value) !== normalizeTagKey(defaultTag)).length;
 
