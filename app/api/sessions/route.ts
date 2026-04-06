@@ -27,6 +27,29 @@ type BulkDeleteBody = {
   status: 'closed' | 'setup';
 };
 
+function normalizeTagKey(tag: string) {
+  return tag.trim().toLowerCase();
+}
+
+function normalizeTagsPreserveCasing(tags: string[]) {
+  const normalized: string[] = [];
+  const seen = new Set<string>();
+
+  for (const tag of tags) {
+    const trimmed = tag.trim();
+    const key = normalizeTagKey(trimmed);
+
+    if (!trimmed || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    normalized.push(trimmed);
+  }
+
+  return normalized;
+}
+
 function isCreateSessionBody(body: unknown): body is CreateSessionBody {
   if (!body || typeof body !== 'object') {
     return false;
@@ -90,7 +113,8 @@ export async function POST(request: NextRequest) {
 
     const title = body.title.trim();
     const itemLines = body.items.map((item) => item.trim()).filter(Boolean);
-    const tags = body.tags.map((tag) => tag.trim()).filter(Boolean);
+    const tags = normalizeTagsPreserveCasing(body.tags);
+    const tagsByKey = new Map(tags.map((tag) => [normalizeTagKey(tag), tag]));
 
     if (!title) {
       return NextResponse.json({ error: 'Title is required' }, { status: 400 });
@@ -157,10 +181,10 @@ export async function POST(request: NextRequest) {
 
     const parsedItems = itemLines
       .map((line, orderIndex) => {
-        const parts = line.split(';');
-        const text = parts[0]?.trim() ?? '';
-        const defaultTag = parts[1]?.trim() || null;
-        const validDefaultTag = defaultTag && tags.includes(defaultTag) ? defaultTag : null;
+        const [rawText, rawDefaultTag] = line.split(';');
+        const text = rawText?.trim() ?? '';
+        const defaultTag = rawDefaultTag?.trim() ?? '';
+        const validDefaultTag = defaultTag ? (tagsByKey.get(normalizeTagKey(defaultTag)) ?? null) : null;
 
         return {
           text,
