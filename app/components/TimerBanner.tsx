@@ -3,6 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 
 type TimerBannerProps = {
+  code: string;
+};
+
+type TimerStreamPayload = {
   timerEndsAt: string | null;
   timerLabel: string | null;
 };
@@ -14,12 +18,36 @@ function formatRemaining(ms: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
-export function TimerBanner({ timerEndsAt, timerLabel }: TimerBannerProps) {
+export function TimerBanner({ code }: TimerBannerProps) {
+  const [timerEndsAt, setTimerEndsAt] = useState<string | null>(null);
+  const [timerLabel, setTimerLabel] = useState<string | null>(null);
   const [remainingMs, setRemainingMs] = useState(0);
   const [isRendered, setIsRendered] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
 
   const label = useMemo(() => timerLabel?.trim() ?? '', [timerLabel]);
+
+  useEffect(() => {
+    const eventSource = new EventSource(`/api/delta/${code}/timer-stream`);
+
+    eventSource.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data) as TimerStreamPayload;
+        setTimerEndsAt(payload.timerEndsAt ?? null);
+        setTimerLabel(payload.timerLabel ?? null);
+      } catch {
+        // Ignore malformed SSE payloads.
+      }
+    };
+
+    eventSource.onerror = () => {
+      console.error('Timer stream connection error');
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [code]);
 
   useEffect(() => {
     if (!timerEndsAt) {
