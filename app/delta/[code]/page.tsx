@@ -135,18 +135,18 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   const { session, items } = data;
 
   if (session.status === 'closed') {
-    return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er avsluttet.</h1></div><TimerBanner timerEndsAt={session.timerEndsAt} timerLabel={session.timerLabel} /></main>;
+    return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er avsluttet.</h1></div><TimerBanner code={code} /></main>;
   }
 
   if (session.status === 'setup' || session.status === 'paused') {
-    return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er ikke åpen ennå. Vent på fasilitator.</h1></div><TimerBanner timerEndsAt={session.timerEndsAt} timerLabel={session.timerLabel} /></main>;
+    return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er ikke åpen ennå. Vent på fasilitator.</h1></div><TimerBanner code={code} /></main>;
   }
 
   if (session.mode === 'aapne-innspill' && session.status === 'active') {
     return (
       <>
         <InnspillView session={session} items={items.filter((item) => item.isQuestion)} />
-        <TimerBanner timerEndsAt={session.timerEndsAt} timerLabel={session.timerLabel} />
+        <TimerBanner code={code} />
       </>
     );
   }
@@ -164,7 +164,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
             maxRankItems: session.maxRankItems,
           }}
         />
-        <TimerBanner timerEndsAt={session.timerEndsAt} timerLabel={session.timerLabel} />
+        <TimerBanner code={code} />
       </>
     );
   }
@@ -226,7 +226,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
             allowMultipleDots: session.allowMultipleDots,
           }}
         />
-        <TimerBanner timerEndsAt={session.timerEndsAt} timerLabel={session.timerLabel} />
+        <TimerBanner code={code} />
       </>
     );
   }
@@ -243,7 +243,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
           allowNewItems: session.allowNewItems,
         }}
       />
-      <TimerBanner timerEndsAt={session.timerEndsAt} timerLabel={session.timerLabel} />
+      <TimerBanner code={code} />
     </>
   );
 }
