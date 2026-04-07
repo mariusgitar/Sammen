@@ -742,6 +742,15 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         >
           Åpne presentasjonsmodus →
         </Link>
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={() => window.open(`/api/admin/${currentSession.code}/export`)}
+            className="border border-slate-600 rounded-full px-4 py-2 text-sm text-slate-300 transition hover:border-slate-500 hover:text-slate-200"
+          >
+            Last ned rapport
+          </button>
+        </div>
         <div className="mt-6 rounded-xl border border-slate-700 bg-slate-950 p-4">
           <p className="text-sm text-slate-400">Sesjonskode</p>
           <button
