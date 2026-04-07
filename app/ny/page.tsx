@@ -245,6 +245,21 @@ export default function NewSessionPage() {
     [tags],
   );
 
+  useEffect(() => {
+    const usedTags = kartleggingItems
+      .map((item) => item.tag)
+      .filter((tag): tag is string => Boolean(tag))
+      .filter(
+        (tag, index, allTags) =>
+          allTags.findIndex((candidate) => candidate.toLowerCase().trim() === tag.toLowerCase().trim()) === index,
+      )
+      .map((tag) => tag.trim());
+
+    if (usedTags.length > 0) {
+      setTags(usedTags.join(", "));
+    }
+  }, [kartleggingItems]);
+
   function updateKartleggingItem(
     itemId: string,
     updates: Partial<Pick<KartleggingItemDraft, "name" | "tag" | "description" | "showDescription">>,
