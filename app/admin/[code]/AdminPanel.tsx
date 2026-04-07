@@ -1090,134 +1090,194 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       {sessionStatus === 'paused' && sessionPhase === 'kartlegging' ? (
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
           <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Kuratér til stemming</h2>
-          <p className="mt-2 text-sm text-slate-300">Grupper etter enighet, velg endelig tag og om elementet tas med videre.</p>
+          <p className="mt-2 text-sm text-slate-300">Grupper etter tag, velg endelig tag og om elementet tas med videre.</p>
           <div className="mt-4 space-y-6">
-            {(() => {
-              const getGroupingStats = (item: KartleggingSummaryItem) => {
-                const totalVotes = Object.values(item.tagCounts).reduce((sum, count) => sum + count, 0);
-                const highestCount = Object.values(item.tagCounts).length > 0 ? Math.max(...Object.values(item.tagCounts)) : 0;
-                const ratio = totalVotes > 0 ? highestCount / totalVotes : 0;
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void Promise.all(finalListItems.map(async (item) => updateIncluded(item.id, true)))}
+                className="rounded border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-800"
+              >
+                Velg alle
+              </button>
+              <button
+                type="button"
+                onClick={() => void Promise.all(finalListItems.map(async (item) => updateIncluded(item.id, false)))}
+                className="rounded border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-800"
+              >
+                Fjern alle
+              </button>
+              {currentSession.tags.map((tag) => (
+                <div key={`global-${tag}`} className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void setIncludedForTag(finalListItems, tag, true)}
+                    className="rounded border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-800"
+                  >
+                    Velg alle {tag}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void setIncludedForTag(finalListItems, tag, false)}
+                    className="rounded border border-slate-600 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-800"
+                  >
+                    Fjern alle {tag}
+                  </button>
+                </div>
+              ))}
+            </div>
 
-                return { totalVotes, ratio };
+            {(() => {
+              const getStats = (item: KartleggingSummaryItem) => {
+                const totalVotes = Object.values(item.tagCounts).reduce((sum, n) => sum + n, 0);
+                const highestCount = totalVotes > 0 ? Math.max(...Object.values(item.tagCounts)) : 0;
+                const ratio = totalVotes > 0 ? highestCount / totalVotes : 0;
+                const consensusTag =
+                  totalVotes > 0 ? Object.entries(item.tagCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null : null;
+                return { totalVotes, highestCount, ratio, consensusTag };
               };
 
-              return [
-              {
-                key: 'klar',
-                title: 'Klar',
-                description: 'Høyeste tag har 100% av stemmene.',
-                items: finalListItems.filter((item) => {
-                  const { totalVotes, ratio } = getGroupingStats(item);
-                  return totalVotes > 0 && ratio === 1;
-                }),
-              },
-              {
-                key: 'noe-uenighet',
-                title: 'Noe uenighet',
-                description: 'Høyeste tag har mer enn 50%, men ikke 100% av stemmene.',
-                items: finalListItems.filter((item) => {
-                  const { totalVotes, ratio } = getGroupingStats(item);
-                  return totalVotes > 0 && ratio > 0.5 && ratio < 1;
-                }),
-              },
-              {
-                key: 'diskuter-forst',
-                title: 'Diskuter først',
-                description: 'Ingen tag har mer enn 50% av stemmene.',
-                items: finalListItems.filter((item) => {
-                  const { totalVotes, ratio } = getGroupingStats(item);
-                  return totalVotes > 0 && ratio <= 0.5;
-                }),
-              },
-              {
-                key: 'ikke-tagget',
-                title: 'Ikke tagget',
-                description: 'Ingen registrerte tag-stemmer ennå.',
-                items: finalListItems.filter((item) => {
-                  const { totalVotes } = getGroupingStats(item);
-                  return totalVotes === 0;
-                }),
-              },
-            ];
-            })().map((group) => (
-              <article key={group.key} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">
-                <h3 className="text-sm font-semibold text-slate-100">{group.title}</h3>
-                <p className="mt-1 text-xs text-slate-400">{group.description}</p>
+              const itemsWithStats = finalListItems.map((item) => ({
+                item,
+                stats: getStats(item),
+              }));
 
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {currentSession.tags.map((tag) => (
-                    <div key={`${group.key}-${tag}`} className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void setIncludedForTag(group.items, tag, true)}
-                        className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
-                      >
-                        Velg alle {tag}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void setIncludedForTag(group.items, tag, false)}
-                        className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
-                      >
-                        Fjern alle {tag}
-                      </button>
-                    </div>
-                  ))}
-                </div>
+              const groupedByTag = new Map<string, typeof itemsWithStats>();
+              const unresolvedItems: typeof itemsWithStats = [];
 
-                <div className="mt-4 space-y-3">
-                  {group.items.length === 0 ? <p className="text-sm text-slate-400">Ingen elementer i denne gruppen.</p> : null}
-                  {group.items.map((item) => {
-                    const distributionEntries = [
-                      ...Object.entries(item.tagCounts),
-                      ...(item.untaggedCount > 0 ? ([['Ingen tag', item.untaggedCount]] as Array<[string, number]>) : []),
-                    ];
+              itemsWithStats.forEach((entry) => {
+                if (entry.stats.totalVotes > 0 && entry.stats.ratio >= 0.67 && entry.stats.consensusTag) {
+                  const existing = groupedByTag.get(entry.stats.consensusTag) ?? [];
+                  groupedByTag.set(entry.stats.consensusTag, [...existing, entry]);
+                  return;
+                }
 
-                    return (
-                      <div key={item.id} className="rounded-xl border border-slate-700 bg-slate-950 p-3">
-                        <p className="text-sm font-medium text-slate-100">{item.text}</p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {distributionEntries.length > 0
-                            ? distributionEntries.map(([tag, count]) => `${tag}: ${count}`).join(' / ')
-                            : 'Ingen tagger enda'}
-                        </p>
+                unresolvedItems.push(entry);
+              });
 
-                        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex items-center gap-2">
-                            <select
-                              value={getEffectiveFinalTag(item) ?? ''}
-                              onChange={(event) => void updateFinalTag(item.id, event.target.value === '' ? null : event.target.value)}
-                              disabled={Boolean(savingFinalTagByItem[item.id])}
-                              className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-                            >
-                              <option value="">Ingen tag</option>
-                              {currentSession.tags.map((tag) => (
-                                <option key={`${item.id}-final-tag-option-${tag}`} value={tag}>
-                                  {tag}
-                                </option>
-                              ))}
-                            </select>
-                            {savingFinalTagByItem[item.id] ? <span className="text-xs text-slate-400">Lagrer tag…</span> : null}
-                          </div>
+              const tagGroups = Array.from(groupedByTag.entries()).sort((a, b) => a[0].localeCompare(b[0]));
 
-                          <label className="flex items-center gap-2 text-sm text-slate-200">
-                            <input
-                              type="checkbox"
-                              checked={includeMap[item.id] ?? true}
-                              disabled={Boolean(savingIncludeByItem[item.id])}
-                              onChange={(event) => void updateIncluded(item.id, event.target.checked)}
-                              className="h-4 w-4 rounded border-slate-500 bg-slate-900"
-                            />
-                            Ta med videre
-                            {savingIncludeByItem[item.id] ? <span className="text-xs text-slate-400">(Lagrer…)</span> : null}
-                          </label>
-                        </div>
+              return (
+                <>
+                  {tagGroups.map(([tagName, groupItems]) => (
+                    <article key={tagName} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">
+                      <h3 className="text-xl font-bold text-slate-100">{tagName}</h3>
+                      <div className="mt-4 space-y-3">
+                        {groupItems.map(({ item, stats }) => {
+                          const distributionText = Object.entries(item.tagCounts)
+                            .map(([tag, count]) => `${tag}: ${count}`)
+                            .join(' / ');
+
+                          return (
+                            <div key={item.id} className="rounded-xl border border-slate-700 bg-slate-950 p-3">
+                              <p className="text-sm font-semibold text-slate-100">{item.text}</p>
+                              <p className="mt-1 text-xs text-slate-400">{distributionText || 'Ingen tagger enda'}</p>
+                              <p className="mt-2 text-xs text-slate-300">
+                                {stats.ratio === 1 ? (
+                                  <span className="text-emerald-300">● Alle enige</span>
+                                ) : (
+                                  <span className="text-amber-300">
+                                    ● {stats.highestCount} av {stats.totalVotes} enige
+                                  </span>
+                                )}
+                              </p>
+
+                              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                <div className="flex items-center gap-2">
+                                  <select
+                                    value={item.finalTag ?? stats.consensusTag ?? ''}
+                                    onChange={(event) =>
+                                      void updateFinalTag(item.id, event.target.value === '' ? null : event.target.value)
+                                    }
+                                    disabled={Boolean(savingFinalTagByItem[item.id])}
+                                    className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                                  >
+                                    <option value="">Ingen tag</option>
+                                    {currentSession.tags.map((tag) => (
+                                      <option key={`${item.id}-final-tag-option-${tag}`} value={tag}>
+                                        {tag}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  {savingFinalTagByItem[item.id] ? <span className="text-xs text-slate-400">Lagrer tag…</span> : null}
+                                </div>
+
+                                <label className="flex items-center gap-2 text-sm text-slate-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={includeMap[item.id] ?? !item.excluded}
+                                    disabled={Boolean(savingIncludeByItem[item.id])}
+                                    onChange={(event) => void updateIncluded(item.id, event.target.checked)}
+                                    className="h-4 w-4 rounded border-slate-500 bg-slate-900"
+                                  />
+                                  Ta med videre
+                                  {savingIncludeByItem[item.id] ? <span className="text-xs text-slate-400">(Lagrer…)</span> : null}
+                                </label>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
-                </div>
-              </article>
-            ))}
+                    </article>
+                  ))}
+
+                  <article className="rounded-xl border border-amber-600/50 bg-amber-950/20 p-4">
+                    <h3 className="text-xl font-bold text-amber-300">⚠️ Uavklart</h3>
+                    <div className="mt-4 space-y-3">
+                      {unresolvedItems.length === 0 ? <p className="text-sm text-slate-400">Ingen uavklarte elementer.</p> : null}
+                      {unresolvedItems.map(({ item, stats }) => {
+                        const distributionText = Object.entries(item.tagCounts)
+                          .map(([tag, count]) => `${tag}: ${count}`)
+                          .join(' / ');
+
+                        return (
+                          <div key={item.id} className="rounded-xl border border-slate-700 bg-slate-950 p-3">
+                            <p className="text-sm font-semibold text-slate-100">{item.text}</p>
+                            <p className="mt-1 text-xs text-slate-400">{distributionText || 'Ingen tagger enda'}</p>
+                            <p className="mt-2 text-xs text-red-300">● {distributionText || 'Ingen stemmer ennå'}</p>
+
+                            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={item.finalTag ?? ''}
+                                  onChange={(event) =>
+                                    void updateFinalTag(item.id, event.target.value === '' ? null : event.target.value)
+                                  }
+                                  disabled={Boolean(savingFinalTagByItem[item.id])}
+                                  className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                                >
+                                  <option value="">
+                                    {stats.consensusTag ? `Ingen tag (forslag: ${stats.consensusTag})` : 'Ingen tag'}
+                                  </option>
+                                  {currentSession.tags.map((tag) => (
+                                    <option key={`${item.id}-unresolved-final-tag-option-${tag}`} value={tag}>
+                                      {tag}
+                                    </option>
+                                  ))}
+                                </select>
+                                {savingFinalTagByItem[item.id] ? <span className="text-xs text-slate-400">Lagrer tag…</span> : null}
+                              </div>
+
+                              <label className="flex items-center gap-2 text-sm text-slate-200">
+                                <input
+                                  type="checkbox"
+                                  checked={includeMap[item.id] ?? !item.excluded}
+                                  disabled={Boolean(savingIncludeByItem[item.id])}
+                                  onChange={(event) => void updateIncluded(item.id, event.target.checked)}
+                                  className="h-4 w-4 rounded border-slate-500 bg-slate-900"
+                                />
+                                Ta med videre
+                                {savingIncludeByItem[item.id] ? <span className="text-xs text-slate-400">(Lagrer…)</span> : null}
+                              </label>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </article>
+                </>
+              );
+            })()}
           </div>
         </section>
       ) : null}
