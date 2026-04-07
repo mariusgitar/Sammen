@@ -19,6 +19,7 @@ type KartleggingSummaryItem = {
   is_new: boolean;
   created_by: string;
   excluded: boolean;
+  final_tag: string | null;
   tagCounts: Record<string, number>;
   untaggedCount: number;
 };
@@ -94,6 +95,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         is_new: items.isNew,
         created_by: items.createdBy,
         excluded: items.excluded,
+        final_tag: items.finalTag,
       })
       .from(items)
       .where(eq(items.sessionId, session.id))
@@ -285,6 +287,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         is_new: item.is_new,
         created_by: item.created_by,
         excluded: item.excluded,
+        final_tag: item.final_tag,
         tagCounts,
         untaggedCount: participantCount - taggedCount,
       };
