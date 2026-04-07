@@ -309,7 +309,7 @@ export default function NewSessionPage() {
 
     const importedTags = parsedElements
       .map((el) => el.tag)
-      .filter(Boolean)
+      .filter((tag): tag is string => Boolean(tag))
       .filter(
         (tag, i, arr) => arr.findIndex((t) => t.toLowerCase().trim() === tag.toLowerCase().trim()) === i,
       )
