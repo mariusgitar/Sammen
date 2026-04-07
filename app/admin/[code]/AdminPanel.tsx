@@ -452,17 +452,6 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     const previousFinalTag =
       summary.items.find((item): item is KartleggingSummaryItem => 'tagCounts' in item && item.id === itemId)?.finalTag ?? null;
 
-    setSummary((current) => ({
-      ...current,
-      items: current.items.map((item) =>
-        'tagCounts' in item && item.id === itemId
-          ? {
-              ...item,
-              finalTag: nextFinalTag,
-            }
-          : item,
-      ),
-    }));
     setSavingFinalTagByItem((current) => ({ ...current, [itemId]: true }));
 
     try {
@@ -1128,13 +1117,21 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
             </div>
 
             {(() => {
+              const groupBorderClasses = [
+                'border-violet-500',
+                'border-cyan-500',
+                'border-emerald-500',
+                'border-amber-500',
+                'border-rose-500',
+              ];
+
               const getStats = (item: KartleggingSummaryItem) => {
                 const totalVotes = Object.values(item.tagCounts).reduce((sum, n) => sum + n, 0);
-                const highestCount = totalVotes > 0 ? Math.max(...Object.values(item.tagCounts)) : 0;
-                const ratio = totalVotes > 0 ? highestCount / totalVotes : 0;
+                const ratio = totalVotes > 0 ? Math.max(...Object.values(item.tagCounts)) / totalVotes : 0;
                 const consensusTag =
                   totalVotes > 0 ? Object.entries(item.tagCounts).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null : null;
-                return { totalVotes, highestCount, ratio, consensusTag };
+                const distributionEntries = Object.entries(item.tagCounts).sort((a, b) => b[1] - a[1]);
+                return { totalVotes, ratio, consensusTag, distributionEntries };
               };
 
               const itemsWithStats = finalListItems.map((item) => ({
@@ -1146,9 +1143,12 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               const unresolvedItems: typeof itemsWithStats = [];
 
               itemsWithStats.forEach((entry) => {
-                if (entry.stats.totalVotes > 0 && entry.stats.ratio >= 0.67 && entry.stats.consensusTag) {
-                  const existing = groupedByTag.get(entry.stats.consensusTag) ?? [];
-                  groupedByTag.set(entry.stats.consensusTag, [...existing, entry]);
+                const groupingTag =
+                  entry.item.finalTag ?? (entry.stats.totalVotes > 0 && entry.stats.ratio >= 0.67 ? entry.stats.consensusTag : null);
+
+                if (groupingTag) {
+                  const existing = groupedByTag.get(groupingTag) ?? [];
+                  groupedByTag.set(groupingTag, [...existing, entry]);
                   return;
                 }
 
@@ -1159,28 +1159,43 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
               return (
                 <>
-                  {tagGroups.map(([tagName, groupItems]) => (
-                    <article key={tagName} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">
-                      <h3 className="text-xl font-bold text-slate-100">{tagName}</h3>
+                  {tagGroups.map(([tagName, groupItems], groupIndex) => (
+                    <article
+                      key={tagName}
+                      className={`rounded-xl border border-slate-700 border-l-4 ${
+                        groupBorderClasses[groupIndex % groupBorderClasses.length]
+                      } bg-slate-950/70 p-4 ${groupIndex > 0 ? 'mt-8 border-t border-slate-700' : ''}`}
+                    >
+                      <h3 className="text-lg font-bold text-white">{tagName}</h3>
                       <div className="mt-4 space-y-3">
                         {groupItems.map(({ item, stats }) => {
-                          const distributionText = Object.entries(item.tagCounts)
+                          const distributionText = stats.distributionEntries
                             .map(([tag, count]) => `${tag}: ${count}`)
                             .join(' / ');
 
                           return (
-                            <div key={item.id} className="rounded-xl border border-slate-700 bg-slate-950 p-3">
+                            <div key={item.id} className="rounded-xl border border-slate-700 bg-slate-950 p-3 transition-all duration-300">
                               <p className="text-sm font-semibold text-slate-100">{item.text}</p>
+                              <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                                {stats.totalVotes > 0
+                                  ? stats.distributionEntries.map(([tag, count]) => {
+                                      const widthPct = (count / stats.totalVotes) * 100;
+                                      const isConsensusTag = tag === stats.consensusTag;
+
+                                      return (
+                                        <div
+                                          key={`${item.id}-segment-${tag}`}
+                                          className="h-full"
+                                          style={{
+                                            width: `${widthPct}%`,
+                                            backgroundColor: isConsensusTag ? '#22c55e' : '#475569',
+                                          }}
+                                        />
+                                      );
+                                    })
+                                  : null}
+                              </div>
                               <p className="mt-1 text-xs text-slate-400">{distributionText || 'Ingen tagger enda'}</p>
-                              <p className="mt-2 text-xs text-slate-300">
-                                {stats.ratio === 1 ? (
-                                  <span className="text-emerald-300">● Alle enige</span>
-                                ) : (
-                                  <span className="text-amber-300">
-                                    ● {stats.highestCount} av {stats.totalVotes} enige
-                                  </span>
-                                )}
-                              </p>
 
                               <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                                 <div className="flex items-center gap-2">
@@ -1221,20 +1236,38 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                     </article>
                   ))}
 
-                  <article className="rounded-xl border border-amber-600/50 bg-amber-950/20 p-4">
-                    <h3 className="text-xl font-bold text-amber-300">⚠️ Uavklart</h3>
+                  <article className="mt-8 rounded-xl border border-amber-600/50 border-l-4 border-l-orange-500 border-t border-slate-700 bg-amber-950/20 p-4">
+                    <h3 className="text-lg font-bold text-white">⚠️ Uavklart</h3>
                     <div className="mt-4 space-y-3">
                       {unresolvedItems.length === 0 ? <p className="text-sm text-slate-400">Ingen uavklarte elementer.</p> : null}
                       {unresolvedItems.map(({ item, stats }) => {
-                        const distributionText = Object.entries(item.tagCounts)
+                        const distributionText = stats.distributionEntries
                           .map(([tag, count]) => `${tag}: ${count}`)
                           .join(' / ');
 
                         return (
-                          <div key={item.id} className="rounded-xl border border-slate-700 bg-slate-950 p-3">
+                          <div key={item.id} className="rounded-xl border border-slate-700 bg-slate-950 p-3 transition-all duration-300">
                             <p className="text-sm font-semibold text-slate-100">{item.text}</p>
+                            <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+                              {stats.totalVotes > 0
+                                ? stats.distributionEntries.map(([tag, count]) => {
+                                    const widthPct = (count / stats.totalVotes) * 100;
+                                    const isConsensusTag = tag === stats.consensusTag;
+
+                                    return (
+                                      <div
+                                        key={`${item.id}-segment-${tag}`}
+                                        className="h-full"
+                                        style={{
+                                          width: `${widthPct}%`,
+                                          backgroundColor: isConsensusTag ? '#f59e0b' : '#475569',
+                                        }}
+                                      />
+                                    );
+                                  })
+                                : null}
+                            </div>
                             <p className="mt-1 text-xs text-slate-400">{distributionText || 'Ingen tagger enda'}</p>
-                            <p className="mt-2 text-xs text-red-300">● {distributionText || 'Ingen stemmer ennå'}</p>
 
                             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                               <div className="flex items-center gap-2">
