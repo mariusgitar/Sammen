@@ -380,7 +380,7 @@ export function InnspillView({
 
   if (!hasJoined) {
     return (
-      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 text-[#0f172a] sm:px-6">
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 text-[#0f172a] sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
           <h1 className="text-2xl font-semibold">{session.title}</h1>
           <p className="mt-2 text-sm text-[#64748b]">
@@ -411,7 +411,7 @@ export function InnspillView({
 
   if (submitted) {
     return (
-      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 text-[#0f172a] sm:px-6">
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 text-[#0f172a] sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
           <div className="space-y-4 text-center">
             <h2 className="text-2xl font-bold">Takk for dine svar, {nickname.trim()}!</h2>

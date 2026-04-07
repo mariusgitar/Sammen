@@ -18,6 +18,8 @@ type SessionView = {
   resultsVisible: boolean;
   showOthersInnspill: boolean;
   tags: string[];
+  timerEndsAt: string | Date | null;
+  timerLabel: string | null;
 };
 
 type SessionItem = {
@@ -209,6 +211,9 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const [confirmClose, setConfirmClose] = useState(false);
   const [savingFinalTagByItem, setSavingFinalTagByItem] = useState<Record<string, boolean>>({});
   const [savingIncludeByItem, setSavingIncludeByItem] = useState<Record<string, boolean>>({});
+  const [timerMinutes, setTimerMinutes] = useState(3);
+  const [timerLabelInput, setTimerLabelInput] = useState(session.timerLabel ?? '');
+  const [timerNow, setTimerNow] = useState(Date.now());
 
   async function fetchSummary() {
     try {
@@ -313,6 +318,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     return () => clearTimeout(timer);
   }, [confirmClose]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTimerNow(Date.now());
+    }, 1_000);
+
+    return () => clearInterval(interval);
+  }, []);
+
   async function updateSessionStatus(status: SessionView['status']) {
     setIsUpdatingStatus(true);
     setError('');
@@ -328,7 +341,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
       const data = (await response.json()) as
         | {
-            session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible'>;
+            session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible' | 'timerEndsAt' | 'timerLabel'>;
           }
         | { error: string };
 
@@ -344,8 +357,11 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         status: data.session.status,
         phase: data.session.phase,
         resultsVisible: data.session.resultsVisible,
+        timerEndsAt: data.session.timerEndsAt,
+        timerLabel: data.session.timerLabel,
       }));
       setResultsVisible(data.session.resultsVisible);
+      setTimerLabelInput(data.session.timerLabel ?? '');
     } catch {
       setError('Kunne ikke oppdatere sesjonen. Prøv igjen.');
     } finally {
@@ -368,7 +384,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
       const data = (await response.json()) as
         | {
-            session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible'>;
+            session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible' | 'timerEndsAt' | 'timerLabel'>;
           }
         | { error: string };
 
@@ -385,12 +401,73 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         status: data.session.status,
         phase: data.session.phase,
         resultsVisible: data.session.resultsVisible,
+        timerEndsAt: data.session.timerEndsAt,
+        timerLabel: data.session.timerLabel,
       }));
+      setTimerLabelInput(data.session.timerLabel ?? '');
     } catch {
       setError('Kunne ikke oppdatere resultatvisning. Prøv igjen.');
     } finally {
       setIsUpdatingStatus(false);
     }
+  }
+
+  async function patchTimer(payload: { timer_ends_at: string | null; timer_label: string | null }) {
+    setIsUpdatingStatus(true);
+    setError('');
+
+    try {
+      const response = await fetch(`/api/sessions/${currentSession.code}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = (await response.json()) as
+        | {
+            session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible' | 'timerEndsAt' | 'timerLabel'>;
+          }
+        | { error: string };
+
+      if (!response.ok || !('session' in data)) {
+        setError('Kunne ikke oppdatere timeren. Prøv igjen.');
+        return;
+      }
+
+      setCurrentSession((current) => ({
+        ...current,
+        status: data.session.status,
+        phase: data.session.phase,
+        resultsVisible: data.session.resultsVisible,
+        timerEndsAt: data.session.timerEndsAt,
+        timerLabel: data.session.timerLabel,
+      }));
+      setSessionStatus(data.session.status);
+      setSessionPhase(data.session.phase);
+      setResultsVisible(data.session.resultsVisible);
+      setTimerLabelInput(data.session.timerLabel ?? '');
+    } catch {
+      setError('Kunne ikke oppdatere timeren. Prøv igjen.');
+    } finally {
+      setIsUpdatingStatus(false);
+    }
+  }
+
+  function handleStartTimer() {
+    const timerEndsAt = new Date(Date.now() + timerMinutes * 60_000).toISOString();
+    void patchTimer({
+      timer_ends_at: timerEndsAt,
+      timer_label: timerLabelInput.trim() || null,
+    });
+  }
+
+  function handleStopTimer() {
+    void patchTimer({
+      timer_ends_at: null,
+      timer_label: null,
+    });
   }
 
   function scrollToStemming() {
@@ -701,6 +778,12 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     currentSession.mode === 'aapne-innspill'
       ? ['Samle inn', 'Velg innspill', 'Stem']
       : ['Samle inn', 'Kuratér liste', 'Stem'];
+  const timerPresets = [2, 3, 5, 10];
+  const remainingTimerMs = currentSession.timerEndsAt ? new Date(currentSession.timerEndsAt).getTime() - timerNow : 0;
+  const isTimerRunning = remainingTimerMs > 0;
+  const remainingSeconds = Math.max(0, Math.ceil(remainingTimerMs / 1000));
+  const timerMinutesDisplay = String(Math.floor(remainingSeconds / 60)).padStart(2, '0');
+  const timerSecondsDisplay = String(remainingSeconds % 60).padStart(2, '0');
 
   const currentFlowStep = useMemo(() => {
     if (sessionStatus === 'closed') {
@@ -720,6 +803,55 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
   return (
     <div className="space-y-6">
+      <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-slate-950/20">
+        <div className="flex flex-wrap items-center gap-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-white/40">Timer</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {timerPresets.map((minutes) => (
+              <button
+                key={minutes}
+                type="button"
+                onClick={() => setTimerMinutes(minutes)}
+                className={`border border-slate-600 rounded-full px-3 py-1 text-xs ${timerMinutes === minutes ? 'bg-slate-600 text-white' : 'text-slate-300 hover:text-slate-100'}`}
+              >
+                {minutes} min
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={timerLabelInput}
+            onChange={(event) => setTimerLabelInput(event.target.value)}
+            placeholder="Hva jobber dere med nå?"
+            className="h-8 min-w-[220px] rounded-full border border-slate-600 bg-slate-950 px-3 text-sm text-slate-200 placeholder:text-slate-500"
+          />
+          {isTimerRunning ? (
+            <>
+              <p className="text-sm font-mono text-white">
+                {timerMinutesDisplay}:{timerSecondsDisplay}
+              </p>
+              <button
+                type="button"
+                onClick={handleStopTimer}
+                disabled={isUpdatingStatus}
+                className="text-sm font-medium text-red-400 transition hover:text-red-300 disabled:opacity-70"
+              >
+                Stopp
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={handleStartTimer}
+              disabled={isUpdatingStatus}
+              className="rounded-full bg-white px-4 py-1.5 text-sm font-medium text-slate-900 transition hover:bg-slate-200 disabled:opacity-70"
+            >
+              Start timer
+            </button>
+          )}
+        </div>
+      </section>
+
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Sesjonsinfo</h2>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">{currentSession.title}</h1>

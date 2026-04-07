@@ -139,6 +139,8 @@ export const sessions = pgTable('sessions', {
   innspillMaxChars: integer('innspill_max_chars').notNull().default(100),
   includesStemming: boolean('includes_stemming').notNull().default(false),
   maxRankItems: integer('max_rank_items'),
+  timerEndsAt: timestamp('timer_ends_at', { withTimezone: true }),
+  timerLabel: text('timer_label'),
   tags: text('tags').array().notNull().default([]),
   allowNewItems: boolean('allow_new_items').notNull().default(true),
   createdAt: timestamp('created_at').notNull().defaultNow(),

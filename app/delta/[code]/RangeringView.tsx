@@ -222,7 +222,7 @@ export function RangeringView({ session, items }: RangeringViewProps) {
 
   if (!hasJoined) {
     return (
-      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
           <div className="mb-8">
             <h1 className="text-2xl font-semibold text-[#0f172a]">{session.title}</h1>
@@ -259,7 +259,7 @@ export function RangeringView({ session, items }: RangeringViewProps) {
 
   if (submitted) {
     return (
-      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
           <div className="space-y-4 text-center">
             <h2 className="text-2xl font-bold text-[#0f172a]">Takk for dine svar, {nickname.trim()}!</h2>
@@ -278,7 +278,7 @@ export function RangeringView({ session, items }: RangeringViewProps) {
   }
 
   return (
-    <main className="min-h-screen bg-[#f8fafc] px-4 py-10 sm:px-6">
+    <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6">
       <div className="mx-auto w-full max-w-3xl rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-semibold text-[#0f172a]">{session.title}</h1>
         <p className="mt-2 text-sm text-[#64748b]">Hei, {nickname.trim()}</p>
