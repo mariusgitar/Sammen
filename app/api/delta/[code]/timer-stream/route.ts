@@ -3,6 +3,9 @@ import { eq } from 'drizzle-orm';
 import { getDb } from '@/db';
 import { sessions } from '@/db/schema';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 type RouteContext = {
   params: {
     code: string;
