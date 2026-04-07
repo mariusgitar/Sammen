@@ -245,6 +245,18 @@ export default function NewSessionPage() {
     [tags],
   );
 
+  const availableTags = useMemo(
+    () =>
+      [...parsedTags, ...kartleggingItems.map((item) => item.tag).filter((tag): tag is string => Boolean(tag))]
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .filter((tag, index, allTags) => {
+          const normalizedTag = tag.toLowerCase();
+          return allTags.findIndex((candidate) => candidate.toLowerCase() === normalizedTag) === index;
+        }),
+    [kartleggingItems, parsedTags],
+  );
+
   useEffect(() => {
     const usedTags = kartleggingItems
       .map((item) => item.tag)
@@ -269,7 +281,7 @@ export default function NewSessionPage() {
 
   function importFromText() {
     const tagMap = new Map(parsedTags.map((tag) => [tag.toLowerCase(), tag]));
-    const imported = importText
+    const parsedElements = importText
       .split("\n")
       .map((line) => line.trim())
       .filter(Boolean)
@@ -281,7 +293,9 @@ export default function NewSessionPage() {
           return null;
         }
 
-        const matchedTag = parts[1] ? (tagMap.get(parts[1].toLowerCase()) ?? null) : null;
+        const matchedTag = parts[1]
+          ? (tagMap.get(parts[1].toLowerCase()) ?? parts[1].trim() ?? null)
+          : null;
         const description = parts.slice(2).join(";").trim() || null;
 
         return {
@@ -293,7 +307,21 @@ export default function NewSessionPage() {
       })
       .filter((entry): entry is KartleggingItemDraft => entry !== null);
 
-    setKartleggingItems((current) => [...current, ...imported]);
+    const importedTags = parsedElements
+      .map((el) => el.tag)
+      .filter(Boolean)
+      .filter(
+        (tag, i, arr) => arr.findIndex((t) => t.toLowerCase().trim() === tag.toLowerCase().trim()) === i,
+      )
+      .map((tag) => tag.trim());
+
+    if (importedTags.length > 0) {
+      const existingTags = tags.split(",").map((t) => t.trim()).filter(Boolean);
+      const allTags = [...new Set([...existingTags, ...importedTags])];
+      setTags(allTags.join(", "));
+    }
+
+    setKartleggingItems((current) => [...current, ...parsedElements]);
     setInvalidKartleggingItemIds([]);
     setImportText("");
     setImportOpen(false);
@@ -534,7 +562,7 @@ export default function NewSessionPage() {
                             className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#3b5bdb] focus:ring-2 focus:ring-[#3b5bdb]/20"
                           >
                             <option value="">Ingen tag</option>
-                            {parsedTags.map((tag) => (
+                            {availableTags.map((tag) => (
                               <option key={tag} value={tag}>
                                 {tag}
                               </option>
