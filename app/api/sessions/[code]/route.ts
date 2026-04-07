@@ -83,6 +83,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         id: items.id,
         sessionId: items.sessionId,
         text: items.text,
+        description: items.description,
         createdBy: items.createdBy,
         isNew: items.isNew,
         excluded: items.excluded,

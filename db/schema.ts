@@ -150,6 +150,7 @@ export const items = pgTable('items', {
     .notNull()
     .references(() => sessions.id, { onDelete: 'cascade' }),
   text: text('text').notNull(),
+  description: text('description'),
   createdBy: text('created_by').notNull().default('facilitator'),
   isNew: boolean('is_new').notNull().default(false),
   isQuestion: boolean('is_question').notNull().default(false),

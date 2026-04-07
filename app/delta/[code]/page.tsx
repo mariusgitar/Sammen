@@ -40,6 +40,7 @@ type SessionResponse = {
   items: Array<{
     id: string;
     text: string;
+    description: string | null;
     isNew: boolean;
     excluded: boolean;
     orderIndex: number;
@@ -146,7 +147,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   if (session.mode === 'rangering' && session.status === 'active') {
     return (
       <RangeringView
-        items={items.filter((item) => !item.excluded).map((item) => ({ id: item.id, text: item.text }))}
+        items={items.filter((item) => !item.excluded).map((item) => ({ id: item.id, text: item.text, description: item.description }))}
         session={{
           id: session.id,
           title: session.title,

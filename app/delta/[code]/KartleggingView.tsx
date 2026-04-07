@@ -13,6 +13,7 @@ type SessionView = {
 type SessionItem = {
   id: string;
   text: string;
+  description: string | null;
   isNew: boolean;
   orderIndex: number;
   defaultTag?: string | null;
@@ -74,6 +75,7 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
   const [proposalText, setProposalText] = useState('');
   const [proposalSubmitting, setProposalSubmitting] = useState(false);
   const [proposedItems, setProposedItems] = useState<ProposedItem[]>([]);
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
   const participantStorageKey = 'samen_participant_id';
   const nicknameStorageKey = `samen_nickname_${session.code}`;
 
@@ -188,6 +190,10 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
       [itemId]: value,
     }));
     setChangedByUser((current) => new Set([...current, itemId]));
+  }
+
+  function toggleDescription(itemId: string) {
+    setExpandedDescriptions((current) => ({ ...current, [itemId]: !current[itemId] }));
   }
 
   async function handleProposeItem() {
@@ -342,7 +348,23 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
         <div className="space-y-4">
           {sortedOriginalItems.map((item) => (
             <section key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
-              <p className="text-base font-medium text-[#0f172a]">{item.text}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-base font-medium text-[#0f172a]">{item.text}</p>
+                {item.description?.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => toggleDescription(item.id)}
+                    className="text-sm text-slate-500 transition hover:text-slate-700"
+                    aria-expanded={expandedDescriptions[item.id] ?? false}
+                    aria-label={`Vis beskrivelse for ${item.text}`}
+                  >
+                    {expandedDescriptions[item.id] ? '▼' : 'ℹ️'}
+                  </button>
+                ) : null}
+              </div>
+              {item.description?.trim() && expandedDescriptions[item.id] ? (
+                <p className="mt-1 text-sm text-slate-500">{item.description}</p>
+              ) : null}
               <div className="mt-4 flex flex-wrap gap-2">
                 {session.tags.map((tag) => {
                   const selected = responses[item.id] === tag;

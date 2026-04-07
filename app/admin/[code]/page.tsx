@@ -50,6 +50,7 @@ export default async function AdminSessionPage({ params }: AdminPageProps) {
     .select({
       id: items.id,
       text: items.text,
+      description: items.description,
       isNew: items.isNew,
       excluded: items.excluded,
       createdBy: items.createdBy,
