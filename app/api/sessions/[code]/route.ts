@@ -14,6 +14,8 @@ type PatchBody = {
   status?: string;
   phase?: string;
   results_visible?: boolean;
+  timer_ends_at?: string | null;
+  timer_label?: string | null;
 };
 
 function isValidPatchBody(candidate: unknown): candidate is PatchBody {
@@ -35,10 +37,26 @@ function isValidPatchBody(candidate: unknown): candidate is PatchBody {
     return false;
   }
 
+  if (typeof body.timer_ends_at !== 'undefined') {
+    if (body.timer_ends_at !== null && typeof body.timer_ends_at !== 'string') {
+      return false;
+    }
+
+    if (typeof body.timer_ends_at === 'string' && Number.isNaN(Date.parse(body.timer_ends_at))) {
+      return false;
+    }
+  }
+
+  if (typeof body.timer_label !== 'undefined' && body.timer_label !== null && typeof body.timer_label !== 'string') {
+    return false;
+  }
+
   return (
     typeof body.status !== 'undefined' ||
     typeof body.phase !== 'undefined' ||
-    typeof body.results_visible !== 'undefined'
+    typeof body.results_visible !== 'undefined' ||
+    typeof body.timer_ends_at !== 'undefined' ||
+    typeof body.timer_label !== 'undefined'
   );
 }
 
@@ -68,6 +86,10 @@ export async function GET(_request: Request, { params }: RouteContext) {
         innspill_mode: sessions.innspillMode,
         innspill_max_chars: sessions.innspillMaxChars,
         maxRankItems: sessions.maxRankItems,
+        timerEndsAt: sessions.timerEndsAt,
+        timerLabel: sessions.timerLabel,
+        timer_ends_at: sessions.timerEndsAt,
+        timer_label: sessions.timerLabel,
         createdAt: sessions.createdAt,
       })
       .from(sessions)
@@ -124,12 +146,20 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         ...(body.status ? { status: body.status as (typeof sessionStatuses)[number] } : {}),
         ...(body.phase ? { phase: body.phase as (typeof sessionPhases)[number] } : {}),
         ...(typeof body.results_visible === 'boolean' ? { resultsVisible: body.results_visible } : {}),
+        ...(typeof body.timer_ends_at !== 'undefined'
+          ? { timerEndsAt: body.timer_ends_at ? new Date(body.timer_ends_at) : null }
+          : {}),
+        ...(typeof body.timer_label !== 'undefined' ? { timerLabel: body.timer_label } : {}),
       })
       .where(eq(sessions.code, code))
       .returning({
         phase: sessions.phase,
         status: sessions.status,
         resultsVisible: sessions.resultsVisible,
+        timerEndsAt: sessions.timerEndsAt,
+        timerLabel: sessions.timerLabel,
+        timer_ends_at: sessions.timerEndsAt,
+        timer_label: sessions.timerLabel,
       });
 
     if (!updatedSession) {

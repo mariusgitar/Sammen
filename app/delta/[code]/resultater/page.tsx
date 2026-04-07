@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { TimerBanner } from '@/app/components/TimerBanner';
 
 type PageProps = {
   params: {
@@ -19,6 +20,8 @@ type SessionInfoResponse = {
     status: 'setup' | 'active' | 'paused' | 'closed';
     resultsVisible?: boolean;
     results_visible?: boolean;
+    timerEndsAt: string | null;
+    timerLabel: string | null;
   };
 };
 
@@ -130,13 +133,15 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const [viewMode, setViewMode] = useState<'temaer' | 'alle'>('alle');
   const viewModeInitialized = useRef(false);
   const [error, setError] = useState('');
+  const [timerEndsAt, setTimerEndsAt] = useState<string | null>(null);
+  const [timerLabel, setTimerLabel] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
 
     async function fetchData() {
       try {
-        const sessionResponse = await fetch(`/api/sessions/${code}`, { cache: 'no-store' });
+        const sessionResponse = await fetch(`/api/delta/${code}`, { cache: 'no-store' });
         const sessionData = (await sessionResponse.json()) as SessionInfoResponse | { error: string };
 
         if (!isMounted) {
@@ -167,6 +172,8 @@ export default function ParticipantResultsPage({ params }: PageProps) {
         setIsVisible(serverVisibility);
         setSessionStatus(sessionData.session.status);
         setSessionMode(sessionData.session.mode);
+        setTimerEndsAt(sessionData.session.timerEndsAt);
+        setTimerLabel(sessionData.session.timerLabel);
 
         if (!serverVisibility) {
           setResults(null);
@@ -246,7 +253,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
 
   if (!isVisible) {
     return (
-      <main className="bg-[#f8fafc] px-4 py-8">
+      <main className="bg-[#f8fafc] px-4 py-8 pb-16">
         <section className="flex min-h-[60vh] flex-col items-center justify-center space-y-4 p-6 text-center">
           <div className="flex gap-2" aria-hidden>
             {[0, 1, 2].map((index) => (
@@ -268,17 +275,19 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             ← Tilbake
           </a>
         </section>
+        <TimerBanner timerEndsAt={timerEndsAt} timerLabel={timerLabel} />
       </main>
     );
   }
 
   if (error || (!results && sessionMode !== 'aapne-innspill')) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4">
+      <main className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 pb-16">
         <section className="w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-8 text-center shadow-sm">
           <h1 className="text-2xl font-semibold text-[#0f172a]">Kunne ikke laste resultater</h1>
           {error ? <p className="mt-3 text-sm text-[#64748b]">{error}</p> : null}
         </section>
+        <TimerBanner timerEndsAt={timerEndsAt} timerLabel={timerLabel} />
       </main>
     );
   }
@@ -300,7 +309,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     const shouldShowToggle = hasThemes && themeResults.ungrouped.length > 0;
 
     return (
-      <main className="min-h-screen bg-[#f8fafc] px-4 py-8">
+      <main className="min-h-screen bg-[#f8fafc] px-4 py-8 pb-16">
         <div className="mx-auto max-w-4xl space-y-4">
           <h1 className="text-center text-2xl font-semibold text-[#0f172a]">{title}</h1>
 
@@ -371,16 +380,18 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             </section>
           )}
         </div>
+        <TimerBanner timerEndsAt={timerEndsAt} timerLabel={timerLabel} />
       </main>
     );
   }
 
   if (!results) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4">
+      <main className="flex min-h-screen items-center justify-center bg-[#f8fafc] px-4 pb-16">
         <section className="w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-8 text-center shadow-sm">
           <h1 className="text-2xl font-semibold text-[#0f172a]">Ingen resultater enda</h1>
         </section>
+        <TimerBanner timerEndsAt={timerEndsAt} timerLabel={timerLabel} />
       </main>
     );
   }
@@ -438,7 +449,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     .sort((a, b) => b.averageScore - a.averageScore);
 
   return (
-    <main className="min-h-screen bg-[#f8fafc] px-4 py-8">
+    <main className="min-h-screen bg-[#f8fafc] px-4 py-8 pb-16">
       <div className="mx-auto max-w-4xl space-y-4">
         <h1 className="text-center text-2xl font-semibold text-[#0f172a]">{title}</h1>
 
@@ -613,6 +624,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           </>
         )}
       </div>
+      <TimerBanner timerEndsAt={timerEndsAt} timerLabel={timerLabel} />
     </main>
   );
 }

@@ -30,6 +30,8 @@ export default async function AdminSessionPage({ params }: AdminPageProps) {
       resultsVisible: sessions.resultsVisible,
       showOthersInnspill: sessions.showOthersInnspill,
       tags: sessions.tags,
+      timerEndsAt: sessions.timerEndsAt,
+      timerLabel: sessions.timerLabel,
     })
     .from(sessions)
     .where(eq(sessions.code, code))
