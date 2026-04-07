@@ -171,17 +171,19 @@ export function InnspillView({
     setMyInnspill((prev) => {
       const merged = { ...prev };
       data.questions?.forEach((q) => {
-        merged[q.id] = mine[q.id] ?? [];
+        const incoming = mine[q.id] ?? [];
+        if (incoming.length > 0 || !merged[q.id]) {
+          merged[q.id] = incoming;
+        }
       });
       return merged;
     });
     setAllInnspill((prev) => {
       const merged = { ...prev };
       data.questions?.forEach((q) => {
-        if (others[q.id] && others[q.id].length > 0) {
-          merged[q.id] = others[q.id];
-        } else if (!merged[q.id]) {
-          merged[q.id] = [];
+        const incoming = others[q.id] ?? [];
+        if (incoming.length > 0 || !merged[q.id]) {
+          merged[q.id] = incoming;
         }
       });
       return merged;

@@ -6,11 +6,6 @@ type TimerBannerProps = {
   code: string;
 };
 
-type TimerStreamPayload = {
-  timerEndsAt: string | null;
-  timerLabel: string | null;
-};
-
 function formatRemaining(ms: number) {
   const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
   const minutes = Math.floor(totalSeconds / 60);
@@ -28,24 +23,32 @@ export function TimerBanner({ code }: TimerBannerProps) {
   const label = useMemo(() => timerLabel?.trim() ?? '', [timerLabel]);
 
   useEffect(() => {
-    const eventSource = new EventSource(`/api/delta/${code}/timer-stream`);
-
-    eventSource.onmessage = (event) => {
+    const poll = async () => {
       try {
-        const payload = JSON.parse(event.data) as TimerStreamPayload;
-        setTimerEndsAt(payload.timerEndsAt ?? null);
-        setTimerLabel(payload.timerLabel ?? null);
+        const response = await fetch(`/api/delta/${code}/timer`);
+        if (!response.ok) {
+          return;
+        }
+
+        const data = (await response.json()) as {
+          timerEndsAt?: string | null;
+          timerLabel?: string | null;
+        };
+
+        setTimerEndsAt(data.timerEndsAt ?? null);
+        setTimerLabel(data.timerLabel ?? null);
       } catch {
-        // Ignore malformed SSE payloads.
+        // Ignore polling errors.
       }
     };
 
-    eventSource.onerror = () => {
-      console.error('Timer stream connection error');
-    };
+    void poll();
+    const interval = setInterval(() => {
+      void poll();
+    }, 2_000);
 
     return () => {
-      eventSource.close();
+      clearInterval(interval);
     };
   }, [code]);
 
