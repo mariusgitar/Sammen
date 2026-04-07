@@ -27,6 +27,7 @@ type KartleggingSummaryItem = {
   text: string;
   is_new: boolean;
   excluded: boolean;
+  final_tag?: string | null;
   tagCounts: Record<string, number>;
   untaggedCount: number;
 };
@@ -89,15 +90,6 @@ type ThemeResponse = {
 // show_others_innspill only affects InnspillView during collection
 // Results always show everything
 
-function hasSplitVotes(item: KartleggingSummaryItem, participantCount: number) {
-  if (participantCount === 0) {
-    return false;
-  }
-
-  const maxTagCount = Math.max(...Object.values(item.tagCounts), 0);
-  return maxTagCount / participantCount <= 0.5;
-}
-
 function getScoreClass(score: number) {
   if (score >= 4) {
     return 'text-sky-500';
@@ -115,6 +107,8 @@ function consensusMeta(score: number) {
   if (score > 0.4) return { text: 'Noe uenighet', color: '#f59e0b' };
   return { text: 'Stor uenighet', color: '#ef4444' };
 }
+
+const TAG_COLORS = ['#818cf8', '#34d399', '#fb923c', '#f472b6', '#60a5fa', '#a78bfa', '#4ade80'];
 
 export default function ParticipantResultsPage({ params }: PageProps) {
   const router = useRouter();
@@ -388,6 +382,30 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     .filter((item) => !item.excluded);
   const mainKartleggingItems = kartleggingItems.filter((item) => !item.is_new);
   const newKartleggingItems = kartleggingItems.filter((item) => item.is_new);
+  const uniqueFinalTags = Array.from(
+    new Set(
+      mainKartleggingItems
+        .map((item) => item.final_tag?.trim())
+        .filter((tag): tag is string => Boolean(tag)),
+    ),
+  ).sort((a, b) => a.localeCompare(b, 'no'));
+  const tagColorMap = uniqueFinalTags.reduce<Record<string, string>>((acc, tag, index) => {
+    acc[tag.toLowerCase()] = TAG_COLORS[index % TAG_COLORS.length];
+    return acc;
+  }, {});
+  const groupedKartleggingItems = mainKartleggingItems.reduce<Record<string, KartleggingSummaryItem[]>>((acc, item) => {
+    const tag = item.final_tag?.trim() || 'Ikke kategorisert';
+    if (!acc[tag]) {
+      acc[tag] = [];
+    }
+    acc[tag].push(item);
+    return acc;
+  }, {});
+  const sortedGroups = Object.entries(groupedKartleggingItems).sort(([a], [b]) => {
+    if (a === 'Ikke kategorisert') return 1;
+    if (b === 'Ikke kategorisert') return -1;
+    return a.localeCompare(b, 'no');
+  });
   const totalDots = results.items.reduce((sum, item) => sum + ('averageScore' in item ? item.averageScore * item.voteCount : 0), 0);
   const themedDotResults = [...(results.themes ?? [])].sort((a, b) => b.totalDots - a.totalDots);
   const maxThemeDots = Math.max(...themedDotResults.map((theme) => theme.totalDots), 1);
@@ -448,40 +466,55 @@ export default function ParticipantResultsPage({ params }: PageProps) {
         ) : results.phase === 'kartlegging' ? (
           <>
             <h2 className="text-xl font-semibold text-[#0f172a]">Kartlegging-resultater</h2>
-            <div className="space-y-3">
-              {mainKartleggingItems.map((item) => {
-                const splitVotes = hasSplitVotes(item, results.participantCount);
-                const tagRows = [
-                  ...Object.entries(item.tagCounts),
-                  ...(item.untaggedCount > 0 ? ([['Ingen tag', item.untaggedCount]] as Array<[string, number]>) : []),
-                ];
-                const maxCount = Math.max(...tagRows.map(([, count]) => count), 1);
-
+            <div className="space-y-4">
+              {sortedGroups.map(([groupName, items]) => {
+                const groupColor = groupName === 'Ikke kategorisert' ? '#94a3b8' : (tagColorMap[groupName.toLowerCase()] ?? TAG_COLORS[0]);
                 return (
-                  <article key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium text-[#0f172a]">{item.text}</p>
-                      {splitVotes ? (
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">Uenighet</span>
-                      ) : null}
+                  <section key={groupName} className="rounded-xl border border-slate-100 bg-white p-4">
+                    <h3 className="border-l-4 pl-3 text-lg font-semibold text-slate-900" style={{ borderColor: groupColor }}>
+                      {groupName}
+                    </h3>
+                    <div className="mt-3 space-y-3">
+                      {items.map((item) => {
+                        const voteRows = Object.entries(item.tagCounts).filter(([, count]) => count > 0);
+                        const totalVotes = voteRows.reduce((sum, [, count]) => sum + count, 0);
+                        return (
+                          <article key={item.id} className="rounded-xl border border-slate-100 bg-white p-3">
+                            <p className="font-semibold text-slate-900">{item.text}</p>
+                            {totalVotes === 0 ? (
+                              <>
+                                <div className="mt-3 h-2.5 w-full rounded-full bg-slate-200" />
+                                <p className="mt-2 text-sm text-slate-500">Ingen stemmer</p>
+                              </>
+                            ) : (
+                              <>
+                                <div className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                  {voteRows.map(([tag, count]) => (
+                                    <div
+                                      key={`${item.id}-${tag}`}
+                                      className="h-full"
+                                      style={{
+                                        width: `${(count / totalVotes) * 100}%`,
+                                        backgroundColor: tagColorMap[tag.toLowerCase()] ?? '#94a3b8',
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                                <p className="mt-2 text-sm">
+                                  {voteRows.map(([tag, count], index) => (
+                                    <span key={`${item.id}-${tag}-label`} style={{ color: tagColorMap[tag.toLowerCase()] ?? '#64748b' }}>
+                                      {index > 0 ? ' / ' : ''}
+                                      {tag}: {count}
+                                    </span>
+                                  ))}
+                                </p>
+                              </>
+                            )}
+                          </article>
+                        );
+                      })}
                     </div>
-                    <div className="mt-3 space-y-2">
-                      {tagRows.map(([tag, count]) => (
-                        <div key={`${item.id}-${tag}`}>
-                          <div className="mb-1 flex justify-between text-xs text-[#64748b]">
-                            <span>{tag}</span>
-                            <span>{count}</span>
-                          </div>
-                          <div className="h-2 rounded bg-[#e2e8f0]">
-                            <div
-                              className="h-2 rounded bg-[#0ea5e9]"
-                              style={{ width: `${Math.max(8, (count / maxCount) * 100)}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </article>
+                  </section>
                 );
               })}
             </div>

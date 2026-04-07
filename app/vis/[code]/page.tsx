@@ -25,6 +25,7 @@ type SessionResponse = {
 type KartleggingSummaryItem = {
   id: string;
   text: string;
+  final_tag?: string | null;
   tagCounts: Record<string, number>;
   untaggedCount: number;
 };
@@ -106,7 +107,7 @@ type ThemeResponse = {
 };
 
 const inter = Inter({ subsets: ['latin'] });
-const tagPalette = ['#a78bfa', '#67e8f9', '#86efac', '#fcd34d', '#f9a8d4', '#fb923c'];
+const TAG_COLORS = ['#818cf8', '#34d399', '#fb923c', '#f472b6', '#60a5fa', '#a78bfa', '#4ade80'];
 
 function modeLabel(mode: SessionResponse['session']['mode']) {
   if (mode === 'kartlegging') return 'Kartlegging';
@@ -131,13 +132,6 @@ function consensusWidth(distribution: Record<string, number>, voteCount: number)
   const maxBin = Math.max(...Object.values(distribution), 0);
   const agreement = maxBin / voteCount;
   return 24 + agreement * 76;
-}
-
-function getDominantTag(item: KartleggingSummaryItem) {
-  const tags = Object.entries(item.tagCounts).sort((a, b) => b[1] - a[1]);
-  const [tag, count] = tags[0] ?? ['Ingen tag', 0];
-  const split = tags.length > 1 && count === tags[1][1];
-  return { tag, split };
 }
 
 export default function PresentationPage({ params }: { params: { code: string } }) {
@@ -212,6 +206,41 @@ export default function PresentationPage({ params }: { params: { code: string } 
     () => (summary?.items.filter((item): item is KartleggingSummaryItem => 'tagCounts' in item) ?? []),
     [summary?.items],
   );
+  const uniqueFinalTags = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          kartleggingItems
+            .map((item) => item.final_tag?.trim())
+            .filter((tag): tag is string => Boolean(tag)),
+        ),
+      ).sort((a, b) => a.localeCompare(b, 'no')),
+    [kartleggingItems],
+  );
+  const tagColorMap = useMemo(
+    () =>
+      uniqueFinalTags.reduce<Record<string, string>>((acc, tag, index) => {
+        acc[tag.toLowerCase()] = TAG_COLORS[index % TAG_COLORS.length];
+        return acc;
+      }, {}),
+    [uniqueFinalTags],
+  );
+  const groupedKartleggingItems = useMemo(() => {
+    const grouped = kartleggingItems.reduce<Record<string, KartleggingSummaryItem[]>>((acc, item) => {
+      const tag = item.final_tag?.trim() || 'Ikke kategorisert';
+      if (!acc[tag]) {
+        acc[tag] = [];
+      }
+      acc[tag].push(item);
+      return acc;
+    }, {});
+
+    return Object.entries(grouped).sort(([a], [b]) => {
+      if (a === 'Ikke kategorisert') return 1;
+      if (b === 'Ikke kategorisert') return -1;
+      return a.localeCompare(b, 'no');
+    });
+  }, [kartleggingItems]);
 
   const stemmingItems = useMemo(
     () =>
@@ -273,30 +302,55 @@ export default function PresentationPage({ params }: { params: { code: string } 
           ) : (
             <div className="transition-all duration-1000 ease-out opacity-100">
             {session?.phase === 'kartlegging' ? (
-              <div className={kartleggingItems.length <= 6 ? 'grid grid-cols-2 gap-6 xl:grid-cols-3' : 'space-y-4'}>
-                {kartleggingItems.map((item, index) => {
-                  const { tag, split } = getDominantTag(item);
-                  const tagColor = tagPalette[index % tagPalette.length];
-                  const totalVotes = Object.values(item.tagCounts).reduce((sum, count) => sum + count, 0);
-                  const participation = summary?.participantCount ? (totalVotes / summary.participantCount) * 100 : 0;
-
+              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+                {groupedKartleggingItems.map(([groupName, items]) => {
+                  const groupColor = groupName === 'Ikke kategorisert' ? '#94a3b8' : (tagColorMap[groupName.toLowerCase()] ?? TAG_COLORS[0]);
                   return (
-                    <article
-                      key={item.id}
-                      className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 transition-all duration-700 ease-out"
-                      style={{ transitionDelay: `${index * 80}ms` }}
-                    >
-                      <p className="text-xl font-semibold text-white">{item.text}</p>
-                      <div className="mt-4 flex items-center gap-3">
-                        <span className="rounded-2xl px-3 py-1 text-sm font-semibold" style={{ backgroundColor: `${tagColor}33`, color: tagColor }}>
-                          {tag}
-                        </span>
-                        {split ? <span className="text-white/40">↕ delt</span> : null}
+                    <section key={groupName} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+                      <h2 className="border-l-[6px] pl-4 text-2xl font-bold text-white" style={{ borderColor: groupColor }}>
+                        {groupName}
+                      </h2>
+                      <div className="mt-5 space-y-4">
+                        {items.map((item) => {
+                          const voteRows = Object.entries(item.tagCounts).filter(([, count]) => count > 0);
+                          const totalVotes = voteRows.reduce((sum, [, count]) => sum + count, 0);
+                          return (
+                            <article key={item.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                              <p className="text-lg font-semibold text-white">{item.text}</p>
+                              {totalVotes === 0 ? (
+                                <>
+                                  <div className="mt-3 h-[10px] w-full rounded-full bg-white/20" />
+                                  <p className="mt-3 text-sm text-white/60">Ingen stemmer</p>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="mt-3 flex h-[10px] w-full overflow-hidden rounded-full bg-white/10">
+                                    {voteRows.map(([tag, count]) => (
+                                      <div
+                                        key={`${item.id}-${tag}`}
+                                        className="h-full"
+                                        style={{
+                                          width: `${(count / totalVotes) * 100}%`,
+                                          backgroundColor: tagColorMap[tag.toLowerCase()] ?? '#94a3b8',
+                                        }}
+                                      />
+                                    ))}
+                                  </div>
+                                  <p className="mt-3 text-sm">
+                                    {voteRows.map(([tag, count], index) => (
+                                      <span key={`${item.id}-${tag}-label`} style={{ color: tagColorMap[tag.toLowerCase()] ?? '#cbd5e1' }}>
+                                        {index > 0 ? ' / ' : ''}
+                                        {tag}: {count}
+                                      </span>
+                                    ))}
+                                  </p>
+                                </>
+                              )}
+                            </article>
+                          );
+                        })}
                       </div>
-                      <div className="mt-6 h-1.5 w-full rounded-full bg-white/10">
-                        <div className="h-full rounded-full transition-all duration-700 ease-out" style={{ width: `${participation}%`, backgroundColor: tagColor }} />
-                      </div>
-                    </article>
+                    </section>
                   );
                 })}
               </div>
