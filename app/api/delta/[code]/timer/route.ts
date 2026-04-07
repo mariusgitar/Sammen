@@ -25,8 +25,16 @@ export async function GET(_req: Request, { params }: RouteContext) {
     .where(eq(sessions.code, code))
     .limit(1);
 
-  return Response.json({
-    timerEndsAt: session?.timerEndsAt?.toISOString() ?? null,
-    timerLabel: session?.timerLabel ?? null,
-  });
+  return Response.json(
+    {
+      timerEndsAt: session?.timerEndsAt?.toISOString() ?? null,
+      timerLabel: session?.timerLabel ?? null,
+    },
+    {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        Pragma: 'no-cache',
+      },
+    }
+  );
 }
