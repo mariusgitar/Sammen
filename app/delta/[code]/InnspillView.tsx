@@ -59,6 +59,7 @@ export function InnspillView({
   session: SessionInfo;
   items: Question[];
 }) {
+  const [questions, setQuestions] = useState<Question[]>(items);
   const [nickname, setNickname] = useState("");
   const [hasJoined, setHasJoined] = useState(false);
   const [participantId, setParticipantId] = useState("");
@@ -123,6 +124,18 @@ export function InnspillView({
     if (data.questions.length === 0) {
       return;
     }
+
+    setQuestions((prev) =>
+      prev.map((q) => {
+        const updated = data.questions?.find((p) => p.id === q.id);
+        return updated
+          ? {
+              ...q,
+              questionStatus: updated.question_status as Question["questionStatus"],
+            }
+          : q;
+      }),
+    );
 
     const mine: Record<string, MyEntry[]> = {};
     const others: Record<string, OtherEntry[]> = {};
@@ -189,6 +202,10 @@ export function InnspillView({
   }, [hasJoined, participantId]);
 
   useEffect(() => {
+    setQuestions(items);
+  }, [items]);
+
+  useEffect(() => {
     if (!submitted) {
       return;
     }
@@ -221,13 +238,13 @@ export function InnspillView({
 
   const visibleQuestions = useMemo(
     () =>
-      items.filter(
+      questions.filter(
         (item) =>
           item.questionStatus === "active" ||
           (myInnspill[item.id] ?? []).length > 0 ||
           (canSeeOthers && (allInnspill[item.id] ?? []).length > 0),
       ),
-    [allInnspill, canSeeOthers, items, myInnspill],
+    [allInnspill, canSeeOthers, myInnspill, questions],
   );
   const myInnspillCount = useMemo(
     () =>
