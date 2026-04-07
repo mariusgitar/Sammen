@@ -24,6 +24,24 @@ type CreateSessionResponse =
       error: string;
     };
 
+type KartleggingItemDraft = {
+  id: string;
+  name: string;
+  tag: string | null;
+  description: string | null;
+  showDescription: boolean;
+};
+
+function createDraftItem(): KartleggingItemDraft {
+  return {
+    id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
+    name: "",
+    tag: null,
+    description: null,
+    showDescription: false,
+  };
+}
+
 const modeCards: Array<{
   value: NewSessionMode;
   icon: string;
@@ -97,6 +115,10 @@ export default function NewSessionPage() {
   const [title, setTitle] = useState("");
   const [mode, setMode] = useState<NewSessionMode>("innspill+stemming");
   const [items, setItems] = useState("");
+  const [kartleggingItems, setKartleggingItems] = useState<KartleggingItemDraft[]>([createDraftItem()]);
+  const [invalidKartleggingItemIds, setInvalidKartleggingItemIds] = useState<string[]>([]);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
   const [tags, setTags] = useState("");
 
   const [allowNewItems, setAllowNewItems] = useState(defaults.allowNewItems);
@@ -210,6 +232,58 @@ export default function NewSessionPage() {
     votingType,
   ]);
 
+  const parsedTags = useMemo(
+    () =>
+      tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .filter((tag, index, allTags) => {
+          const normalizedTag = tag.toLowerCase();
+          return allTags.findIndex((candidate) => candidate.toLowerCase() === normalizedTag) === index;
+        }),
+    [tags],
+  );
+
+  function updateKartleggingItem(
+    itemId: string,
+    updates: Partial<Pick<KartleggingItemDraft, "name" | "tag" | "description" | "showDescription">>,
+  ) {
+    setKartleggingItems((current) => current.map((item) => (item.id === itemId ? { ...item, ...updates } : item)));
+  }
+
+  function importFromText() {
+    const tagMap = new Map(parsedTags.map((tag) => [tag.toLowerCase(), tag]));
+    const imported = importText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const parts = line.split(";").map((value) => value.trim());
+        const name = parts[0] ?? "";
+
+        if (!name.trim()) {
+          return null;
+        }
+
+        const matchedTag = parts[1] ? (tagMap.get(parts[1].toLowerCase()) ?? null) : null;
+        const description = parts.slice(2).join(";").trim() || null;
+
+        return {
+          ...createDraftItem(),
+          name,
+          tag: matchedTag,
+          description,
+        };
+      })
+      .filter((entry): entry is KartleggingItemDraft => entry !== null);
+
+    setKartleggingItems((current) => [...current, ...imported]);
+    setInvalidKartleggingItemIds([]);
+    setImportText("");
+    setImportOpen(false);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
@@ -227,19 +301,26 @@ export default function NewSessionPage() {
       .map((item) => item.trim())
       .filter(Boolean);
 
-    if (parsedItems.length === 0) {
+    const parsedKartleggingItems = kartleggingItems.map((item) => ({
+      name: item.name.trim(),
+      tag: item.tag,
+      description: item.description?.trim() || null,
+    }));
+
+    if (isKartlegging) {
+      const invalidIds = kartleggingItems.filter((item) => item.name.trim().length === 0).map((item) => item.id);
+
+      if (invalidIds.length > 0) {
+        setInvalidKartleggingItemIds(invalidIds);
+        setItemsError("Fyll ut elementnavn for alle rader før lagring.");
+        return;
+      }
+    }
+
+    if ((isKartlegging ? parsedKartleggingItems : parsedItems).length === 0) {
       setItemsError(isInnspillMode ? "Legg til minst ett spørsmål" : "Legg til minst ett element");
       return;
     }
-
-    const parsedTags = tags
-      .split(",")
-      .map((tag) => tag.trim())
-      .filter(Boolean)
-      .filter((tag, index, allTags) => {
-        const normalizedTag = tag.toLowerCase();
-        return allTags.findIndex((candidate) => candidate.toLowerCase() === normalizedTag) === index;
-      });
 
     const parsedMaxRankItems =
       isRangering && maxRankItemsInput !== "all" ? Number(maxRankItemsInput) : null;
@@ -264,7 +345,7 @@ export default function NewSessionPage() {
           innspill_mode: isInnspillMode ? innspillMode : "enkel",
           innspill_max_chars: isInnspillMode ? innspillMaxChars : 100,
           max_rank_items: isRangering ? parsedMaxRankItems : null,
-          items: parsedItems,
+          items: isKartlegging ? parsedKartleggingItems : parsedItems,
           tags: isKartlegging ? parsedTags : [],
           allow_new_items: isKartlegging ? allowNewItems : true,
         }),
@@ -374,19 +455,128 @@ export default function NewSessionPage() {
               <label className="block text-sm font-medium text-slate-700" htmlFor="items">
                 {contentLabel}
               </label>
-              <textarea
-                id="items"
-                name="items"
-                value={items}
-                onChange={(event) => setItems(event.target.value)}
-                placeholder={contentPlaceholder}
-                rows={7}
-                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#3b5bdb] focus:ring-2 focus:ring-[#3b5bdb]/20"
-              />
-              {isKartlegging || isRangering ? (
-                <p className="text-xs text-slate-500">Valgfri beskrivelse: Elementnavn; tag; beskrivelse</p>
-              ) : null}
-              {isKartlegging ? <p className="text-xs text-slate-500">Elementer uten ; får ingen forhåndsvalgt tag.</p> : null}
+              {isKartlegging ? (
+                <div className="space-y-3">
+                  <button
+                    type="button"
+                    onClick={() => setImportOpen((current) => !current)}
+                    className="text-sm font-medium text-[#3b5bdb] transition hover:text-[#2f4bc7]"
+                  >
+                    Importer fritekst ↓
+                  </button>
+
+                  {importOpen ? (
+                    <div className="space-y-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <textarea
+                        value={importText}
+                        onChange={(event) => setImportText(event.target.value)}
+                        rows={5}
+                        placeholder="Én per linje: Elementnavn; tag; beskrivelse"
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#3b5bdb] focus:ring-2 focus:ring-[#3b5bdb]/20"
+                      />
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={importFromText}
+                          className="rounded-lg bg-[#3b5bdb] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#2f4bc7]"
+                        >
+                          Importer
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setImportOpen(false);
+                            setImportText("");
+                          }}
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400"
+                        >
+                          Avbryt
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="space-y-2">
+                    {kartleggingItems.map((item) => (
+                      <div key={item.id} className="space-y-2 rounded-xl border border-slate-200 p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <input
+                            value={item.name}
+                            onChange={(event) => {
+                              updateKartleggingItem(item.id, { name: event.target.value });
+                              setInvalidKartleggingItemIds((current) => current.filter((entry) => entry !== item.id));
+                            }}
+                            placeholder="Elementnavn..."
+                            className={`min-w-[220px] flex-1 rounded-lg border px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#3b5bdb] focus:ring-2 focus:ring-[#3b5bdb]/20 ${
+                              invalidKartleggingItemIds.includes(item.id) ? "border-red-500" : "border-slate-200"
+                            }`}
+                          />
+                          <select
+                            value={item.tag ?? ""}
+                            onChange={(event) =>
+                              updateKartleggingItem(item.id, { tag: event.target.value.length > 0 ? event.target.value : null })
+                            }
+                            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#3b5bdb] focus:ring-2 focus:ring-[#3b5bdb]/20"
+                          >
+                            <option value="">Ingen tag</option>
+                            {parsedTags.map((tag) => (
+                              <option key={tag} value={tag}>
+                                {tag}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            onClick={() => updateKartleggingItem(item.id, { showDescription: !item.showDescription })}
+                            className="rounded-lg border border-slate-200 px-2.5 py-2 text-sm text-slate-700 transition hover:border-slate-300"
+                            aria-label="Vis eller skjul beskrivelse"
+                          >
+                            ℹ️
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setKartleggingItems((current) => current.filter((entry) => entry.id !== item.id))}
+                            className="rounded-lg border border-slate-200 px-2.5 py-2 text-sm text-slate-700 transition hover:border-red-300 hover:text-red-600"
+                            aria-label="Slett rad"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                        {item.showDescription ? (
+                          <textarea
+                            value={item.description ?? ""}
+                            onChange={(event) =>
+                              updateKartleggingItem(item.id, { description: event.target.value.trim() || null })
+                            }
+                            placeholder="Valgfri beskrivelse..."
+                            rows={3}
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-[#3b5bdb] focus:ring-2 focus:ring-[#3b5bdb]/20"
+                          />
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setKartleggingItems((current) => [...current, createDraftItem()])}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-400"
+                  >
+                    + Legg til element
+                  </button>
+                </div>
+              ) : (
+                <textarea
+                  id="items"
+                  name="items"
+                  value={items}
+                  onChange={(event) => setItems(event.target.value)}
+                  placeholder={contentPlaceholder}
+                  rows={7}
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#3b5bdb] focus:ring-2 focus:ring-[#3b5bdb]/20"
+                />
+              )}
+              {isRangering ? <p className="text-xs text-slate-500">Valgfri beskrivelse: Elementnavn; tag; beskrivelse</p> : null}
               {itemsError ? <p className="text-sm text-red-600">{itemsError}</p> : null}
             </div>
 

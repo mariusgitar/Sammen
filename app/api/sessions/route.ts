@@ -6,6 +6,7 @@ import { innspill, innspillLikes, innspillModes, items, responses, sessionModes,
 import { generateCode } from '@/lib/generate-code';
 
 type CreateSessionMode = (typeof sessionModes)[number] | 'innspill+stemming';
+type CreateSessionItem = string | { name: string; tag?: string | null; description?: string | null };
 
 type CreateSessionBody = {
   title: string;
@@ -18,7 +19,7 @@ type CreateSessionBody = {
   innspill_mode?: (typeof innspillModes)[number];
   innspill_max_chars?: number;
   max_rank_items?: number | null;
-  items: string[];
+  items: CreateSessionItem[];
   tags: string[];
   allow_new_items: boolean;
 };
@@ -72,7 +73,22 @@ function isCreateSessionBody(body: unknown): body is CreateSessionBody {
     (typeof candidate.innspill_max_chars === 'undefined' || Number.isInteger(candidate.innspill_max_chars)) &&
     (typeof candidate.max_rank_items === 'undefined' || candidate.max_rank_items === null || Number.isInteger(candidate.max_rank_items)) &&
     Array.isArray(candidate.items) &&
-    candidate.items.every((item) => typeof item === 'string') &&
+    candidate.items.every((item) => {
+      if (typeof item === 'string') {
+        return true;
+      }
+
+      if (!item || typeof item !== 'object') {
+        return false;
+      }
+
+      const structured = item as Partial<Extract<CreateSessionItem, { name: string }>>;
+      return (
+        typeof structured.name === 'string' &&
+        (typeof structured.tag === 'undefined' || structured.tag === null || typeof structured.tag === 'string') &&
+        (typeof structured.description === 'undefined' || structured.description === null || typeof structured.description === 'string')
+      );
+    }) &&
     Array.isArray(candidate.tags) &&
     candidate.tags.every((tag) => typeof tag === 'string') &&
     typeof candidate.allow_new_items === 'boolean'
@@ -112,7 +128,9 @@ export async function POST(request: NextRequest) {
     }
 
     const title = body.title.trim();
-    const itemLines = body.items.map((item) => item.trim()).filter(Boolean);
+    const itemLines = body.items
+      .map((item) => (typeof item === 'string' ? item.trim() : item.name.trim()))
+      .filter(Boolean);
     const tags = normalizeTagsPreserveCasing(body.tags);
     const tagsByKey = new Map(tags.map((tag) => [normalizeTagKey(tag), tag]));
 
@@ -179,10 +197,24 @@ export async function POST(request: NextRequest) {
         tags: sessions.tags,
       });
 
-    const parsedItems = itemLines
-      .map((line, orderIndex) => {
+    const parsedItems = body.items
+      .map((entry, orderIndex) => {
+        if (typeof entry === 'object') {
+          const text = entry.name.trim();
+          const defaultTag = entry.tag?.trim() ?? '';
+          const description = entry.description?.trim() ?? '';
+          const validDefaultTag = defaultTag ? (tagsByKey.get(normalizeTagKey(defaultTag)) ?? null) : null;
+
+          return {
+            text,
+            orderIndex,
+            defaultTag: normalizedMode === 'kartlegging' ? validDefaultTag : null,
+            description: description.length > 0 ? description : null,
+          };
+        }
+
         const shouldParseStructuredItem = normalizedMode === 'kartlegging' || normalizedMode === 'rangering';
-        const [rawText, rawDefaultTag, ...rawDescriptionParts] = shouldParseStructuredItem ? line.split(';') : [line];
+        const [rawText, rawDefaultTag, ...rawDescriptionParts] = shouldParseStructuredItem ? entry.split(';') : [entry];
         const text = rawText?.trim() ?? '';
         const defaultTag = rawDefaultTag?.trim() ?? '';
         const description = rawDescriptionParts.join(';').trim();
