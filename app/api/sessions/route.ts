@@ -181,15 +181,18 @@ export async function POST(request: NextRequest) {
 
     const parsedItems = itemLines
       .map((line, orderIndex) => {
-        const [rawText, rawDefaultTag] = line.split(';');
+        const shouldParseStructuredItem = normalizedMode === 'kartlegging' || normalizedMode === 'rangering';
+        const [rawText, rawDefaultTag, ...rawDescriptionParts] = shouldParseStructuredItem ? line.split(';') : [line];
         const text = rawText?.trim() ?? '';
         const defaultTag = rawDefaultTag?.trim() ?? '';
+        const description = rawDescriptionParts.join(';').trim();
         const validDefaultTag = defaultTag ? (tagsByKey.get(normalizeTagKey(defaultTag)) ?? null) : null;
 
         return {
           text,
           orderIndex,
           defaultTag: normalizedMode === 'kartlegging' ? validDefaultTag : null,
+          description: description.length > 0 ? description : null,
         };
       })
       .filter((item) => item.text.length > 0);
@@ -198,13 +201,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'At least one item is required' }, { status: 400 });
     }
 
-    const itemRows = parsedItems.map(({ text, orderIndex, defaultTag }) => {
+    const itemRows = parsedItems.map(({ text, orderIndex, defaultTag, description }) => {
       const questionStatus: 'active' | 'inactive' =
         normalizedMode === 'aapne-innspill' && visibilityMode === 'all' ? 'active' : 'inactive';
 
       return {
         sessionId: createdSession.id,
         text,
+        description,
         orderIndex,
         isQuestion: normalizedMode === 'aapne-innspill',
         questionStatus,

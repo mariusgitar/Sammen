@@ -300,7 +300,9 @@ export default function NewSessionPage() {
   const contentPlaceholder = isInnspillMode
     ? "Én per linje — f.eks. 'Hva fungerer bra?'"
     : isKartlegging
-      ? "Én per linje. Legg til ; og tagnavn for forhåndsvalg.\nEks:\nKriterie 1; Kriterie\nKriterie 2; Kriterie\nNoe uklart"
+      ? "Én per linje. Legg til ; og tagnavn for forhåndsvalg.\nValgfri beskrivelse: Elementnavn; tag; beskrivelse\nEks:\nKriterie 1; Kriterie; Kort forklaring\nKriterie 2; Kriterie\nNoe uklart"
+      : isRangering
+        ? "Én per linje. Valgfri beskrivelse: Elementnavn; tag; beskrivelse"
       : "Én per linje";
 
   return (
@@ -381,9 +383,10 @@ export default function NewSessionPage() {
                 rows={7}
                 className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm text-slate-900 outline-none transition focus:border-[#3b5bdb] focus:ring-2 focus:ring-[#3b5bdb]/20"
               />
-              {isKartlegging ? (
-                <p className="text-xs text-slate-500">Elementer uten ; får ingen forhåndsvalgt tag.</p>
+              {isKartlegging || isRangering ? (
+                <p className="text-xs text-slate-500">Valgfri beskrivelse: Elementnavn; tag; beskrivelse</p>
               ) : null}
+              {isKartlegging ? <p className="text-xs text-slate-500">Elementer uten ; får ingen forhåndsvalgt tag.</p> : null}
               {itemsError ? <p className="text-sm text-red-600">{itemsError}</p> : null}
             </div>
 

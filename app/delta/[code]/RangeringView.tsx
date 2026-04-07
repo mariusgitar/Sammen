@@ -15,15 +15,27 @@ type RangeringViewProps = {
   items: Array<{
     id: string;
     text: string;
+    description: string | null;
   }>;
 };
 
 type RankedItem = {
   id: string;
   text: string;
+  description: string | null;
 };
 
-function SortableRankItem({ item, index }: { item: RankedItem; index: number }) {
+function SortableRankItem({
+  item,
+  index,
+  expanded,
+  onToggleDescription,
+}: {
+  item: RankedItem;
+  index: number;
+  expanded: boolean;
+  onToggleDescription: (itemId: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
 
   return (
@@ -36,7 +48,23 @@ function SortableRankItem({ item, index }: { item: RankedItem; index: number }) 
     >
       <div className="flex items-center gap-4">
         <span className="min-w-8 text-3xl font-semibold text-[#94a3b8]">{index + 1}</span>
-        <p className="flex-1 text-[#0f172a]">{item.text}</p>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <p className="text-[#0f172a]">{item.text}</p>
+            {item.description?.trim() ? (
+              <button
+                type="button"
+                onClick={() => onToggleDescription(item.id)}
+                className="text-sm text-slate-500 transition hover:text-slate-700"
+                aria-expanded={expanded}
+                aria-label={`Vis beskrivelse for ${item.text}`}
+              >
+                {expanded ? '▼' : 'ℹ️'}
+              </button>
+            ) : null}
+          </div>
+          {item.description?.trim() && expanded ? <p className="mt-1 text-sm text-slate-500">{item.description}</p> : null}
+        </div>
         <button
           type="button"
           {...attributes}
@@ -59,6 +87,7 @@ export function RangeringView({ session, items }: RangeringViewProps) {
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
 
   const participantStorageKey = 'samen_participant_id';
   const nicknameStorageKey = `samen_nickname_${session.code}`;
@@ -149,6 +178,10 @@ export function RangeringView({ session, items }: RangeringViewProps) {
 
       return arrayMove(current, oldIndex, newIndex);
     });
+  }
+
+  function toggleDescription(itemId: string) {
+    setExpandedDescriptions((current) => ({ ...current, [itemId]: !current[itemId] }));
   }
 
   async function submitRanking() {
@@ -264,7 +297,13 @@ export function RangeringView({ session, items }: RangeringViewProps) {
           <SortableContext items={visibleRankedItems.map((item) => item.id)} strategy={verticalListSortingStrategy}>
             <div className="mt-6 space-y-3">
               {visibleRankedItems.map((item, index) => (
-                <SortableRankItem key={item.id} item={item} index={index} />
+                <SortableRankItem
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  expanded={expandedDescriptions[item.id] ?? false}
+                  onToggleDescription={toggleDescription}
+                />
               ))}
             </div>
           </SortableContext>

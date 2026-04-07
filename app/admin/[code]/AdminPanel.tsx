@@ -23,6 +23,7 @@ type SessionView = {
 type SessionItem = {
   id: string;
   text: string;
+  description?: string | null;
   isNew: boolean;
   excluded: boolean;
   createdBy: string;
@@ -34,6 +35,7 @@ type SessionItem = {
 type KartleggingSummaryItem = {
   id: string;
   text: string;
+  description: string | null;
   is_new: boolean;
   created_by: string;
   excluded: boolean;
@@ -47,6 +49,7 @@ type KartleggingSummaryItem = {
 type StemmingSummaryItem = {
   id: string;
   text: string;
+  description: string | null;
   is_new: boolean;
   created_by: string;
   excluded: boolean;
@@ -59,6 +62,7 @@ type StemmingSummaryItem = {
 type RangeringSummaryItem = {
   id: string;
   text: string;
+  description: string | null;
   is_new: boolean;
   created_by: string;
   excluded: boolean;
@@ -173,6 +177,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     items: items.map((item) => ({
       id: item.id,
       text: item.text,
+      description: item.description ?? null,
       is_new: item.isNew,
       created_by: item.createdBy,
       excluded: item.excluded,
@@ -1481,6 +1486,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                         </span>
                       ) : null}
                     </div>
+                    {item.description?.trim() ? <p className="mt-0.5 text-xs text-slate-400">{item.description}</p> : null}
                     <p className="mt-0.5 text-xs text-slate-400">Snitt posisjon: {Number.isFinite(item.average_position) ? item.average_position.toFixed(1) : '–'}</p>
                   </div>
                   <div className="flex flex-shrink-0 flex-col items-end gap-1">
@@ -1529,6 +1535,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                       </span>
                     ) : null}
                   </div>
+                  {item.description?.trim() ? <p className="mt-1 text-xs text-slate-400">{item.description}</p> : null}
                   <div className="mt-3 flex items-end gap-2">
                     <p className={`text-4xl font-bold ${getScoreColorClass(item.averageScore)}`}>{item.averageScore.toFixed(1)}</p>
                     <p className="pb-1 text-slate-400">i snitt</p>
@@ -1572,6 +1579,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                         </span>
                       ) : null}
                     </div>
+                    {item.description?.trim() ? <p className="mt-1 text-xs text-slate-400">{item.description}</p> : null}
                     {tagEntries.length > 0 ? (
                       <div className="mt-3 flex flex-wrap gap-2">
                         {tagEntries.map(([tag, count], index) => (

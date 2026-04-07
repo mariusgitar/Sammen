@@ -16,6 +16,7 @@ type RouteContext = {
 type KartleggingSummaryItem = {
   id: string;
   text: string;
+  description: string | null;
   is_new: boolean;
   created_by: string;
   excluded: boolean;
@@ -29,6 +30,7 @@ type KartleggingSummaryItem = {
 type StemmingSummaryItem = {
   id: string;
   text: string;
+  description: string | null;
   is_new: boolean;
   created_by: string;
   excluded: boolean;
@@ -41,6 +43,7 @@ type StemmingSummaryItem = {
 type RangeringSummaryItem = {
   id: string;
   text: string;
+  description: string | null;
   is_new: boolean;
   created_by: string;
   excluded: boolean;
@@ -86,6 +89,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .select({
         id: items.id,
         text: items.text,
+        description: items.description,
         is_new: items.isNew,
         created_by: items.createdBy,
         is_question: items.isQuestion,
@@ -204,6 +208,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
           return {
             id: item.id,
             text: item.text,
+            description: item.description,
             is_new: item.is_new,
             created_by: item.created_by,
             excluded: item.excluded,
@@ -266,6 +271,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         return {
           id: item.id,
           text: item.text,
+          description: item.description,
           is_new: item.is_new,
           created_by: item.created_by,
           excluded: item.excluded,
@@ -307,6 +313,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       return {
         id: item.id,
         text: item.text,
+        description: item.description,
         is_new: item.is_new,
         created_by: item.created_by,
         excluded: item.excluded,
