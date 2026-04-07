@@ -70,7 +70,12 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .where(eq(items.sessionId, session.id))
       .orderBy(asc(items.orderIndex), asc(items.createdAt));
 
-    return NextResponse.json({ session, items: sessionItems });
+    const responseSession = {
+      ...session,
+      results_visible: session.resultsVisible ?? false,
+    };
+
+    return NextResponse.json({ session: responseSession, items: sessionItems });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
