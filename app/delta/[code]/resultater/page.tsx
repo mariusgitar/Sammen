@@ -128,6 +128,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const [isVisible, setIsVisible] = useState(false);
   const [sessionStatus, setSessionStatus] = useState<'setup' | 'active' | 'paused' | 'closed' | null>(null);
   const [sessionMode, setSessionMode] = useState<SessionInfoResponse['session']['mode'] | null>(null);
+  const [sessionPhase, setSessionPhase] = useState<SessionInfoResponse['session']['phase'] | null>(null);
   const [results, setResults] = useState<ResultsResponse | null>(null);
   const [themeResults, setThemeResults] = useState<ThemeResponse | null>(null);
   const [viewMode, setViewMode] = useState<'temaer' | 'alle'>('alle');
@@ -172,6 +173,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
         setIsVisible(serverVisibility);
         setSessionStatus(sessionData.session.status);
         setSessionMode(sessionData.session.mode);
+        setSessionPhase(sessionData.session.phase);
         setTimerEndsAt(sessionData.session.timerEndsAt);
         setTimerLabel(sessionData.session.timerLabel);
 
@@ -271,9 +273,11 @@ export default function ParticipantResultsPage({ params }: PageProps) {
 
           <p className="text-sm text-slate-400">Siden oppdateres automatisk</p>
 
-          <a href={`/delta/${code}`} className="mt-4 text-xs text-slate-400 hover:text-slate-600">
-            ← Tilbake
-          </a>
+          {sessionPhase === 'innspill' && sessionStatus === 'active' ? (
+            <a href={`/delta/${code}`} className="mt-4 text-xs text-slate-400 hover:text-slate-600">
+              ← Tilbake
+            </a>
+          ) : null}
         </section>
         <TimerBanner timerEndsAt={timerEndsAt} timerLabel={timerLabel} />
       </main>
