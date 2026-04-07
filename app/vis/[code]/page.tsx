@@ -109,6 +109,14 @@ type ThemeResponse = {
 const inter = Inter({ subsets: ['latin'] });
 const TAG_COLORS = ['#818cf8', '#34d399', '#fb923c', '#f472b6', '#60a5fa', '#a78bfa', '#4ade80'];
 
+const getDisplayTag = (item: KartleggingSummaryItem) => {
+  const finalTag = item.final_tag?.trim();
+  if (finalTag) return finalTag;
+  const entries = Object.entries(item.tagCounts ?? {});
+  if (entries.length === 0) return null;
+  return entries.sort((a, b) => b[1] - a[1])[0][0];
+};
+
 function modeLabel(mode: SessionResponse['session']['mode']) {
   if (mode === 'kartlegging') return 'Kartlegging';
   if (mode === 'stemming') return 'Stemming';
@@ -211,7 +219,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
       Array.from(
         new Set(
           kartleggingItems
-            .map((item) => item.final_tag?.trim())
+            .map((item) => getDisplayTag(item))
             .filter((tag): tag is string => Boolean(tag)),
         ),
       ).sort((a, b) => a.localeCompare(b, 'no')),
@@ -227,7 +235,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
   );
   const groupedKartleggingItems = useMemo(() => {
     const grouped = kartleggingItems.reduce<Record<string, KartleggingSummaryItem[]>>((acc, item) => {
-      const tag = item.final_tag?.trim() || 'Ikke kategorisert';
+      const tag = getDisplayTag(item) || 'Ikke kategorisert';
       if (!acc[tag]) {
         acc[tag] = [];
       }
@@ -275,19 +283,17 @@ export default function PresentationPage({ params }: { params: { code: string } 
           visible ? 'opacity-100' : 'opacity-0'
         }`}
       >
-        <header className="mb-10 flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-white">{session?.title ?? 'Presentasjonsmodus'}</h1>
+        <header className="mb-10 flex items-start justify-between gap-4">
+          <div className="flex min-w-0 flex-1 flex-col">
+            <h1 className="min-w-0 overflow-hidden break-words text-2xl font-bold text-white">{session?.title ?? 'Presentasjonsmodus'}</h1>
+            <p className="mt-2 text-sm text-slate-400">
+              {summary?.participantCount ?? 0} deltakere
+            </p>
             <span className="mt-4 inline-flex rounded-2xl border border-[#818cf8]/40 bg-[#818cf8]/10 px-4 py-1.5 text-sm font-semibold text-[#c7d2fe]">
               {session ? modeLabel(session.mode) : 'Laster...'}
             </span>
           </div>
-          <div className="text-right">
-            <p className="inline-flex items-center gap-2 text-lg text-white/80">
-              <span className="inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-[#67e8f9]" />
-              {summary?.participantCount ?? 0} deltakere
-            </p>
-          </div>
+          <span className="mt-1 inline-block h-2.5 w-2.5 animate-pulse rounded-full bg-[#67e8f9]" />
         </header>
 
         <section className="relative flex-1">
