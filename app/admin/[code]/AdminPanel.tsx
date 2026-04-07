@@ -530,6 +530,40 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     return sortedTags[0]?.[0] ?? null;
   }
 
+  function getGroupingStats(item: KartleggingSummaryItem) {
+    const tagEntries = Object.entries(item.tagCounts);
+    const totalVotes = tagEntries.reduce((sum, [, count]) => sum + count, 0);
+
+    if (tagEntries.length === 0 || totalVotes === 0) {
+      return {
+        totalVotes: 0,
+        highestCount: 0,
+        ratio: 0,
+        winningTag: null as string | null,
+      };
+    }
+
+    const sortedTags = [...tagEntries].sort((a, b) => {
+      if (b[1] !== a[1]) {
+        return b[1] - a[1];
+      }
+
+      const aSessionIndex = currentSession.tags.findIndex((tag) => tag === a[0]);
+      const bSessionIndex = currentSession.tags.findIndex((tag) => tag === b[0]);
+
+      if (aSessionIndex !== -1 && bSessionIndex !== -1) {
+        return aSessionIndex - bSessionIndex;
+      }
+
+      return a[0].localeCompare(b[0]);
+    });
+
+    const [winningTag, highestCount] = sortedTags[0] ?? [null, 0];
+    const ratio = highestCount > 0 ? highestCount / totalVotes : 0;
+
+    return { totalVotes, highestCount, ratio, winningTag };
+  }
+
   function getEffectiveFinalTag(item: KartleggingSummaryItem) {
     return item.finalTag ?? getConsensusTag(item);
   }
@@ -572,6 +606,10 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     const matchingItems = itemsInGroup.filter((item) => getEffectiveFinalTag(item) === tag);
 
     await Promise.all(matchingItems.map(async (item) => updateIncluded(item.id, include)));
+  }
+
+  async function setIncludedForAll(itemsToUpdate: KartleggingSummaryItem[], include: boolean) {
+    await Promise.all(itemsToUpdate.map(async (item) => updateIncluded(item.id, include)));
   }
 
   async function startStemming(votingType: 'scale' | 'dots', payloadItems?: Array<{ text: string; created_by: string }>) {
@@ -1090,134 +1128,183 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       {sessionStatus === 'paused' && sessionPhase === 'kartlegging' ? (
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
           <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Kuratér til stemming</h2>
-          <p className="mt-2 text-sm text-slate-300">Grupper etter enighet, velg endelig tag og om elementet tas med videre.</p>
+          <p className="mt-2 text-sm text-slate-300">Sorter etter tag-konsensus, velg endelig tag og bestem hvilke elementer som tas med videre.</p>
           <div className="mt-4 space-y-6">
             {(() => {
-              const getGroupingStats = (item: KartleggingSummaryItem) => {
-                const totalVotes = Object.values(item.tagCounts).reduce((sum, count) => sum + count, 0);
-                const highestCount = Object.values(item.tagCounts).length > 0 ? Math.max(...Object.values(item.tagCounts)) : 0;
-                const ratio = totalVotes > 0 ? highestCount / totalVotes : 0;
+              const itemsById = new Map(finalListItems.map((item) => [item.id, item]));
+              const unresolvedItems: KartleggingSummaryItem[] = [];
+              const groupedByTag: Record<string, KartleggingSummaryItem[]> = Object.fromEntries(
+                currentSession.tags.map((tag) => [tag, []]),
+              );
+              const extraTagGroups: Record<string, KartleggingSummaryItem[]> = {};
 
-                return { totalVotes, ratio };
+              for (const item of finalListItems) {
+                const stats = getGroupingStats(item);
+                if (!stats.winningTag || stats.ratio < 0.67) {
+                  unresolvedItems.push(item);
+                  continue;
+                }
+
+                const groupTag = getEffectiveFinalTag(item) ?? stats.winningTag;
+                if (groupTag in groupedByTag) {
+                  groupedByTag[groupTag].push(item);
+                } else {
+                  extraTagGroups[groupTag] = [...(extraTagGroups[groupTag] ?? []), item];
+                }
+              }
+
+              const tagGroups = [
+                ...currentSession.tags.map((tag) => ({
+                  key: tag,
+                  title: tag,
+                  items: groupedByTag[tag] ?? [],
+                })),
+                ...Object.entries(extraTagGroups).map(([tag, itemsForTag]) => ({
+                  key: tag,
+                  title: tag,
+                  items: itemsForTag,
+                })),
+              ].filter((group) => group.items.length > 0);
+
+              const itemsForTagToggle = (tag: string) =>
+                [...groupedByTag[tag], ...unresolvedItems.filter((item) => getEffectiveFinalTag(item) === tag)].filter((item) => itemsById.has(item.id));
+
+              const renderItemCard = (item: KartleggingSummaryItem, unresolved: boolean) => {
+                const stats = getGroupingStats(item);
+                const distributionEntries = Object.entries(item.tagCounts);
+                const indicator = unresolved
+                  ? {
+                      dotClass: 'bg-rose-400',
+                      text:
+                        stats.totalVotes > 0
+                          ? `${stats.highestCount} av ${stats.totalVotes} enige (${Math.round(stats.ratio * 100)}%)`
+                          : 'Ingen stemmer registrert',
+                    }
+                  : stats.ratio === 1
+                    ? { dotClass: 'bg-emerald-400', text: 'Alle enige' }
+                    : { dotClass: 'bg-amber-400', text: `${stats.highestCount} av ${stats.totalVotes} enige` };
+
+                return (
+                  <div key={item.id} className="rounded-xl border border-slate-700 bg-slate-950 p-3">
+                    <p className="text-sm font-semibold text-slate-100">{item.text}</p>
+                    <div className="mt-2 space-y-2">
+                      <p className="text-xs text-slate-400">
+                        {distributionEntries.length > 0
+                          ? distributionEntries.map(([tag, count]) => `${tag}: ${count}`).join(' / ')
+                          : 'Ingen tagger enda'}
+                      </p>
+                      {stats.totalVotes > 0 ? (
+                        <div className="h-2 w-full overflow-hidden rounded bg-slate-800">
+                          <div className="flex h-full">
+                            {distributionEntries.map(([tag, count], index) => {
+                              const width = `${(count / stats.totalVotes) * 100}%`;
+                              const colorClass = ['bg-cyan-400', 'bg-emerald-400', 'bg-violet-400', 'bg-amber-400', 'bg-rose-400'][index % 5];
+                              return <div key={`${item.id}-${tag}-bar`} className={colorClass} style={{ width }} title={`${tag}: ${count}`} />;
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-3 flex items-center gap-2 text-xs text-slate-300">
+                      <span className={`h-2 w-2 rounded-full ${indicator.dotClass}`} />
+                      <span>{indicator.text}</span>
+                    </div>
+
+                    <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={item.finalTag ?? (unresolved ? '' : getConsensusTag(item) ?? '')}
+                          onChange={(event) => void updateFinalTag(item.id, event.target.value === '' ? null : event.target.value)}
+                          disabled={Boolean(savingFinalTagByItem[item.id])}
+                          className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                        >
+                          <option value="">Ingen tag</option>
+                          {currentSession.tags.map((tag) => (
+                            <option key={`${item.id}-final-tag-option-${tag}`} value={tag}>
+                              {tag}
+                            </option>
+                          ))}
+                        </select>
+                        {savingFinalTagByItem[item.id] ? <span className="text-xs text-slate-400">Lagrer tag…</span> : null}
+                      </div>
+
+                      <label className="flex items-center gap-2 text-sm text-slate-200">
+                        <input
+                          type="checkbox"
+                          checked={includeMap[item.id] ?? true}
+                          disabled={Boolean(savingIncludeByItem[item.id])}
+                          onChange={(event) => void updateIncluded(item.id, event.target.checked)}
+                          className="h-4 w-4 rounded border-slate-500 bg-slate-900"
+                        />
+                        Ta med videre
+                        {savingIncludeByItem[item.id] ? <span className="text-xs text-slate-400">(Lagrer…)</span> : null}
+                      </label>
+                    </div>
+                  </div>
+                );
               };
 
-              return [
-              {
-                key: 'klar',
-                title: 'Klar',
-                description: 'Høyeste tag har 100% av stemmene.',
-                items: finalListItems.filter((item) => {
-                  const { totalVotes, ratio } = getGroupingStats(item);
-                  return totalVotes > 0 && ratio === 1;
-                }),
-              },
-              {
-                key: 'noe-uenighet',
-                title: 'Noe uenighet',
-                description: 'Høyeste tag har mer enn 50%, men ikke 100% av stemmene.',
-                items: finalListItems.filter((item) => {
-                  const { totalVotes, ratio } = getGroupingStats(item);
-                  return totalVotes > 0 && ratio > 0.5 && ratio < 1;
-                }),
-              },
-              {
-                key: 'diskuter-forst',
-                title: 'Diskuter først',
-                description: 'Ingen tag har mer enn 50% av stemmene.',
-                items: finalListItems.filter((item) => {
-                  const { totalVotes, ratio } = getGroupingStats(item);
-                  return totalVotes > 0 && ratio <= 0.5;
-                }),
-              },
-              {
-                key: 'ikke-tagget',
-                title: 'Ikke tagget',
-                description: 'Ingen registrerte tag-stemmer ennå.',
-                items: finalListItems.filter((item) => {
-                  const { totalVotes } = getGroupingStats(item);
-                  return totalVotes === 0;
-                }),
-              },
-            ];
-            })().map((group) => (
-              <article key={group.key} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">
-                <h3 className="text-sm font-semibold text-slate-100">{group.title}</h3>
-                <p className="mt-1 text-xs text-slate-400">{group.description}</p>
-
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {currentSession.tags.map((tag) => (
-                    <div key={`${group.key}-${tag}`} className="flex items-center gap-2">
+              return (
+                <>
+                  <div className="rounded-xl border border-slate-700 bg-slate-950/70 p-3">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
-                        onClick={() => void setIncludedForTag(group.items, tag, true)}
+                        onClick={() => void setIncludedForAll(finalListItems, true)}
                         className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
                       >
-                        Velg alle {tag}
+                        Velg alle
                       </button>
                       <button
                         type="button"
-                        onClick={() => void setIncludedForTag(group.items, tag, false)}
+                        onClick={() => void setIncludedForAll(finalListItems, false)}
                         className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
                       >
-                        Fjern alle {tag}
+                        Fjern alle
                       </button>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 space-y-3">
-                  {group.items.length === 0 ? <p className="text-sm text-slate-400">Ingen elementer i denne gruppen.</p> : null}
-                  {group.items.map((item) => {
-                    const distributionEntries = [
-                      ...Object.entries(item.tagCounts),
-                      ...(item.untaggedCount > 0 ? ([['Ingen tag', item.untaggedCount]] as Array<[string, number]>) : []),
-                    ];
-
-                    return (
-                      <div key={item.id} className="rounded-xl border border-slate-700 bg-slate-950 p-3">
-                        <p className="text-sm font-medium text-slate-100">{item.text}</p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {distributionEntries.length > 0
-                            ? distributionEntries.map(([tag, count]) => `${tag}: ${count}`).join(' / ')
-                            : 'Ingen tagger enda'}
-                        </p>
-
-                        <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                          <div className="flex items-center gap-2">
-                            <select
-                              value={getEffectiveFinalTag(item) ?? ''}
-                              onChange={(event) => void updateFinalTag(item.id, event.target.value === '' ? null : event.target.value)}
-                              disabled={Boolean(savingFinalTagByItem[item.id])}
-                              className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100"
-                            >
-                              <option value="">Ingen tag</option>
-                              {currentSession.tags.map((tag) => (
-                                <option key={`${item.id}-final-tag-option-${tag}`} value={tag}>
-                                  {tag}
-                                </option>
-                              ))}
-                            </select>
-                            {savingFinalTagByItem[item.id] ? <span className="text-xs text-slate-400">Lagrer tag…</span> : null}
-                          </div>
-
-                          <label className="flex items-center gap-2 text-sm text-slate-200">
-                            <input
-                              type="checkbox"
-                              checked={includeMap[item.id] ?? true}
-                              disabled={Boolean(savingIncludeByItem[item.id])}
-                              onChange={(event) => void updateIncluded(item.id, event.target.checked)}
-                              className="h-4 w-4 rounded border-slate-500 bg-slate-900"
-                            />
-                            Ta med videre
-                            {savingIncludeByItem[item.id] ? <span className="text-xs text-slate-400">(Lagrer…)</span> : null}
-                          </label>
+                      {currentSession.tags.map((tag) => (
+                        <div key={`global-${tag}`} className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => void setIncludedForTag(itemsForTagToggle(tag), tag, true)}
+                            className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
+                          >
+                            Velg alle {tag}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void setIncludedForTag(itemsForTagToggle(tag), tag, false)}
+                            className="rounded border border-slate-600 px-2 py-1 text-xs text-slate-200 hover:bg-slate-800"
+                          >
+                            Fjern alle {tag}
+                          </button>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </article>
-            ))}
+                      ))}
+                    </div>
+                  </div>
+
+                  {tagGroups.map((group) => (
+                    <article key={group.key} className="rounded-xl border border-slate-700 bg-slate-950/70 p-4">
+                      <h3 className="text-base font-semibold text-slate-100">{group.title}</h3>
+                      <div className="mt-4 space-y-3">{group.items.map((item) => renderItemCard(item, false))}</div>
+                    </article>
+                  ))}
+
+                  <article className="rounded-xl border border-rose-500/40 bg-rose-950/20 p-4">
+                    <h3 className="text-base font-semibold text-rose-300">Uavklart — trenger diskusjon</h3>
+                    <p className="mt-1 text-xs text-rose-200/80">Elementer uten klar vinner (&lt; 67% enighet) vises her.</p>
+                    <div className="mt-4 space-y-3">
+                      {unresolvedItems.length === 0 ? (
+                        <p className="text-sm text-rose-100/70">Ingen uavklarte elementer.</p>
+                      ) : (
+                        unresolvedItems.map((item) => renderItemCard(item, true))
+                      )}
+                    </div>
+                  </article>
+                </>
+              );
+            })()}
           </div>
         </section>
       ) : null}
