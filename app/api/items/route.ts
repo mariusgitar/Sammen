@@ -9,6 +9,7 @@ type RequestBody = {
   text: string;
   participantId: string;
   nickname: string;
+  description?: string | null;
 };
 
 function isValidBody(candidate: unknown): candidate is RequestBody {
@@ -24,7 +25,8 @@ function isValidBody(candidate: unknown): candidate is RequestBody {
     body.text.trim().length > 0 &&
     typeof body.participantId === 'string' &&
     typeof body.nickname === 'string' &&
-    body.nickname.trim().length > 0
+    body.nickname.trim().length > 0 &&
+    (typeof body.description === 'undefined' || body.description === null || typeof body.description === 'string')
   );
 }
 
@@ -70,6 +72,7 @@ export async function POST(request: Request) {
       .values({
         sessionId: body.sessionId,
         text: body.text.trim(),
+        description: body.description?.trim() || null,
         createdBy: body.nickname.trim(),
         isNew: true,
         orderIndex: nextOrderIndex,
@@ -77,6 +80,7 @@ export async function POST(request: Request) {
       .returning({
         id: items.id,
         text: items.text,
+        description: items.description,
         is_new: items.isNew,
       });
 
