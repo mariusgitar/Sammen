@@ -110,6 +110,14 @@ function consensusMeta(score: number) {
 
 const TAG_COLORS = ['#818cf8', '#34d399', '#fb923c', '#f472b6', '#60a5fa', '#a78bfa', '#4ade80'];
 
+const getDisplayTag = (item: KartleggingSummaryItem) => {
+  const finalTag = item.final_tag?.trim();
+  if (finalTag) return finalTag;
+  const entries = Object.entries(item.tagCounts ?? {});
+  if (entries.length === 0) return null;
+  return entries.sort((a, b) => b[1] - a[1])[0][0];
+};
+
 export default function ParticipantResultsPage({ params }: PageProps) {
   const router = useRouter();
   const code = useMemo(() => params.code.toUpperCase(), [params.code]);
@@ -385,7 +393,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const uniqueFinalTags = Array.from(
     new Set(
       mainKartleggingItems
-        .map((item) => item.final_tag?.trim())
+        .map((item) => getDisplayTag(item))
         .filter((tag): tag is string => Boolean(tag)),
     ),
   ).sort((a, b) => a.localeCompare(b, 'no'));
@@ -394,7 +402,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     return acc;
   }, {});
   const groupedKartleggingItems = mainKartleggingItems.reduce<Record<string, KartleggingSummaryItem[]>>((acc, item) => {
-    const tag = item.final_tag?.trim() || 'Ikke kategorisert';
+    const tag = getDisplayTag(item) || 'Ikke kategorisert';
     if (!acc[tag]) {
       acc[tag] = [];
     }
