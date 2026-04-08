@@ -22,17 +22,21 @@ type SessionInfoResponse = {
     results_visible?: boolean;
     timerEndsAt: string | null;
     timerLabel: string | null;
+    active_filter?: 'alle' | 'uenighet' | 'usikker' | 'konsensus';
   };
 };
 
 type KartleggingSummaryItem = {
   id: string;
   text: string;
+  description?: string | null;
   is_new: boolean;
   excluded: boolean;
+  finalTag?: string | null;
   final_tag?: string | null;
   tagCounts: Record<string, number>;
   untaggedCount: number;
+  uncertainCount?: number;
 };
 
 type StemmingSummaryItem = {
@@ -79,6 +83,15 @@ type ResultsResponse = {
   themes?: ThemeSummaryItem[];
 };
 
+type AdminSummaryResponse = {
+  phase: 'kartlegging' | 'stemming' | 'rangering' | 'innspill';
+  status: 'setup' | 'active' | 'paused' | 'closed';
+  votingType?: 'scale' | 'dots';
+  participantCount: number;
+  items: Array<KartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
+  themes?: ThemeSummaryItem[];
+};
+
 type ThemeResponse = {
   themes: Array<{
     id: string;
@@ -111,10 +124,14 @@ function consensusMeta(score: number) {
   return { text: 'Stor uenighet', color: '#ef4444' };
 }
 
-const TAG_COLORS = ['#818cf8', '#34d399', '#fb923c', '#f472b6', '#60a5fa', '#a78bfa', '#4ade80'];
+const CONSENSUS_TAG_COLORS: Record<string, string> = {
+  'må-krav': '#0f172a',
+  vurderingskriterie: '#6366f1',
+  'ikke relevant': '#94a3b8',
+};
 
 const getDisplayTag = (item: KartleggingSummaryItem) => {
-  const finalTag = item.final_tag?.trim();
+  const finalTag = (item.finalTag ?? item.final_tag)?.trim();
   if (finalTag) return finalTag;
   const entries = Object.entries(item.tagCounts ?? {});
   if (entries.length === 0) return null;
@@ -136,6 +153,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const [error, setError] = useState('');
   const [timerEndsAt, setTimerEndsAt] = useState<string | null>(null);
   const [timerLabel, setTimerLabel] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<'alle' | 'uenighet' | 'usikker' | 'konsensus'>('alle');
 
   useEffect(() => {
     let isMounted = true;
@@ -164,9 +182,19 @@ export default function ParticipantResultsPage({ params }: PageProps) {
         const sessionRes = await fetch(`/api/sessions/${code}`);
         if (sessionRes.ok) {
           const sessionPayload = (await sessionRes.json()) as {
-            session?: { resultsVisible?: boolean; results_visible?: boolean };
+            session?: {
+              resultsVisible?: boolean;
+              results_visible?: boolean;
+              active_filter?: 'alle' | 'uenighet' | 'usikker' | 'konsensus';
+            };
             resultsVisible?: boolean;
+            active_filter?: 'alle' | 'uenighet' | 'usikker' | 'konsensus';
           };
+          const syncedFilter =
+            sessionPayload.session?.active_filter ??
+            sessionPayload.active_filter ??
+            'alle';
+          setActiveFilter(syncedFilter);
           const visible =
             sessionPayload.session?.resultsVisible ??
             sessionPayload.session?.results_visible ??
@@ -221,24 +249,31 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           }
         }
 
-        const resultsResponse = await fetch(`/api/delta/${code}/results`, { cache: 'no-store' });
-        const resultsData = (await resultsResponse.json()) as ResultsResponse | { error: string };
+        const summaryResponse = await fetch(`/api/admin/${code}/summary`, { cache: 'no-store' });
+        const summaryData = (await summaryResponse.json()) as AdminSummaryResponse | { error: string };
 
         if (!isMounted) {
           return;
         }
 
-        if (!resultsResponse.ok || !('items' in resultsData)) {
+        if (!summaryResponse.ok || !('items' in summaryData)) {
           setError('Kunne ikke hente resultater.');
           return;
         }
 
         setError('');
         setResults((previous) => {
-          if (resultsData.items.length === 0 && previous && previous.items.length > 0) {
+          if (summaryData.items.length === 0 && previous && previous.items.length > 0) {
             return previous;
           }
-          return resultsData;
+          return {
+            mode: sessionData.session.mode,
+            phase: summaryData.phase,
+            votingType: summaryData.votingType ?? sessionData.session.votingType,
+            participantCount: summaryData.participantCount,
+            items: summaryData.items,
+            themes: summaryData.themes,
+          };
         });
         setThemeResults(null);
       } catch {
@@ -440,19 +475,26 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const kartleggingItems = results.items
     .filter((item): item is KartleggingSummaryItem => 'tagCounts' in item)
     .filter((item) => !item.excluded);
-  const mainKartleggingItems = kartleggingItems.filter((item) => !item.is_new);
-  const newKartleggingItems = kartleggingItems.filter((item) => item.is_new);
-  const uniqueFinalTags = Array.from(
-    new Set(
-      mainKartleggingItems
-        .map((item) => getDisplayTag(item))
-        .filter((tag): tag is string => Boolean(tag)),
-    ),
-  ).sort((a, b) => a.localeCompare(b, 'no'));
-  const tagColorMap = uniqueFinalTags.reduce<Record<string, string>>((acc, tag, index) => {
-    acc[tag.toLowerCase()] = TAG_COLORS[index % TAG_COLORS.length];
-    return acc;
-  }, {});
+  const getTopTagShare = (item: KartleggingSummaryItem) => {
+    const tagEntries = Object.entries(item.tagCounts ?? {})
+      .filter(([tag]) => tag !== 'uklart_flag')
+      .map(([tag, count]) => ({ tag, count: count as number }));
+    if (tagEntries.length === 0) return 0;
+    const total = tagEntries.reduce((sum, entry) => sum + entry.count, 0);
+    if (total === 0) return 0;
+    const maxCount = Math.max(...tagEntries.map((entry) => entry.count));
+    return maxCount / total;
+  };
+  const filteredKartleggingItems = kartleggingItems.filter((item) => {
+    if (activeFilter === 'alle') return true;
+    if (activeFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;
+    const share = getTopTagShare(item);
+    if (activeFilter === 'uenighet') return share < 0.67;
+    if (activeFilter === 'konsensus') return share >= 0.67;
+    return true;
+  });
+  const mainKartleggingItems = filteredKartleggingItems.filter((item) => !item.is_new);
+  const newKartleggingItems = filteredKartleggingItems.filter((item) => item.is_new);
   const groupedKartleggingItems = mainKartleggingItems.reduce<Record<string, KartleggingSummaryItem[]>>((acc, item) => {
     const tag = getDisplayTag(item) || 'Ikke kategorisert';
     if (!acc[tag]) {
@@ -493,6 +535,16 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     <main className="min-h-screen bg-[#f8fafc] px-4 py-8 pb-16">
       <div className="mx-auto max-w-4xl space-y-4">
         <h1 className="text-center text-2xl font-semibold text-[#0f172a]">{title}</h1>
+        {results.phase === 'kartlegging' && activeFilter !== 'alle' ? (
+          <p className="mb-4 text-center text-xs text-slate-400">
+            Fasilitator viser:{' '}
+            {activeFilter === 'uenighet'
+              ? '🔴 Uenighet'
+              : activeFilter === 'usikker'
+                ? '💬 Usikker'
+                : '🟢 Konsensus'}
+          </p>
+        ) : null}
 
         {results.mode === 'rangering' ? (
           <>
@@ -528,9 +580,9 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             <h2 className="text-xl font-semibold text-[#0f172a]">Kartlegging-resultater</h2>
             <div className="space-y-4">
               {sortedGroups.map(([groupName, items]) => {
-                const groupColor = groupName === 'Ikke kategorisert' ? '#94a3b8' : (tagColorMap[groupName.toLowerCase()] ?? TAG_COLORS[0]);
+                const groupColor = groupName === 'Ikke kategorisert' ? '#cbd5e1' : (CONSENSUS_TAG_COLORS[groupName.toLowerCase()] ?? '#cbd5e1');
                 return (
-                  <section key={groupName} className="rounded-xl border border-slate-100 bg-white p-4">
+                  <section key={groupName} className="rounded-xl border border-slate-100 bg-white p-4 shadow-sm">
                     <h3 className="border-l-4 pl-3 text-lg font-semibold text-slate-900" style={{ borderColor: groupColor }}>
                       {groupName}
                     </h3>
@@ -540,29 +592,30 @@ export default function ParticipantResultsPage({ params }: PageProps) {
                         const totalVotes = voteRows.reduce((sum, [, count]) => sum + count, 0);
                         return (
                           <article key={item.id} className="rounded-xl border border-slate-100 bg-white p-3">
-                            <p className="font-semibold text-slate-900">{item.text}</p>
+                            <p className="font-semibold text-slate-800">{item.text}</p>
+                            {item.description ? <p className="mt-1 text-sm text-slate-400">{item.description}</p> : null}
                             {totalVotes === 0 ? (
                               <>
-                                <div className="mt-3 h-2.5 w-full rounded-full bg-slate-200" />
+                                <div className="mt-3 h-2 w-full rounded-full bg-slate-200" />
                                 <p className="mt-2 text-sm text-slate-500">Ingen stemmer</p>
                               </>
                             ) : (
                               <>
-                                <div className="mt-3 flex h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
+                                <div className="mt-3 flex h-2 w-full overflow-hidden rounded-full bg-slate-100">
                                   {voteRows.map(([tag, count]) => (
                                     <div
                                       key={`${item.id}-${tag}`}
                                       className="h-full"
                                       style={{
                                         width: `${(count / totalVotes) * 100}%`,
-                                        backgroundColor: tagColorMap[tag.toLowerCase()] ?? '#94a3b8',
+                                        backgroundColor: CONSENSUS_TAG_COLORS[tag.toLowerCase()] ?? '#cbd5e1',
                                       }}
                                     />
                                   ))}
                                 </div>
-                                <p className="mt-2 text-sm">
+                                <p className="mt-2 text-sm text-slate-500">
                                   {voteRows.map(([tag, count], index) => (
-                                    <span key={`${item.id}-${tag}-label`} style={{ color: tagColorMap[tag.toLowerCase()] ?? '#64748b' }}>
+                                    <span key={`${item.id}-${tag}-label`}>
                                       {index > 0 ? ' / ' : ''}
                                       {tag}: {count}
                                     </span>

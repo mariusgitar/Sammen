@@ -113,6 +113,7 @@ export const votingTypes = ['scale', 'dots'] as const;
 export const visibilityModes = ['manual', 'all'] as const;
 export const questionStatuses = ['inactive', 'active', 'locked'] as const;
 export const innspillModes = ['enkel', 'detaljert'] as const;
+export const activeFilters = ['alle', 'uenighet', 'usikker', 'konsensus'] as const;
 
 export type SessionMode = (typeof sessionModes)[number];
 export type SessionPhase = (typeof sessionPhases)[number];
@@ -121,6 +122,7 @@ export type VotingType = (typeof votingTypes)[number];
 export type VisibilityMode = (typeof visibilityModes)[number];
 export type QuestionStatus = (typeof questionStatuses)[number];
 export type InnspillMode = (typeof innspillModes)[number];
+export type ActiveFilter = (typeof activeFilters)[number];
 
 export const sessions = pgTable('sessions', {
   id: uuid('id').defaultRandom().primaryKey(),
@@ -141,6 +143,7 @@ export const sessions = pgTable('sessions', {
   maxRankItems: integer('max_rank_items'),
   timerEndsAt: timestamp('timer_ends_at', { withTimezone: true }),
   timerLabel: text('timer_label'),
+  activeFilter: text('active_filter').$type<ActiveFilter>().notNull().default('alle'),
   tags: text('tags').array().notNull().default([]),
   allowNewItems: boolean('allow_new_items').notNull().default(true),
   showTagHeaders: boolean('show_tag_headers').default(false),

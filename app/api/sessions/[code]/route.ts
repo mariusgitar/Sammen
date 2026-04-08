@@ -22,6 +22,7 @@ type PatchBody = {
   show_tag_headers?: boolean;
   timer_ends_at?: string | null;
   timer_label?: string | null;
+  active_filter?: 'alle' | 'uenighet' | 'usikker' | 'konsensus';
 };
 
 function isValidPatchBody(candidate: unknown): candidate is PatchBody {
@@ -81,6 +82,13 @@ function isValidPatchBody(candidate: unknown): candidate is PatchBody {
     return false;
   }
 
+  if (
+    typeof body.active_filter !== 'undefined' &&
+    !['alle', 'uenighet', 'usikker', 'konsensus'].includes(body.active_filter)
+  ) {
+    return false;
+  }
+
   return (
     typeof body.title !== 'undefined' ||
     typeof body.status !== 'undefined' ||
@@ -92,7 +100,8 @@ function isValidPatchBody(candidate: unknown): candidate is PatchBody {
     typeof body.dot_budget !== 'undefined' ||
     typeof body.show_tag_headers !== 'undefined' ||
     typeof body.timer_ends_at !== 'undefined' ||
-    typeof body.timer_label !== 'undefined'
+    typeof body.timer_label !== 'undefined' ||
+    typeof body.active_filter !== 'undefined'
   );
 }
 
@@ -126,6 +135,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         maxRankItems: sessions.maxRankItems,
         timerEndsAt: sessions.timerEndsAt,
         timerLabel: sessions.timerLabel,
+        active_filter: sessions.activeFilter,
         timer_ends_at: sessions.timerEndsAt,
         timer_label: sessions.timerLabel,
         createdAt: sessions.createdAt,
@@ -194,6 +204,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
           ? { timerEndsAt: body.timer_ends_at ? new Date(body.timer_ends_at) : null }
           : {}),
         ...(typeof body.timer_label !== 'undefined' ? { timerLabel: body.timer_label } : {}),
+        ...(typeof body.active_filter === 'string' ? { activeFilter: body.active_filter } : {}),
       })
       .where(eq(sessions.code, code))
       .returning({
@@ -213,6 +224,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         show_tag_headers: sessions.showTagHeaders,
         timerEndsAt: sessions.timerEndsAt,
         timerLabel: sessions.timerLabel,
+        active_filter: sessions.activeFilter,
         timer_ends_at: sessions.timerEndsAt,
         timer_label: sessions.timerLabel,
       });

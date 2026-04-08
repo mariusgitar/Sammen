@@ -25,6 +25,7 @@ type SessionView = {
   tags: string[];
   timerEndsAt: string | Date | null;
   timerLabel: string | null;
+  activeFilter?: KartleggingFilter | null;
 };
 
 type SessionItem = {
@@ -238,8 +239,17 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const [settingsShowTagHeaders, setSettingsShowTagHeaders] = useState(Boolean(session.showTagHeaders));
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
-  const [activeKartleggingFilter, setActiveKartleggingFilter] = useState<KartleggingFilter>('alle');
+  const [activeKartleggingFilter, setActiveKartleggingFilter] = useState<KartleggingFilter>(session.activeFilter ?? 'alle');
   const [activeTagFilter, setActiveTagFilter] = useState<string>('alle');
+
+  const saveFilter = async (filter: KartleggingFilter) => {
+    setActiveKartleggingFilter(filter);
+    await fetch(`/api/sessions/${session.code}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ active_filter: filter }),
+    });
+  };
 
   async function fetchSummary() {
     try {
@@ -1427,7 +1437,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
             <div className="mb-2 flex gap-2">
               <button
                 type="button"
-                onClick={() => setActiveKartleggingFilter('alle')}
+                onClick={() => void saveFilter('alle')}
                 className={
                   activeKartleggingFilter === 'alle'
                     ? 'rounded-full bg-violet-600 px-4 py-1.5 text-sm font-medium text-white'
@@ -1438,7 +1448,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveKartleggingFilter('uenighet')}
+                onClick={() => void saveFilter('uenighet')}
                 className={
                   activeKartleggingFilter === 'uenighet'
                     ? 'rounded-full bg-violet-600 px-4 py-1.5 text-sm font-medium text-white'
@@ -1449,7 +1459,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveKartleggingFilter('usikker')}
+                onClick={() => void saveFilter('usikker')}
                 className={
                   activeKartleggingFilter === 'usikker'
                     ? 'rounded-full bg-violet-600 px-4 py-1.5 text-sm font-medium text-white'
@@ -1460,7 +1470,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveKartleggingFilter('konsensus')}
+                onClick={() => void saveFilter('konsensus')}
                 className={
                   activeKartleggingFilter === 'konsensus'
                     ? 'rounded-full bg-violet-600 px-4 py-1.5 text-sm font-medium text-white'
