@@ -77,7 +77,6 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
   const [proposalText, setProposalText] = useState('');
   const [proposalSubmitting, setProposalSubmitting] = useState(false);
   const [proposedItems, setProposedItems] = useState<ProposedItem[]>([]);
-  const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
   const [flaggedItems, setFlaggedItems] = useState<Set<string>>(new Set());
   const initializedFlags = useRef(false);
   const participantStorageKey = 'samen_participant_id';
@@ -377,10 +376,6 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
     }
   }
 
-  function toggleDescription(itemId: string) {
-    setExpandedDescriptions((current) => ({ ...current, [itemId]: !current[itemId] }));
-  }
-
   async function handleProposeItem() {
     if (!proposalText.trim()) {
       return;
@@ -529,8 +524,9 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
             Tagg elementene du vil kategorisere. Du kan sende inn uten å tagge alle.
           </p>
           <p className="text-sm text-slate-500 mb-4">
-            Velg kategori for hvert punkt. 💬 <span className="text-amber-600 font-medium">Usikker på hva noe betyr?</span> Trykk «Usikker» —
-            dette tar vi opp i fellesskap etterpå.
+            Velg kategori for hvert punkt.{' '}
+            <span className="text-amber-600 font-medium">Usikker på hva noe betyr?</span>{' '}
+            Trykk «Usikker» — dette tar vi opp i fellesskap etterpå.
           </p>
         </div>
 
@@ -553,30 +549,20 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
             }
 
             const item = entry.item;
+            const selectedTag = responses[item.id];
+            const defaultTag = item.defaultTag ?? item.default_tag;
+            const showChangedFromLabel = Boolean(defaultTag && selectedTag && selectedTag !== defaultTag);
 
             return (
               <section key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
-                <div className="flex items-center gap-2">
-                  <p className="text-base font-medium text-[#0f172a]">{item.text}</p>
-                  {item.description?.trim() ? (
-                    <button
-                      type="button"
-                      onClick={() => toggleDescription(item.id)}
-                      className="text-sm text-slate-500 transition hover:text-slate-700"
-                      aria-expanded={expandedDescriptions[item.id] ?? false}
-                      aria-label={`Vis beskrivelse for ${item.text}`}
-                    >
-                      {expandedDescriptions[item.id] ? '▼' : 'ℹ️'}
-                    </button>
-                  ) : null}
-                </div>
-                {item.description?.trim() && expandedDescriptions[item.id] ? (
-                  <p className="mt-1 text-sm text-slate-500">{item.description}</p>
+                <p className="text-base font-medium text-[#0f172a]">{item.text}</p>
+                {item.description?.trim() ? (
+                  <p className="text-sm text-slate-400 mt-1 mb-3 leading-snug">{item.description}</p>
                 ) : null}
                 <div className="mt-4 flex flex-wrap gap-2">
                   {session.tags.map((tag) => {
                     const selected = responses[item.id] === tag;
-                    const hasDefaultTag = Boolean(item.defaultTag ?? item.default_tag);
+                    const hasDefaultTag = Boolean(defaultTag);
                     const suggested = selected && hasDefaultTag && !changedByUser.has(item.id);
 
                     return (
@@ -598,22 +584,20 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
                     );
                   })}
                 </div>
+                {showChangedFromLabel ? <p className="text-xs text-slate-300 mt-2">endret fra: {defaultTag}</p> : null}
+                <div className="border-t border-slate-100 mt-3 pt-3" />
                 <button
                   type="button"
                   onClick={() => handleToggleUncertain(item.id)}
-                  className={`mt-3 rounded-full px-3 py-1 text-sm transition ${
+                  className={`w-full rounded-lg px-3 py-2 text-sm text-left flex items-center gap-2 ${
                     flaggedItems.has(item.id)
-                      ? 'bg-amber-100 text-amber-700 border border-amber-300 font-medium'
-                      : 'border border-slate-200 text-slate-400'
+                      ? 'text-amber-700 bg-amber-100 border border-amber-300 font-medium'
+                      : 'text-slate-400 bg-slate-50 border border-dashed border-slate-200'
                   }`}
                 >
-                  💬 Usikker – dette tar vi opp
+                  <span>💬</span>
+                  <span>Usikker – dette tar vi opp</span>
                 </button>
-                {item.defaultTag ?? item.default_tag ? (
-                  <p className="mt-1 text-xs text-slate-400">
-                    ← foreslått av fasilitator: {item.defaultTag ?? item.default_tag}
-                  </p>
-                ) : null}
               </section>
             );
           })}
