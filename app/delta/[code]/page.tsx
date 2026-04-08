@@ -32,6 +32,7 @@ type SessionResponse = {
     resultsVisible: boolean;
     tags: string[];
     allowNewItems: boolean;
+    showTagHeaders: boolean;
     visibilityMode: 'manual' | 'all';
     show_others_innspill: boolean;
     innspill_mode: 'enkel' | 'detaljert';
@@ -256,6 +257,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
           title: session.title,
           tags: session.tags,
           allowNewItems: session.allowNewItems,
+          showTagHeaders: session.showTagHeaders,
         }}
       />
       <TimerBanner 
