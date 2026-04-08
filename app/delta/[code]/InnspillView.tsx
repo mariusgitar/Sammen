@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { TimerBanner } from "@/app/components/TimerBanner";
 
 type Question = {
   id: string;
@@ -421,7 +420,6 @@ export function InnspillView({
             Bli med
           </button>
         </div>
-        <TimerBanner code={session.code} />
       </main>
     );
   }
@@ -442,7 +440,6 @@ export function InnspillView({
             <p className="text-xs text-slate-400">Resultater vises når fasilitator åpner dem</p>
           </div>
         </div>
-        <TimerBanner code={session.code} />
       </main>
     );
   }
@@ -736,7 +733,6 @@ export function InnspillView({
           )
         ) : null}
       </div>
-      <TimerBanner code={session.code} />
     </main>
   );
 }
