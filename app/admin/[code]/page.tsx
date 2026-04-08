@@ -37,6 +37,7 @@ export default async function AdminSessionPage({ params }: AdminPageProps) {
       tags: sessions.tags,
       timerEndsAt: sessions.timerEndsAt,
       timerLabel: sessions.timerLabel,
+      activeFilter: sessions.activeFilter,
     })
     .from(sessions)
     .where(eq(sessions.code, code))
