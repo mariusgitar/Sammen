@@ -25,18 +25,15 @@ export async function GET(_req: Request, { params }: RouteContext) {
     .where(eq(sessions.code, code))
     .limit(1);
 
-  const timerEndsAt = session?.timerEndsAt ?? null;
-  const isExpired = timerEndsAt && new Date(timerEndsAt).getTime() < Date.now();
-
   return Response.json(
     {
-      timerEndsAt: isExpired ? null : timerEndsAt?.toISOString() ?? null,
-      timerLabel: isExpired ? null : session?.timerLabel ?? null,
+      timerEndsAt: session?.timerEndsAt?.toISOString() ?? null,
+      timerLabel: session?.timerLabel ?? null,
     },
     {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate',
-        Pragma: 'no-cache',
+        'Pragma': 'no-cache',
       },
     }
   );
