@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { asc, eq, sql } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 
 import { getDb } from '@/db';
 import { items, sessions } from '@/db/schema';
@@ -16,8 +16,6 @@ export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const code = params.code.toUpperCase();
     const db = getDb();
-    await db.execute(sql`SELECT 1`);
-
     const [session] = await db
       .select({
         id: sessions.id,

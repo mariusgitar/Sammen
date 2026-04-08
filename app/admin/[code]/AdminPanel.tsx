@@ -803,6 +803,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
   return (
     <div className="space-y-6">
+      {false && (
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-slate-950/20">
         <div className="flex flex-wrap items-center gap-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/40">Timer</p>
@@ -851,6 +852,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
           )}
         </div>
       </section>
+      )}
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Sesjonsinfo</h2>
