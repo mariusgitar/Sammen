@@ -120,7 +120,7 @@ type AdminPanelProps = {
   items: SessionItem[];
 };
 
-type KartleggingFilter = 'alle' | 'uenighet' | 'usikker' | 'enige';
+type KartleggingFilter = 'alle' | 'uenighet' | 'usikker' | 'konsensus';
 
 const modeLabels: Record<string, string> = {
   kartlegging: 'Kartlegging',
@@ -870,14 +870,13 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       finalListItems.filter((item) => {
         if (activeKartleggingFilter === 'alle') return true;
 
-        const tagEntries = Object.entries(item.tagCounts).filter(([, count]) => count > 0);
-        const hasMultipleTags = tagEntries.length > 1;
-        const hasOnlyOneTag = tagEntries.length === 1;
-        const hasUnsure = item.uncertainCount > 0;
+        const tagResponses = Object.entries(item.tagCounts ?? {}).filter(([tag]) => tag !== 'uklart_flag');
+        const totalVotes = tagResponses.reduce((sum, [, count]) => sum + (count as number), 0);
+        const distinctTags = tagResponses.filter(([, count]) => (count as number) > 0).length;
 
-        if (activeKartleggingFilter === 'uenighet') return hasMultipleTags;
-        if (activeKartleggingFilter === 'usikker') return hasUnsure;
-        if (activeKartleggingFilter === 'enige') return hasOnlyOneTag && !hasMultipleTags;
+        if (activeKartleggingFilter === 'uenighet') return distinctTags > 1;
+        if (activeKartleggingFilter === 'konsensus') return distinctTags === 1 && totalVotes > 0;
+        if (activeKartleggingFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;
         return true;
       }),
     [activeKartleggingFilter, finalListItems],
@@ -1403,7 +1402,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                     : 'rounded-full border border-slate-600 px-4 py-1.5 text-sm text-slate-400'
                 }
               >
-                ⚠️ Uenighet
+                🔴 Uenighet
               </button>
               <button
                 type="button"
@@ -1418,14 +1417,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               </button>
               <button
                 type="button"
-                onClick={() => setActiveKartleggingFilter('enige')}
+                onClick={() => setActiveKartleggingFilter('konsensus')}
                 className={
-                  activeKartleggingFilter === 'enige'
+                  activeKartleggingFilter === 'konsensus'
                     ? 'rounded-full bg-violet-600 px-4 py-1.5 text-sm font-medium text-white'
                     : 'rounded-full border border-slate-600 px-4 py-1.5 text-sm text-slate-400'
                 }
               >
-                ✓ Enige
+                🟢 Konsensus
               </button>
             </div>
             <div className="flex flex-wrap gap-2">

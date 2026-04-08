@@ -146,7 +146,7 @@ function consensusWidth(distribution: Record<string, number>, voteCount: number)
   return 24 + agreement * 76;
 }
 
-type KartleggingFilter = 'alle' | 'uenighet' | 'usikker' | 'enige';
+type KartleggingFilter = 'alle' | 'uenighet' | 'usikker' | 'konsensus';
 
 export default function PresentationPage({ params }: { params: { code: string } }) {
   const code = params.code.toUpperCase();
@@ -259,14 +259,13 @@ export default function PresentationPage({ params }: { params: { code: string } 
     const filteredItems = kartleggingItems.filter((item) => {
       if (activeFilter === 'alle') return true;
 
-      const tagValues = Object.keys(item.tagCounts).filter((tag) => item.tagCounts[tag] > 0);
-      const hasMultipleTags = new Set(tagValues).size > 1;
-      const hasOnlyOneTag = new Set(tagValues).size === 1;
-      const hasUnsure = item.uncertainCount > 0;
+      const tagResponses = Object.entries(item.tagCounts ?? {}).filter(([tag]) => tag !== 'uklart_flag');
+      const totalVotes = tagResponses.reduce((sum, [, count]) => sum + (count as number), 0);
+      const distinctTags = tagResponses.filter(([, count]) => (count as number) > 0).length;
 
-      if (activeFilter === 'uenighet') return hasMultipleTags;
-      if (activeFilter === 'usikker') return hasUnsure;
-      if (activeFilter === 'enige') return hasOnlyOneTag && !hasMultipleTags;
+      if (activeFilter === 'uenighet') return distinctTags > 1;
+      if (activeFilter === 'konsensus') return distinctTags === 1 && totalVotes > 0;
+      if (activeFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;
       return true;
     });
 
@@ -357,17 +356,17 @@ export default function PresentationPage({ params }: { params: { code: string } 
                   >
                     Alle
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveFilter('uenighet')}
+              <button
+                type="button"
+                onClick={() => setActiveFilter('uenighet')}
                     className={
                       activeFilter === 'uenighet'
                         ? 'rounded-full bg-violet-600 px-5 py-2 text-sm font-medium text-white'
                         : 'rounded-full border border-slate-600 px-5 py-2 text-sm text-slate-400'
                     }
-                  >
-                    ⚠️ Uenighet
-                  </button>
+              >
+                🔴 Uenighet
+              </button>
                   <button
                     type="button"
                     onClick={() => setActiveFilter('usikker')}
@@ -379,17 +378,17 @@ export default function PresentationPage({ params }: { params: { code: string } 
                   >
                     💬 Usikker
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveFilter('enige')}
-                    className={
-                      activeFilter === 'enige'
-                        ? 'rounded-full bg-violet-600 px-5 py-2 text-sm font-medium text-white'
-                        : 'rounded-full border border-slate-600 px-5 py-2 text-sm text-slate-400'
-                    }
-                  >
-                    ✓ Enige
-                  </button>
+              <button
+                type="button"
+                onClick={() => setActiveFilter('konsensus')}
+                className={
+                  activeFilter === 'konsensus'
+                    ? 'rounded-full bg-violet-600 px-5 py-2 text-sm font-medium text-white'
+                    : 'rounded-full border border-slate-600 px-5 py-2 text-sm text-slate-400'
+                }
+              >
+                🟢 Konsensus
+              </button>
                 </div>
                 {groupedKartleggingItems.length === 0 ? (
                   <p className="mt-8 text-center text-sm text-slate-500">Ingen elementer matcher dette filteret.</p>
