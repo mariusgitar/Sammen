@@ -51,6 +51,7 @@ type KartleggingSummaryItem = {
   changedCount: number;
   tagCounts: Record<string, number>;
   untaggedCount: number;
+  uncertainCount: number;
 };
 
 type StemmingSummaryItem = {
@@ -201,6 +202,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       changedCount: 0,
       tagCounts: {},
       untaggedCount: 0,
+      uncertainCount: 0,
     })),
     themes: [],
   });
@@ -1872,6 +1874,9 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                         <span className="rounded-full border border-emerald-500/30 bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-200">
                           Alle enige
                         </span>
+                      ) : null}
+                      {item.uncertainCount > 0 ? (
+                        <span className="bg-amber-100 text-amber-700 text-xs rounded-full px-2 py-0.5">💬 {item.uncertainCount} usikker(e)</span>
                       ) : null}
                     </div>
                     {item.description?.trim() ? <p className="mt-1 text-xs text-slate-400">{item.description}</p> : null}
