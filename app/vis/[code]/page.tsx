@@ -129,7 +129,7 @@ const getTopTag = (item: KartleggingSummaryItem) => {
   return entries.sort((a, b) => b.count - a.count)[0].tag;
 };
 
-const getTopTagShare = (item: KartleggingSummaryItem) => {
+const getTopTagShare = (item: any) => {
   const tagEntries = Object.entries(item.tagCounts ?? {})
     .filter(([tag]) => tag !== 'uklart_flag')
     .map(([tag, count]) => ({ tag, count: count as number }));
@@ -168,15 +168,13 @@ function consensusWidth(distribution: Record<string, number>, voteCount: number)
   return 24 + agreement * 76;
 }
 
-type KartleggingFilter = 'alle' | 'uenighet' | 'usikker' | 'konsensus';
-
 export default function PresentationPage({ params }: { params: { code: string } }) {
   const code = params.code.toUpperCase();
   const [sessionData, setSessionData] = useState<SessionResponse | null>(null);
   const [summaryData, setSummaryData] = useState<SummaryResponse | null>(null);
   const [innspillData, setInnspillData] = useState<InnspillSummaryResponse | null>(null);
   const [themeData, setThemeData] = useState<ThemeResponse | null>(null);
-  const [activeFilter, setActiveFilter] = useState<KartleggingFilter>('alle');
+  const [activeFilter, setActiveFilter] = useState<'alle' | 'uenighet' | 'usikker' | 'konsensus'>('alle');
   const [activeTagFilter, setActiveTagFilter] = useState<string>('alle');
   const [visible, setVisible] = useState(false);
   const initialized = useRef(false);
@@ -185,11 +183,20 @@ export default function PresentationPage({ params }: { params: { code: string } 
   useEffect(() => {
     const poll = async () => {
       try {
-        const res = await fetch(`/api/admin/${code}/summary`, { cache: 'no-store' });
+        const [res, sessionRes] = await Promise.all([
+          fetch(`/api/admin/${code}/summary`, { cache: 'no-store' }),
+          fetch(`/api/sessions/${code}`, { cache: 'no-store' }),
+        ]);
         if (!res.ok) return;
         const data = (await res.json()) as SummaryResponse;
         if (data && data.items && data.items.length > 0) {
           setSummaryData(data);
+        }
+
+        if (sessionRes.ok) {
+          const sessionData = await sessionRes.json();
+          const filter = sessionData.session?.active_filter ?? sessionData.active_filter ?? 'alle';
+          setActiveFilter(filter);
         }
       } catch {
         // Intentionally silent in presentation mode.
@@ -279,24 +286,20 @@ export default function PresentationPage({ params }: { params: { code: string } 
     [uniqueFinalTags],
   );
   const groupedKartleggingItems = useMemo(() => {
-    const filteredItems = kartleggingItems.filter((item) => {
-      const passesConsensus = (() => {
+    const filteredItems = kartleggingItems
+      .filter((item: any) => {
         if (activeFilter === 'alle') return true;
         if (activeFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;
         const share = getTopTagShare(item);
         if (activeFilter === 'uenighet') return share < 0.67;
         if (activeFilter === 'konsensus') return share >= 0.67;
         return true;
-      })();
-
-      const passesTag = (() => {
+      })
+      .filter((item) => {
         if (activeTagFilter === 'alle') return true;
         const effectiveTag = item.finalTag ?? getTopTag(item);
         return effectiveTag === activeTagFilter;
-      })();
-
-      return passesConsensus && passesTag;
-    });
+      });
 
     const grouped = filteredItems.reduce<Record<string, KartleggingSummaryItem[]>>((acc, item) => {
       const tag = getDisplayTag(item) || 'Ikke kategorisert';
@@ -352,6 +355,11 @@ export default function PresentationPage({ params }: { params: { code: string } 
   }, [stemmingItems]);
   const themedDots = useMemo(() => [...(summary?.themes ?? [])].sort((a, b) => b.totalDots - a.totalDots), [summary?.themes]);
   const maxThemeDots = useMemo(() => Math.max(...themedDots.map((theme) => theme.totalDots), 1), [themedDots]);
+  const filterLabels: Record<string, string> = {
+    uenighet: '🔴 Uenighet',
+    usikker: '💬 Usikker',
+    konsensus: '🟢 Konsensus',
+  };
 
   return (
     <main className={`${inter.className} min-h-screen bg-[#0a0a0f] p-12 text-white`}>
@@ -448,6 +456,9 @@ export default function PresentationPage({ params }: { params: { code: string } 
                     </button>
                   ))}
                 </div>
+                {activeFilter !== 'alle' && (
+                  <p className="text-sm text-slate-400 text-center mb-4">Viser: {filterLabels[activeFilter]}</p>
+                )}
                 {groupedKartleggingItems.length === 0 ? (
                   <p className="mt-8 text-center text-sm text-slate-500">Ingen elementer matcher dette filteret.</p>
                 ) : null}
