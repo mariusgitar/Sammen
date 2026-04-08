@@ -16,6 +16,14 @@ type RequestBody = {
   responses: ResponseInput[];
 };
 
+type DeleteRequestBody = {
+  item_id?: string;
+  participant_id?: string;
+  value?: string;
+  itemId?: string;
+  participantId?: string;
+};
+
 function isValidBody(candidate: unknown): candidate is RequestBody {
   if (!candidate || typeof candidate !== 'object') {
     return false;
@@ -98,6 +106,25 @@ export async function POST(request: Request) {
 
     try {
       for (const response of validResponses) {
+        if (response.value === 'uklart_flag') {
+          const [existingFlag] = await db
+            .select({ id: responses.id })
+            .from(responses)
+            .where(
+              and(
+                eq(responses.sessionId, body.sessionId),
+                eq(responses.itemId, response.itemId),
+                eq(responses.participantId, body.participantId),
+                eq(responses.value, response.value),
+              ),
+            )
+            .limit(1);
+
+          if (existingFlag) {
+            continue;
+          }
+        }
+
         await db.insert(responses).values({
           sessionId: body.sessionId,
           itemId: response.itemId,
@@ -109,6 +136,57 @@ export async function POST(request: Request) {
       const message = insertError instanceof Error ? insertError.message : 'Unknown insert error';
       return NextResponse.json({ error: message }, { status: 500 });
     }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function GET(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const sessionId = searchParams.get('session_id');
+    const participantId = searchParams.get('participant_id');
+    const value = searchParams.get('value');
+
+    if (!sessionId || !participantId || !value) {
+      return NextResponse.json({ error: 'Missing query params' }, { status: 400 });
+    }
+
+    const db = getDb();
+    const rows = await db
+      .select({
+        itemId: responses.itemId,
+      })
+      .from(responses)
+      .where(
+        and(eq(responses.sessionId, sessionId), eq(responses.participantId, participantId), eq(responses.value, value)),
+      );
+
+    return NextResponse.json({ itemIds: [...new Set(rows.map((row) => row.itemId))] });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    const body = (await request.json()) as DeleteRequestBody;
+    const itemId = body.item_id ?? body.itemId;
+    const participantId = body.participant_id ?? body.participantId;
+    const value = body.value;
+
+    if (!itemId || !participantId || !value) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+
+    const db = getDb();
+    await db
+      .delete(responses)
+      .where(and(eq(responses.itemId, itemId), eq(responses.participantId, participantId), eq(responses.value, value)));
 
     return NextResponse.json({ ok: true });
   } catch (error) {

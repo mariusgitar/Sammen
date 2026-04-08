@@ -25,6 +25,7 @@ type KartleggingSummaryItem = {
   changedCount: number;
   tagCounts: Record<string, number>;
   untaggedCount: number;
+  uncertainCount: number;
 };
 
 type StemmingSummaryItem = {
@@ -333,6 +334,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
 
     const itemSummaries: KartleggingSummaryItem[] = allItems.map((item) => {
       const itemResponses = allResponses.filter((r) => r.item_id === item.id);
+      const uncertainResponses = itemResponses.filter((response) => response.value === 'uklart_flag');
+      const tagResponses = itemResponses.filter((response) => response.value !== 'uklart_flag');
       const tagCounts: Record<string, number> = {};
       const defaultTag = item.default_tag;
 
@@ -340,13 +343,14 @@ export async function GET(_request: Request, { params }: RouteContext) {
         tagCounts[defaultTag] = (tagCounts[defaultTag] ?? 0) + 1;
       }
 
-      for (const r of itemResponses) {
+      for (const r of tagResponses) {
         tagCounts[r.value] = (tagCounts[r.value] ?? 0) + 1;
       }
 
-      const taggedCount = new Set(itemResponses.map((r) => r.participant_id)).size;
+      const taggedCount = new Set(tagResponses.map((r) => r.participant_id)).size;
       const changedCount =
-        defaultTag === null ? 0 : itemResponses.filter((response) => normalizeTagKey(response.value) !== normalizeTagKey(defaultTag)).length;
+        defaultTag === null ? 0 : tagResponses.filter((response) => normalizeTagKey(response.value) !== normalizeTagKey(defaultTag)).length;
+      const uncertainCount = new Set(uncertainResponses.map((response) => response.participant_id)).size;
 
       return {
         id: item.id,
@@ -360,6 +364,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         changedCount,
         tagCounts,
         untaggedCount: participantCount - taggedCount,
+        uncertainCount,
       };
     });
 

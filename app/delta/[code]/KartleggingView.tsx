@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 type SessionView = {
   id: string;
@@ -52,6 +52,7 @@ type CreateItemResult =
     };
 
 export function KartleggingView({ session, items }: KartleggingViewProps) {
+  const UNCERTAIN_FLAG_VALUE = 'uklart_flag';
   const [nickname, setNickname] = useState('');
   const [hasJoined, setHasJoined] = useState(false);
   const [responses, setResponses] = useState<Record<string, string>>(() => {
@@ -77,6 +78,8 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
   const [proposalSubmitting, setProposalSubmitting] = useState(false);
   const [proposedItems, setProposedItems] = useState<ProposedItem[]>([]);
   const [expandedDescriptions, setExpandedDescriptions] = useState<Record<string, boolean>>({});
+  const [flaggedItems, setFlaggedItems] = useState<Set<string>>(new Set());
+  const initializedFlags = useRef(false);
   const participantStorageKey = 'samen_participant_id';
   const nicknameStorageKey = `samen_nickname_${session.code}`;
 
@@ -123,6 +126,56 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
 
     return () => clearInterval(interval);
   }, [submitted, session.code]);
+
+  useEffect(() => {
+    if (!hasJoined || !participantId) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchFlaggedItems = async () => {
+      try {
+        const response = await fetch(
+          `/api/responses?session_id=${encodeURIComponent(session.id)}&participant_id=${encodeURIComponent(participantId)}&value=${encodeURIComponent(UNCERTAIN_FLAG_VALUE)}`,
+          { cache: 'no-store' },
+        );
+        const data = (await response.json()) as { itemIds?: string[] };
+
+        if (!response.ok || !isMounted || !Array.isArray(data.itemIds)) {
+          return;
+        }
+
+        const incomingSet = new Set(data.itemIds);
+        setFlaggedItems((current) => {
+          if (!initializedFlags.current) {
+            initializedFlags.current = true;
+            return incomingSet;
+          }
+
+          if (incomingSet.size === 0) {
+            return current;
+          }
+
+          const merged = new Set(current);
+          incomingSet.forEach((itemId) => merged.add(itemId));
+          return merged;
+        });
+      } catch {
+        // noop
+      }
+    };
+
+    void fetchFlaggedItems();
+    const timer = setInterval(() => {
+      void fetchFlaggedItems();
+    }, 5_000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
+  }, [UNCERTAIN_FLAG_VALUE, hasJoined, participantId, session.id]);
 
   const originalItems = useMemo(() => items.filter((item) => !item.isNew), [items]);
   const sortedOriginalItems = useMemo(() => {
@@ -268,6 +321,60 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
       [itemId]: value,
     }));
     setChangedByUser((current) => new Set([...current, itemId]));
+  }
+
+  async function handleToggleUncertain(itemId: string) {
+    if (!itemId || !participantId) {
+      return;
+    }
+
+    const isFlagged = flaggedItems.has(itemId);
+    setFlaggedItems((current) => {
+      const next = new Set(current);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+
+    try {
+      if (isFlagged) {
+        await fetch('/api/responses', {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            item_id: itemId,
+            participant_id: participantId,
+            value: UNCERTAIN_FLAG_VALUE,
+          }),
+        });
+        return;
+      }
+
+      await fetch('/api/responses', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          sessionId: session.id,
+          participantId,
+          nickname: nickname.trim(),
+          responses: [
+            {
+              itemId,
+              value: UNCERTAIN_FLAG_VALUE,
+            },
+          ],
+        }),
+      });
+    } catch {
+      // noop
+    }
   }
 
   function toggleDescription(itemId: string) {
@@ -421,6 +528,10 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
           <p className="mt-2 text-sm text-[#64748b]">
             Tagg elementene du vil kategorisere. Du kan sende inn uten å tagge alle.
           </p>
+          <p className="text-sm text-slate-500 mb-4">
+            Velg kategori for hvert punkt. 💬 <span className="text-amber-600 font-medium">Usikker på hva noe betyr?</span> Trykk «Usikker» —
+            dette tar vi opp i fellesskap etterpå.
+          </p>
         </div>
 
         <div className={session.showTagHeaders ? 'space-y-6' : 'space-y-4'}>
@@ -487,6 +598,17 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
                     );
                   })}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => handleToggleUncertain(item.id)}
+                  className={`mt-3 rounded-full px-3 py-1 text-sm transition ${
+                    flaggedItems.has(item.id)
+                      ? 'bg-amber-100 text-amber-700 border border-amber-300 font-medium'
+                      : 'border border-slate-200 text-slate-400'
+                  }`}
+                >
+                  💬 Usikker – dette tar vi opp
+                </button>
                 {item.defaultTag ?? item.default_tag ? (
                   <p className="mt-1 text-xs text-slate-400">
                     ← foreslått av fasilitator: {item.defaultTag ?? item.default_tag}
