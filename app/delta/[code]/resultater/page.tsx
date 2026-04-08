@@ -329,7 +329,24 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     viewModeInitialized.current = true;
   }, [themeResults]);
 
-  if (!resultsVisible) {
+  if (sessionStatus === 'closed') {
+    return (
+      <main className="bg-[#f8fafc] px-4 py-8 pb-16">
+        <section className="flex min-h-[60vh] flex-col items-center justify-center space-y-4 p-6 text-center">
+          <h2 className="text-xl font-semibold text-slate-700">Sesjonen er avsluttet</h2>
+          <a href={`/delta/${code}`} className="mt-4 text-xs text-slate-400 hover:text-slate-600">
+            ← Tilbake
+          </a>
+        </section>
+        <TimerBanner 
+  timerEndsAt={timerEndsAt}
+  timerLabel={timerLabel}
+/>
+      </main>
+    );
+  }
+
+  if (sessionStatus === 'setup' || !resultsVisible) {
     return (
       <main className="bg-[#f8fafc] px-4 py-8 pb-16">
         <section className="flex min-h-[60vh] flex-col items-center justify-center space-y-4 p-6 text-center">
@@ -344,7 +361,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           </div>
 
           <h2 className="text-xl font-semibold text-slate-700">
-            {sessionStatus === 'closed' ? 'Sesjonen er avsluttet' : 'Fasilitator åpner resultatene snart...'}
+            Fasilitator åpner resultatene snart...
           </h2>
 
           <p className="text-sm text-slate-400">Siden oppdateres automatisk</p>
