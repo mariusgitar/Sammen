@@ -143,6 +143,7 @@ export const sessions = pgTable('sessions', {
   timerLabel: text('timer_label'),
   tags: text('tags').array().notNull().default([]),
   allowNewItems: boolean('allow_new_items').notNull().default(true),
+  showTagHeaders: boolean('show_tag_headers').default(false),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 

@@ -8,6 +8,7 @@ type SessionView = {
   title: string;
   tags: string[];
   allowNewItems: boolean;
+  showTagHeaders: boolean;
 };
 
 type SessionItem = {
@@ -125,6 +126,33 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
 
   const originalItems = useMemo(() => items.filter((item) => !item.isNew), [items]);
   const sortedOriginalItems = useMemo(() => {
+    if (session.showTagHeaders) {
+      return [...originalItems].sort((a, b) => {
+        const aDefaultTag = (a.defaultTag ?? a.default_tag)?.trim() ?? '';
+        const bDefaultTag = (b.defaultTag ?? b.default_tag)?.trim() ?? '';
+
+        if (!aDefaultTag && !bDefaultTag) {
+          return a.orderIndex - b.orderIndex;
+        }
+
+        if (!aDefaultTag) {
+          return 1;
+        }
+
+        if (!bDefaultTag) {
+          return -1;
+        }
+
+        const alphabeticalSort = aDefaultTag.localeCompare(bDefaultTag, 'nb');
+
+        if (alphabeticalSort !== 0) {
+          return alphabeticalSort;
+        }
+
+        return a.orderIndex - b.orderIndex;
+      });
+    }
+
     const tagOrder = new Map(session.tags.map((tag, index) => [tag, index]));
 
     return [...originalItems].sort((a, b) => {
@@ -166,7 +194,39 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
 
       return a.orderIndex - b.orderIndex;
     });
-  }, [originalItems, session.tags]);
+  }, [originalItems, session.showTagHeaders, session.tags]);
+  const groupedOriginalItems = useMemo(() => {
+    if (!session.showTagHeaders) {
+      return [];
+    }
+
+    const groups: Array<{ tag: string; items: SessionItem[] }> = [];
+
+    for (const item of sortedOriginalItems) {
+      const defaultTag = (item.defaultTag ?? item.default_tag)?.trim();
+
+      if (!defaultTag) {
+        continue;
+      }
+
+      const existingGroup = groups.find((group) => group.tag === defaultTag);
+
+      if (existingGroup) {
+        existingGroup.items.push(item);
+      } else {
+        groups.push({ tag: defaultTag, items: [item] });
+      }
+    }
+
+    return groups;
+  }, [session.showTagHeaders, sortedOriginalItems]);
+  const untaggedOriginalItems = useMemo(() => {
+    if (!session.showTagHeaders) {
+      return [];
+    }
+
+    return sortedOriginalItems.filter((item) => !(item.defaultTag ?? item.default_tag)?.trim());
+  }, [session.showTagHeaders, sortedOriginalItems]);
   const responseItems = useMemo(
     () => [...originalItems, ...proposedItems.map((item, index) => ({ ...item, orderIndex: index, isNew: true }))],
     [originalItems, proposedItems],
@@ -363,56 +423,76 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
           </p>
         </div>
 
-        <div className="space-y-4">
-          {sortedOriginalItems.map((item) => (
-            <section key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
-              <div className="flex items-center gap-2">
-                <p className="text-base font-medium text-[#0f172a]">{item.text}</p>
-                {item.description?.trim() ? (
-                  <button
-                    type="button"
-                    onClick={() => toggleDescription(item.id)}
-                    className="text-sm text-slate-500 transition hover:text-slate-700"
-                    aria-expanded={expandedDescriptions[item.id] ?? false}
-                    aria-label={`Vis beskrivelse for ${item.text}`}
-                  >
-                    {expandedDescriptions[item.id] ? '▼' : 'ℹ️'}
-                  </button>
-                ) : null}
-              </div>
-              {item.description?.trim() && expandedDescriptions[item.id] ? (
-                <p className="mt-1 text-sm text-slate-500">{item.description}</p>
-              ) : null}
-              <div className="mt-4 flex flex-wrap gap-2">
-                {session.tags.map((tag) => {
-                  const selected = responses[item.id] === tag;
-                  const hasDefaultTag = Boolean(item.defaultTag ?? item.default_tag);
-                  const suggested = selected && hasDefaultTag && !changedByUser.has(item.id);
+        <div className={session.showTagHeaders ? 'space-y-6' : 'space-y-4'}>
+          {(session.showTagHeaders
+            ? [
+                ...groupedOriginalItems.flatMap((group) => [
+                  { type: 'header' as const, tag: group.tag },
+                  ...group.items.map((item) => ({ type: 'item' as const, item })),
+                ]),
+                ...untaggedOriginalItems.map((item) => ({ type: 'item' as const, item })),
+              ]
+            : sortedOriginalItems.map((item) => ({ type: 'item' as const, item }))).map((entry, index) => {
+            if (entry.type === 'header') {
+              return (
+                <p key={`header-${entry.tag}-${index}`} className="text-sm font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                  {entry.tag}
+                </p>
+              );
+            }
 
-                  return (
-                    <div key={tag} className="flex flex-col items-start gap-1">
-                      <button
-                        type="button"
-                        onClick={() => handleSelectTag(item.id, tag)}
-                        className={`rounded-full border px-3 py-1 text-sm transition ${
-                          selected
-                            ? suggested
-                              ? 'border-slate-700 bg-slate-700 text-white/70'
-                              : 'border-[#0f172a] bg-[#0f172a] text-white'
-                            : 'border-[#e2e8f0] bg-white text-[#0f172a] hover:border-[#cbd5e1]'
-                        }`}
-                      >
-                        {tag}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-              {item.defaultTag ?? item.default_tag ? (
-                <p className="mt-1 text-xs text-slate-400">← foreslått av fasilitator</p>
-              ) : null}
-            </section>
-          ))}
+            const item = entry.item;
+
+            return (
+              <section key={item.id} className="rounded-2xl border border-[#e2e8f0] bg-white p-4 shadow-sm">
+                <div className="flex items-center gap-2">
+                  <p className="text-base font-medium text-[#0f172a]">{item.text}</p>
+                  {item.description?.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => toggleDescription(item.id)}
+                      className="text-sm text-slate-500 transition hover:text-slate-700"
+                      aria-expanded={expandedDescriptions[item.id] ?? false}
+                      aria-label={`Vis beskrivelse for ${item.text}`}
+                    >
+                      {expandedDescriptions[item.id] ? '▼' : 'ℹ️'}
+                    </button>
+                  ) : null}
+                </div>
+                {item.description?.trim() && expandedDescriptions[item.id] ? (
+                  <p className="mt-1 text-sm text-slate-500">{item.description}</p>
+                ) : null}
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {session.tags.map((tag) => {
+                    const selected = responses[item.id] === tag;
+                    const hasDefaultTag = Boolean(item.defaultTag ?? item.default_tag);
+                    const suggested = selected && hasDefaultTag && !changedByUser.has(item.id);
+
+                    return (
+                      <div key={tag} className="flex flex-col items-start gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleSelectTag(item.id, tag)}
+                          className={`rounded-full border px-3 py-1 text-sm transition ${
+                            selected
+                              ? suggested
+                                ? 'border-slate-700 bg-slate-700 text-white/70'
+                                : 'border-[#0f172a] bg-[#0f172a] text-white'
+                              : 'border-[#e2e8f0] bg-white text-[#0f172a] hover:border-[#cbd5e1]'
+                          }`}
+                        >
+                          {tag}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+                {item.defaultTag ?? item.default_tag ? (
+                  <p className="mt-1 text-xs text-slate-400">← foreslått av fasilitator</p>
+                ) : null}
+              </section>
+            );
+          })}
 
           {proposedItems.map((item) => (
             <section key={item.id} className="rounded-2xl border border-[#c7d2fe] bg-[#eef2ff] p-4 shadow-sm">

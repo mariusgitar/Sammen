@@ -105,6 +105,7 @@ const defaults = {
   allowMultipleDots: true,
   dotBudget: 5,
   allowNewItems: true,
+  showTagHeaders: false,
   maxRankItemsInput: "all",
 };
 
@@ -122,6 +123,7 @@ export default function NewSessionPage() {
   const [tags, setTags] = useState("");
 
   const [allowNewItems, setAllowNewItems] = useState(defaults.allowNewItems);
+  const [showTagHeaders, setShowTagHeaders] = useState(defaults.showTagHeaders);
   const [maxRankItemsInput, setMaxRankItemsInput] = useState(
     defaults.maxRankItemsInput,
   );
@@ -211,6 +213,10 @@ export default function NewSessionPage() {
       changes += 1;
     }
 
+    if (isKartlegging && showTagHeaders !== defaults.showTagHeaders) {
+      changes += 1;
+    }
+
     if (isRangering && maxRankItemsInput !== defaults.maxRankItemsInput) {
       changes += 1;
     }
@@ -227,6 +233,7 @@ export default function NewSessionPage() {
     isKartlegging,
     isRangering,
     maxRankItemsInput,
+    showTagHeaders,
     showOthersInnspill,
     visibilityMode,
     votingType,
@@ -391,6 +398,7 @@ export default function NewSessionPage() {
           items: isKartlegging ? parsedKartleggingItems : parsedItems,
           tags: isKartlegging ? parsedTags : [],
           allow_new_items: isKartlegging ? allowNewItems : true,
+          show_tag_headers: isKartlegging ? showTagHeaders : false,
         }),
       });
 
@@ -770,16 +778,31 @@ export default function NewSessionPage() {
                 ) : null}
 
                 {isKartlegging ? (
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-slate-700">Tillat nye forslag</p>
-                    <ToggleButton
-                      options={[
-                        { value: "yes", label: "Ja" },
-                        { value: "no", label: "Nei" },
-                      ]}
-                      value={allowNewItems ? "yes" : "no"}
-                      onChange={(value) => setAllowNewItems(value === "yes")}
-                    />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-slate-700">Tillat nye forslag</p>
+                      <ToggleButton
+                        options={[
+                          { value: "yes", label: "Ja" },
+                          { value: "no", label: "Nei" },
+                        ]}
+                        value={allowNewItems ? "yes" : "no"}
+                        onChange={(value) => setAllowNewItems(value === "yes")}
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-slate-700">Vis tag-overskrifter for deltakere</p>
+                      <p className="text-xs text-slate-500">Elementer grupperes under synlige overskrifter</p>
+                      <ToggleButton
+                        options={[
+                          { value: "yes", label: "Ja" },
+                          { value: "no", label: "Nei" },
+                        ]}
+                        value={showTagHeaders ? "yes" : "no"}
+                        onChange={(value) => setShowTagHeaders(value === "yes")}
+                      />
+                    </div>
                   </div>
                 ) : null}
 

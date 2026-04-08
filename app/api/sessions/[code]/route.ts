@@ -14,6 +14,7 @@ type PatchBody = {
   status?: string;
   phase?: string;
   results_visible?: boolean;
+  show_tag_headers?: boolean;
   timer_ends_at?: string | null;
   timer_label?: string | null;
 };
@@ -37,6 +38,10 @@ function isValidPatchBody(candidate: unknown): candidate is PatchBody {
     return false;
   }
 
+  if (typeof body.show_tag_headers !== 'undefined' && typeof body.show_tag_headers !== 'boolean') {
+    return false;
+  }
+
   if (typeof body.timer_ends_at !== 'undefined') {
     if (body.timer_ends_at !== null && typeof body.timer_ends_at !== 'string') {
       return false;
@@ -55,6 +60,7 @@ function isValidPatchBody(candidate: unknown): candidate is PatchBody {
     typeof body.status !== 'undefined' ||
     typeof body.phase !== 'undefined' ||
     typeof body.results_visible !== 'undefined' ||
+    typeof body.show_tag_headers !== 'undefined' ||
     typeof body.timer_ends_at !== 'undefined' ||
     typeof body.timer_label !== 'undefined'
   );
@@ -80,6 +86,8 @@ export async function GET(_request: Request, { params }: RouteContext) {
         results_visible: sessions.resultsVisible,
         tags: sessions.tags,
         allowNewItems: sessions.allowNewItems,
+        showTagHeaders: sessions.showTagHeaders,
+        show_tag_headers: sessions.showTagHeaders,
         visibilityMode: sessions.visibilityMode,
         show_others_innspill: sessions.showOthersInnspill,
         showOthersInnspill: sessions.showOthersInnspill,
@@ -146,6 +154,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         ...(body.status ? { status: body.status as (typeof sessionStatuses)[number] } : {}),
         ...(body.phase ? { phase: body.phase as (typeof sessionPhases)[number] } : {}),
         ...(typeof body.results_visible === 'boolean' ? { resultsVisible: body.results_visible } : {}),
+        ...(typeof body.show_tag_headers === 'boolean' ? { showTagHeaders: body.show_tag_headers } : {}),
         ...(typeof body.timer_ends_at !== 'undefined'
           ? { timerEndsAt: body.timer_ends_at ? new Date(body.timer_ends_at) : null }
           : {}),
@@ -156,6 +165,8 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         phase: sessions.phase,
         status: sessions.status,
         resultsVisible: sessions.resultsVisible,
+        showTagHeaders: sessions.showTagHeaders,
+        show_tag_headers: sessions.showTagHeaders,
         timerEndsAt: sessions.timerEndsAt,
         timerLabel: sessions.timerLabel,
         timer_ends_at: sessions.timerEndsAt,
