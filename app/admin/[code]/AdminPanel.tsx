@@ -239,6 +239,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [activeKartleggingFilter, setActiveKartleggingFilter] = useState<KartleggingFilter>('alle');
+  const [activeTagFilter, setActiveTagFilter] = useState<string>('alle');
 
   async function fetchSummary() {
     try {
@@ -730,8 +731,31 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     return sortedTags[0]?.[0] ?? null;
   }
 
+  function getTopTag(item: KartleggingSummaryItem) {
+    const entries = Object.entries(item.tagCounts ?? {})
+      .filter(([tag]) => tag !== 'uklart_flag')
+      .map(([tag, count]) => ({ tag, count: count as number }));
+
+    if (entries.length === 0) return null;
+    return entries.sort((a, b) => b.count - a.count)[0].tag;
+  }
+
+  function getTopTagShare(item: KartleggingSummaryItem) {
+    const tagEntries = Object.entries(item.tagCounts ?? {})
+      .filter(([tag]) => tag !== 'uklart_flag')
+      .map(([tag, count]) => ({ tag, count: count as number }));
+
+    if (tagEntries.length === 0) return 0;
+
+    const total = tagEntries.reduce((sum, entry) => sum + entry.count, 0);
+    if (total === 0) return 0;
+
+    const maxCount = Math.max(...tagEntries.map((entry) => entry.count));
+    return maxCount / total;
+  }
+
   function getEffectiveFinalTag(item: KartleggingSummaryItem) {
-    return item.finalTag ?? getConsensusTag(item);
+    return item.finalTag ?? getTopTag(item) ?? getConsensusTag(item);
   }
 
   async function updateIncluded(itemId: string, include: boolean) {
@@ -865,21 +889,40 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   );
 
   const finalListItems = useMemo(() => [...mainItems, ...proposedItems], [mainItems, proposedItems]);
+  const tagOptions = useMemo(
+    () => [
+      'alle',
+      ...Array.from(
+        new Set(
+          finalListItems
+            .map((item) => item.finalTag ?? getTopTag(item))
+            .filter((tag): tag is string => Boolean(tag)),
+        ),
+      ),
+    ],
+    [finalListItems],
+  );
   const filteredFinalListItems = useMemo(
     () =>
       finalListItems.filter((item) => {
-        if (activeKartleggingFilter === 'alle') return true;
+        const passesConsensus = (() => {
+          if (activeKartleggingFilter === 'alle') return true;
+          if (activeKartleggingFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;
+          const share = getTopTagShare(item);
+          if (activeKartleggingFilter === 'uenighet') return share < 0.67;
+          if (activeKartleggingFilter === 'konsensus') return share >= 0.67;
+          return true;
+        })();
 
-        const tagResponses = Object.entries(item.tagCounts ?? {}).filter(([tag]) => tag !== 'uklart_flag');
-        const totalVotes = tagResponses.reduce((sum, [, count]) => sum + (count as number), 0);
-        const distinctTags = tagResponses.filter(([, count]) => (count as number) > 0).length;
+        const passesTag = (() => {
+          if (activeTagFilter === 'alle') return true;
+          const effectiveTag = item.finalTag ?? getTopTag(item);
+          return effectiveTag === activeTagFilter;
+        })();
 
-        if (activeKartleggingFilter === 'uenighet') return distinctTags > 1;
-        if (activeKartleggingFilter === 'konsensus') return distinctTags === 1 && totalVotes > 0;
-        if (activeKartleggingFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;
-        return true;
+        return passesConsensus && passesTag;
       }),
-    [activeKartleggingFilter, finalListItems],
+    [activeKartleggingFilter, activeTagFilter, finalListItems],
   );
 
   const voteResults = useMemo(
@@ -1381,7 +1424,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
           <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Kuratér til stemming</h2>
           <p className="mt-2 text-sm text-slate-300">Grupper etter tag, velg endelig tag og om elementet tas med videre.</p>
           <div className="mt-4 space-y-6">
-            <div className="mb-6 flex gap-2">
+            <div className="mb-2 flex gap-2">
               <button
                 type="button"
                 onClick={() => setActiveKartleggingFilter('alle')}
@@ -1427,6 +1470,23 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                 🟢 Konsensus
               </button>
             </div>
+            <div className="mt-2 mb-4 flex flex-wrap gap-2">
+              {tagOptions.map((tag) => (
+                <button
+                  key={`tag-filter-${tag}`}
+                  type="button"
+                  onClick={() => setActiveTagFilter(tag)}
+                  className={
+                    activeTagFilter === tag
+                      ? 'rounded-full border border-cyan-600 bg-cyan-900 px-3 py-1 text-xs font-medium text-cyan-300'
+                      : 'rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-400'
+                  }
+                >
+                  {tag === 'alle' ? 'Alle' : tag}
+                </button>
+              ))}
+            </div>
+            <div className="border-t border-slate-700 my-4" />
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
