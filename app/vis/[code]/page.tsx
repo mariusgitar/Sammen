@@ -116,9 +116,31 @@ const TAG_COLORS = ['#818cf8', '#34d399', '#fb923c', '#f472b6', '#60a5fa', '#a78
 const getDisplayTag = (item: KartleggingSummaryItem) => {
   const finalTag = item.finalTag?.trim();
   if (finalTag) return finalTag;
-  const entries = Object.entries(item.tagCounts ?? {});
+  const entries = Object.entries(item.tagCounts ?? {}).filter(([tag]) => tag !== 'uklart_flag');
   if (entries.length === 0) return null;
   return entries.sort((a, b) => b[1] - a[1])[0][0];
+};
+
+const getTopTag = (item: KartleggingSummaryItem) => {
+  const entries = Object.entries(item.tagCounts ?? {})
+    .filter(([tag]) => tag !== 'uklart_flag')
+    .map(([tag, count]) => ({ tag, count: count as number }));
+  if (entries.length === 0) return null;
+  return entries.sort((a, b) => b.count - a.count)[0].tag;
+};
+
+const getTopTagShare = (item: KartleggingSummaryItem) => {
+  const tagEntries = Object.entries(item.tagCounts ?? {})
+    .filter(([tag]) => tag !== 'uklart_flag')
+    .map(([tag, count]) => ({ tag, count: count as number }));
+
+  if (tagEntries.length === 0) return 0;
+
+  const total = tagEntries.reduce((sum, entry) => sum + entry.count, 0);
+  if (total === 0) return 0;
+
+  const maxCount = Math.max(...tagEntries.map((entry) => entry.count));
+  return maxCount / total;
 };
 
 function modeLabel(mode: SessionResponse['session']['mode']) {
@@ -155,6 +177,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
   const [innspillData, setInnspillData] = useState<InnspillSummaryResponse | null>(null);
   const [themeData, setThemeData] = useState<ThemeResponse | null>(null);
   const [activeFilter, setActiveFilter] = useState<KartleggingFilter>('alle');
+  const [activeTagFilter, setActiveTagFilter] = useState<string>('alle');
   const [visible, setVisible] = useState(false);
   const initialized = useRef(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -257,16 +280,22 @@ export default function PresentationPage({ params }: { params: { code: string } 
   );
   const groupedKartleggingItems = useMemo(() => {
     const filteredItems = kartleggingItems.filter((item) => {
-      if (activeFilter === 'alle') return true;
+      const passesConsensus = (() => {
+        if (activeFilter === 'alle') return true;
+        if (activeFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;
+        const share = getTopTagShare(item);
+        if (activeFilter === 'uenighet') return share < 0.67;
+        if (activeFilter === 'konsensus') return share >= 0.67;
+        return true;
+      })();
 
-      const tagResponses = Object.entries(item.tagCounts ?? {}).filter(([tag]) => tag !== 'uklart_flag');
-      const totalVotes = tagResponses.reduce((sum, [, count]) => sum + (count as number), 0);
-      const distinctTags = tagResponses.filter(([, count]) => (count as number) > 0).length;
+      const passesTag = (() => {
+        if (activeTagFilter === 'alle') return true;
+        const effectiveTag = item.finalTag ?? getTopTag(item);
+        return effectiveTag === activeTagFilter;
+      })();
 
-      if (activeFilter === 'uenighet') return distinctTags > 1;
-      if (activeFilter === 'konsensus') return distinctTags === 1 && totalVotes > 0;
-      if (activeFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;
-      return true;
+      return passesConsensus && passesTag;
     });
 
     const grouped = filteredItems.reduce<Record<string, KartleggingSummaryItem[]>>((acc, item) => {
@@ -283,7 +312,20 @@ export default function PresentationPage({ params }: { params: { code: string } 
       if (b === 'Ikke kategorisert') return -1;
       return a.localeCompare(b, 'no');
     });
-  }, [activeFilter, kartleggingItems]);
+  }, [activeFilter, activeTagFilter, kartleggingItems]);
+  const tagOptions = useMemo(
+    () => [
+      'alle',
+      ...Array.from(
+        new Set(
+          kartleggingItems
+            .map((item) => item.finalTag ?? getTopTag(item))
+            .filter((tag): tag is string => Boolean(tag)),
+        ),
+      ),
+    ],
+    [kartleggingItems],
+  );
 
   const stemmingItems = useMemo(
     () =>
@@ -389,6 +431,22 @@ export default function PresentationPage({ params }: { params: { code: string } 
               >
                 🟢 Konsensus
               </button>
+                </div>
+                <div className="mt-2 mb-6 flex flex-wrap justify-center gap-3">
+                  {tagOptions.map((tag) => (
+                    <button
+                      key={`vis-tag-filter-${tag}`}
+                      type="button"
+                      onClick={() => setActiveTagFilter(tag)}
+                      className={
+                        activeTagFilter === tag
+                          ? 'rounded-full border border-cyan-600 bg-cyan-900 px-4 py-1.5 text-xs font-medium text-cyan-300'
+                          : 'rounded-full border border-slate-700 px-4 py-1.5 text-xs text-slate-400'
+                      }
+                    >
+                      {tag === 'alle' ? 'Alle' : tag}
+                    </button>
+                  ))}
                 </div>
                 {groupedKartleggingItems.length === 0 ? (
                   <p className="mt-8 text-center text-sm text-slate-500">Ingen elementer matcher dette filteret.</p>
