@@ -36,6 +36,7 @@ export function TimerBanner({ code }: TimerBannerProps) {
         };
 
         setTimerEndsAt(data.timerEndsAt ?? null);
+        console.log('TimerBanner state:', { timerEndsAt: data.timerEndsAt ?? null, isRendered, isVisible });
         setTimerLabel(data.timerLabel ?? null);
       } catch {
         // Ignore polling errors.
