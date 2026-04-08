@@ -150,28 +150,43 @@ export default function PresentationPage({ params }: { params: { code: string } 
   const [themeData, setThemeData] = useState<ThemeResponse | null>(null);
   const [visible, setVisible] = useState(false);
   const initialized = useRef(false);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    const poll = async () => {
+      try {
+        const res = await fetch(`/api/admin/${code}/summary`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = (await res.json()) as SummaryResponse;
+        if (data && data.items && data.items.length > 0) {
+          setSummaryData(data);
+        }
+      } catch {
+        // Intentionally silent in presentation mode.
+      }
+    };
+
+    void poll();
+    intervalRef.current = setInterval(() => void poll(), 2_000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [code]);
 
   useEffect(() => {
     let active = true;
 
     const fetchAll = async () => {
       try {
-        const [sessionRes, summaryRes] = await Promise.all([
-          fetch(`/api/sessions/${code}`, { cache: 'no-store' }),
-          fetch(`/api/admin/${code}/summary`, { cache: 'no-store' }),
-        ]);
+        const sessionRes = await fetch(`/api/sessions/${code}`, { cache: 'no-store' });
 
         if (!active) return;
 
         const sessionJson = (await sessionRes.json()) as SessionResponse;
-        const summaryJson = (await summaryRes.json()) as SummaryResponse;
 
         if (sessionRes.ok && sessionJson?.session) {
           setSessionData((current) => (sessionJson.items.length === 0 && current ? current : sessionJson));
-        }
-
-        if (summaryRes.ok && summaryJson?.items) {
-          setSummaryData((current) => (summaryJson.items.length === 0 && current ? current : summaryJson));
         }
 
         if (sessionJson?.session?.mode === 'aapne-innspill') {
