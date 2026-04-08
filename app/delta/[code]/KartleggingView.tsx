@@ -488,7 +488,9 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
                   })}
                 </div>
                 {item.defaultTag ?? item.default_tag ? (
-                  <p className="mt-1 text-xs text-slate-400">← foreslått av fasilitator</p>
+                  <p className="mt-1 text-xs text-slate-400">
+                    ← foreslått av fasilitator: {item.defaultTag ?? item.default_tag}
+                  </p>
                 ) : null}
               </section>
             );
