@@ -25,10 +25,13 @@ export async function GET(_req: Request, { params }: RouteContext) {
     .where(eq(sessions.code, code))
     .limit(1);
 
+  const timerEndsAt = session?.timerEndsAt ?? null;
+  const isExpired = timerEndsAt && new Date(timerEndsAt).getTime() < Date.now();
+
   return Response.json(
     {
-      timerEndsAt: session?.timerEndsAt?.toISOString() ?? null,
-      timerLabel: session?.timerLabel ?? null,
+      timerEndsAt: isExpired ? null : timerEndsAt?.toISOString() ?? null,
+      timerLabel: isExpired ? null : session?.timerLabel ?? null,
     },
     {
       headers: {
