@@ -104,7 +104,7 @@ CREATE TABLE IF NOT EXISTS innspill_likes (
 );
 */
 
-import { boolean, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, integer, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 export const sessionModes = ['kartlegging', 'stemming', 'aapne-innspill', 'rangering'] as const;
 export const sessionPhases = ['kartlegging', 'stemming', 'innspill', 'rangering'] as const;
@@ -224,3 +224,19 @@ export const innspillThemes = pgTable('innspill_themes', {
     .references(() => themes.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
+
+export const participants = pgTable(
+  'participants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => sessions.id, { onDelete: 'cascade' }),
+    participantId: text('participant_id').notNull(),
+    nickname: text('nickname').notNull(),
+    joinedAt: timestamp('joined_at', { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    uniq: unique().on(t.sessionId, t.participantId),
+  }),
+);

@@ -172,15 +172,33 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
     [originalItems, proposedItems],
   );
 
-  function handleJoin(event: FormEvent<HTMLFormElement>) {
+  async function handleJoin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!nickname.trim()) {
+    const trimmedNickname = nickname.trim();
+
+    if (!trimmedNickname) {
       return;
     }
 
-    localStorage.setItem(nicknameStorageKey, nickname.trim());
+    localStorage.setItem(nicknameStorageKey, trimmedNickname);
     localStorage.setItem(participantStorageKey, participantId);
+
+    try {
+      await fetch(`/api/delta/${session.code}/join`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          participantId,
+          nickname: trimmedNickname,
+        }),
+      });
+    } catch {
+      // noop
+    }
+
     setHasJoined(true);
   }
 

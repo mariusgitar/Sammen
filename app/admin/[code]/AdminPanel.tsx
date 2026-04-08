@@ -92,6 +92,12 @@ type SummaryResponse = {
   status: 'setup' | 'active' | 'paused' | 'closed';
   votingType?: 'scale' | 'dots';
   participantCount: number;
+  participants?: Array<{
+    nickname: string;
+    participantId: string;
+    joinedAt: string;
+  }>;
+  submittedParticipantIds?: string[];
   items: Array<KartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
   themes?: ThemeSummaryItem[];
 };
@@ -176,6 +182,8 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     status: session.status,
     votingType: 'scale',
     participantCount: 0,
+    participants: [],
+    submittedParticipantIds: [],
     items: items.map((item) => ({
       id: item.id,
       text: item.text,
@@ -756,6 +764,13 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     () => [...(summary.themes ?? [])].sort((a, b) => b.totalDots - a.totalDots),
     [summary.themes],
   );
+  const participantStatus = useMemo(() => {
+    const submittedIds = new Set(summary.submittedParticipantIds ?? []);
+    const submitted = (summary.participants ?? []).filter((participant) => submittedIds.has(participant.participantId));
+    const pending = (summary.participants ?? []).filter((participant) => !submittedIds.has(participant.participantId));
+
+    return { submitted, pending };
+  }, [summary.participants, summary.submittedParticipantIds]);
   const maxThemeDots = useMemo(
     () => Math.max(...themedDotResults.map((theme) => theme.totalDots), 1),
     [themedDotResults],
@@ -1596,6 +1611,26 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
           </div>
           {selectedInnspillEntries.length === 0 ? <p className="mt-3 text-xs text-amber-300">Velg minst ett innspill for å starte stemming.</p> : null}
         </section>
+      ) : null}
+
+      {currentSession.mode !== 'aapne-innspill' ? (
+      <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-slate-950/20">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Deltakere</h2>
+        <div className="mt-3 grid gap-3 text-sm text-slate-200 md:grid-cols-2">
+          <div>
+            <p className="font-medium text-emerald-300">✅ Levert</p>
+            <p className="mt-1 break-words text-slate-300">
+              {participantStatus.submitted.length > 0 ? participantStatus.submitted.map((participant) => participant.nickname).join(', ') : 'Ingen'}
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-amber-300">⏳ Ikke levert ennå</p>
+            <p className="mt-1 break-words text-slate-300">
+              {participantStatus.pending.length > 0 ? participantStatus.pending.map((participant) => participant.nickname).join(', ') : 'Ingen'}
+            </p>
+          </div>
+        </div>
+      </section>
       ) : null}
 
       {currentSession.mode !== 'aapne-innspill' ? (
