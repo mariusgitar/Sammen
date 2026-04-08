@@ -243,6 +243,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
           allowNewItems: session.allowNewItems,
         }}
       />
+      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, height: '40px', background: 'red', zIndex: 9999 }} />
       <TimerBanner code={code} />
     </>
   );
