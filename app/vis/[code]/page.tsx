@@ -25,11 +25,13 @@ type SessionResponse = {
 type KartleggingSummaryItem = {
   id: string;
   text: string;
-  final_tag?: string | null;
+  description?: string | null;
+  finalTag?: string | null;
+  defaultTag?: string | null;
   tagCounts: Record<string, number>;
   untaggedCount: number;
-  uncertainCount?: number;
-  responses?: Array<{ value: string }>;
+  uncertainCount: number;
+  changedCount?: number;
 };
 
 type StemmingSummaryItem = {
@@ -112,7 +114,7 @@ const inter = Inter({ subsets: ['latin'] });
 const TAG_COLORS = ['#818cf8', '#34d399', '#fb923c', '#f472b6', '#60a5fa', '#a78bfa', '#4ade80'];
 
 const getDisplayTag = (item: KartleggingSummaryItem) => {
-  const finalTag = item.final_tag?.trim();
+  const finalTag = item.finalTag?.trim();
   if (finalTag) return finalTag;
   const entries = Object.entries(item.tagCounts ?? {});
   if (entries.length === 0) return null;
@@ -191,7 +193,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
         const sessionJson = (await sessionRes.json()) as SessionResponse;
 
         if (sessionRes.ok && sessionJson?.session) {
-          setSessionData((current) => (sessionJson.items.length === 0 && current ? current : sessionJson));
+          setSessionData(sessionJson);
         }
 
         if (sessionJson?.session?.mode === 'aapne-innspill') {
@@ -257,11 +259,10 @@ export default function PresentationPage({ params }: { params: { code: string } 
     const filteredItems = kartleggingItems.filter((item) => {
       if (activeFilter === 'alle') return true;
 
-      const tagResponses = item.responses?.filter((response) => response.value !== 'uklart_flag') ?? [];
-      const tagValues = tagResponses.length > 0 ? tagResponses.map((response) => response.value) : Object.keys(item.tagCounts).filter((tag) => item.tagCounts[tag] > 0);
+      const tagValues = Object.keys(item.tagCounts).filter((tag) => item.tagCounts[tag] > 0);
       const hasMultipleTags = new Set(tagValues).size > 1;
       const hasOnlyOneTag = new Set(tagValues).size === 1;
-      const hasUnsure = item.responses?.some((response) => response.value === 'uklart_flag') ?? (item.uncertainCount ?? 0) > 0;
+      const hasUnsure = item.uncertainCount > 0;
 
       if (activeFilter === 'uenighet') return hasMultipleTags;
       if (activeFilter === 'usikker') return hasUnsure;
@@ -408,6 +409,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
                           return (
                             <article key={item.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
                               <p className="text-lg font-semibold text-white">{item.text}</p>
+                              {item.description ? <p className="mt-1 text-sm text-white/60">{item.description}</p> : null}
                               {totalVotes === 0 ? (
                                 <>
                                   <div className="mt-3 h-[10px] w-full rounded-full bg-white/20" />
@@ -437,6 +439,9 @@ export default function PresentationPage({ params }: { params: { code: string } 
                                   </p>
                                 </>
                               )}
+                              <p className="mt-3 text-sm text-white/60">
+                                Endelig tag: {item.finalTag?.trim() || 'Ikke satt'} · Uklart: {item.uncertainCount}
+                              </p>
                             </article>
                           );
                         })}
