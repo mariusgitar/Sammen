@@ -138,6 +138,19 @@ const getDisplayTag = (item: KartleggingSummaryItem) => {
   return entries.sort((a, b) => b[1] - a[1])[0][0];
 };
 
+const getTopTagShare = (item: KartleggingSummaryItem) => {
+  const tagEntries = Object.entries(item.tagCounts ?? {})
+    .filter(([tag]) => tag !== 'uklart_flag')
+    .map(([tag, count]) => ({ tag, count: count as number }));
+
+  if (tagEntries.length === 0) return 0;
+
+  const total = tagEntries.reduce((sum, entry) => sum + entry.count, 0);
+  if (total === 0) return 0;
+
+  return Math.max(...tagEntries.map((entry) => entry.count)) / total;
+};
+
 export default function ParticipantResultsPage({ params }: PageProps) {
   const router = useRouter();
   const code = useMemo(() => params.code.toUpperCase(), [params.code]);
@@ -179,7 +192,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
 
         let currentResultsVisible = serverVisibility;
 
-        const sessionRes = await fetch(`/api/sessions/${code}`);
+        const sessionRes = await fetch(`/api/sessions/${code}`, { cache: 'no-store' });
         if (sessionRes.ok) {
           const sessionPayload = (await sessionRes.json()) as {
             session?: {
@@ -478,12 +491,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const filteredItems = kartleggingItems.filter((item) => {
     if (activeFilter === 'alle') return true;
     if (activeFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;
-    const tagEntries = Object.entries(item.tagCounts ?? {})
-      .filter(([tag]) => tag !== 'uklart_flag')
-      .map(([tag, count]) => ({ tag, count: count as number }));
-    const total = tagEntries.reduce((sum, entry) => sum + entry.count, 0);
-    const maxCount = total > 0 ? Math.max(...tagEntries.map((entry) => entry.count)) : 0;
-    const share = total > 0 ? maxCount / total : 0;
+    const share = getTopTagShare(item);
     if (activeFilter === 'uenighet') return share < 0.67;
     if (activeFilter === 'konsensus') return share >= 0.67;
     return true;
@@ -536,7 +544,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
       <div className="mx-auto max-w-4xl space-y-4">
         <h1 className="text-center text-2xl font-semibold text-[#0f172a]">{title}</h1>
         {results.phase === 'kartlegging' && activeFilter !== 'alle' ? (
-          <p className="mb-4 text-center text-xs text-slate-400">
+          <p className="text-xs text-slate-400 text-center mb-4">
             Fasilitator viser: {filterLabels[activeFilter]}
           </p>
         ) : null}
