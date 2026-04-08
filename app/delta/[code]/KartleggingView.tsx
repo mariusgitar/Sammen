@@ -404,13 +404,13 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
                       >
                         {tag}
                       </button>
-                      {suggested ? (
-                        <p className="text-xs text-slate-400">← foreslått av fasilitator</p>
-                      ) : null}
                     </div>
                   );
                 })}
               </div>
+              {item.defaultTag ?? item.default_tag ? (
+                <p className="mt-1 text-xs text-slate-400">← foreslått av fasilitator</p>
+              ) : null}
             </section>
           ))}
 
