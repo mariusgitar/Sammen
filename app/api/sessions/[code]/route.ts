@@ -11,9 +11,14 @@ type RouteContext = {
 };
 
 type PatchBody = {
+  title?: string;
   status?: string;
   phase?: string;
   results_visible?: boolean;
+  allow_new_items?: boolean;
+  show_others_innspill?: boolean;
+  innspill_max_chars?: number;
+  dot_budget?: number;
   show_tag_headers?: boolean;
   timer_ends_at?: string | null;
   timer_label?: string | null;
@@ -26,6 +31,10 @@ function isValidPatchBody(candidate: unknown): candidate is PatchBody {
 
   const body = candidate as Partial<PatchBody>;
 
+  if (typeof body.title !== 'undefined' && (typeof body.title !== 'string' || body.title.trim().length === 0)) {
+    return false;
+  }
+
   if (typeof body.status !== 'undefined' && !sessionStatuses.includes(body.status as (typeof sessionStatuses)[number])) {
     return false;
   }
@@ -35,6 +44,22 @@ function isValidPatchBody(candidate: unknown): candidate is PatchBody {
   }
 
   if (typeof body.results_visible !== 'undefined' && typeof body.results_visible !== 'boolean') {
+    return false;
+  }
+
+  if (typeof body.allow_new_items !== 'undefined' && typeof body.allow_new_items !== 'boolean') {
+    return false;
+  }
+
+  if (typeof body.show_others_innspill !== 'undefined' && typeof body.show_others_innspill !== 'boolean') {
+    return false;
+  }
+
+  if (typeof body.innspill_max_chars !== 'undefined' && (!Number.isInteger(body.innspill_max_chars) || body.innspill_max_chars < 50 || body.innspill_max_chars > 500)) {
+    return false;
+  }
+
+  if (typeof body.dot_budget !== 'undefined' && (!Number.isInteger(body.dot_budget) || body.dot_budget < 1 || body.dot_budget > 20)) {
     return false;
   }
 
@@ -57,9 +82,14 @@ function isValidPatchBody(candidate: unknown): candidate is PatchBody {
   }
 
   return (
+    typeof body.title !== 'undefined' ||
     typeof body.status !== 'undefined' ||
     typeof body.phase !== 'undefined' ||
     typeof body.results_visible !== 'undefined' ||
+    typeof body.allow_new_items !== 'undefined' ||
+    typeof body.show_others_innspill !== 'undefined' ||
+    typeof body.innspill_max_chars !== 'undefined' ||
+    typeof body.dot_budget !== 'undefined' ||
     typeof body.show_tag_headers !== 'undefined' ||
     typeof body.timer_ends_at !== 'undefined' ||
     typeof body.timer_label !== 'undefined'
@@ -151,9 +181,14 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     const [updatedSession] = await db
       .update(sessions)
       .set({
+        ...(typeof body.title === 'string' ? { title: body.title.trim() } : {}),
         ...(body.status ? { status: body.status as (typeof sessionStatuses)[number] } : {}),
         ...(body.phase ? { phase: body.phase as (typeof sessionPhases)[number] } : {}),
         ...(typeof body.results_visible === 'boolean' ? { resultsVisible: body.results_visible } : {}),
+        ...(typeof body.allow_new_items === 'boolean' ? { allowNewItems: body.allow_new_items } : {}),
+        ...(typeof body.show_others_innspill === 'boolean' ? { showOthersInnspill: body.show_others_innspill } : {}),
+        ...(typeof body.innspill_max_chars === 'number' ? { innspillMaxChars: body.innspill_max_chars } : {}),
+        ...(typeof body.dot_budget === 'number' ? { dotBudget: body.dot_budget } : {}),
         ...(typeof body.show_tag_headers === 'boolean' ? { showTagHeaders: body.show_tag_headers } : {}),
         ...(typeof body.timer_ends_at !== 'undefined'
           ? { timerEndsAt: body.timer_ends_at ? new Date(body.timer_ends_at) : null }
@@ -162,9 +197,18 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       })
       .where(eq(sessions.code, code))
       .returning({
+        title: sessions.title,
+        dotBudget: sessions.dotBudget,
+        dot_budget: sessions.dotBudget,
         phase: sessions.phase,
         status: sessions.status,
         resultsVisible: sessions.resultsVisible,
+        allowNewItems: sessions.allowNewItems,
+        allow_new_items: sessions.allowNewItems,
+        showOthersInnspill: sessions.showOthersInnspill,
+        show_others_innspill: sessions.showOthersInnspill,
+        innspillMaxChars: sessions.innspillMaxChars,
+        innspill_max_chars: sessions.innspillMaxChars,
         showTagHeaders: sessions.showTagHeaders,
         show_tag_headers: sessions.showTagHeaders,
         timerEndsAt: sessions.timerEndsAt,

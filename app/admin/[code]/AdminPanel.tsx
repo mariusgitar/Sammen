@@ -13,10 +13,15 @@ type SessionView = {
   title: string;
   code: string;
   mode: string;
+  votingType: 'scale' | 'dots';
+  dotBudget: number;
   phase: 'kartlegging' | 'stemming' | 'innspill' | 'rangering';
   status: 'setup' | 'active' | 'paused' | 'closed';
   resultsVisible: boolean;
+  allowNewItems: boolean;
+  showTagHeaders: boolean | null;
   showOthersInnspill: boolean;
+  innspillMaxChars: number;
   tags: string[];
   timerEndsAt: string | Date | null;
   timerLabel: string | null;
@@ -222,6 +227,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const [timerMinutes, setTimerMinutes] = useState(3);
   const [timerLabelInput, setTimerLabelInput] = useState(session.timerLabel ?? '');
   const [timerNow, setTimerNow] = useState(Date.now());
+  const [settingsTitle, setSettingsTitle] = useState(session.title);
+  const [settingsAllowNewItems, setSettingsAllowNewItems] = useState(session.allowNewItems);
+  const [settingsShowOthersInnspill, setSettingsShowOthersInnspill] = useState(session.showOthersInnspill);
+  const [settingsInnspillMaxChars, setSettingsInnspillMaxChars] = useState(session.innspillMaxChars);
+  const [settingsDotBudget, setSettingsDotBudget] = useState(session.dotBudget);
+  const [settingsShowTagHeaders, setSettingsShowTagHeaders] = useState(Boolean(session.showTagHeaders));
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsSaved, setSettingsSaved] = useState(false);
 
   async function fetchSummary() {
     try {
@@ -460,6 +473,110 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       setError('Kunne ikke oppdatere timeren. Prøv igjen.');
     } finally {
       setIsUpdatingStatus(false);
+    }
+  }
+
+  async function saveSettings() {
+    setError('');
+    setIsSavingSettings(true);
+
+    const payload: Record<string, string | number | boolean> = {};
+    const trimmedTitle = settingsTitle.trim();
+
+    if (trimmedTitle && trimmedTitle !== currentSession.title) {
+      payload.title = trimmedTitle;
+    }
+
+    if (currentSession.mode === 'kartlegging' && settingsAllowNewItems !== currentSession.allowNewItems) {
+      payload.allow_new_items = settingsAllowNewItems;
+    }
+
+    if (currentSession.mode === 'kartlegging' && settingsShowTagHeaders !== Boolean(currentSession.showTagHeaders)) {
+      payload.show_tag_headers = settingsShowTagHeaders;
+    }
+
+    if (currentSession.mode === 'aapne-innspill' && settingsShowOthersInnspill !== currentSession.showOthersInnspill) {
+      payload.show_others_innspill = settingsShowOthersInnspill;
+    }
+
+    if (currentSession.mode === 'aapne-innspill' && settingsInnspillMaxChars !== currentSession.innspillMaxChars) {
+      payload.innspill_max_chars = settingsInnspillMaxChars;
+    }
+
+    if (summary.votingType === 'dots' && settingsDotBudget !== currentSession.dotBudget) {
+      payload.dot_budget = settingsDotBudget;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      setIsSavingSettings(false);
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/sessions/${currentSession.code}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = (await response.json()) as
+        | {
+            session: Pick<
+              SessionView,
+              | 'title'
+              | 'dotBudget'
+              | 'allowNewItems'
+              | 'showTagHeaders'
+              | 'showOthersInnspill'
+              | 'innspillMaxChars'
+              | 'status'
+              | 'phase'
+              | 'resultsVisible'
+              | 'timerEndsAt'
+              | 'timerLabel'
+            >;
+          }
+        | { error: string };
+
+      if (!response.ok || !('session' in data)) {
+        setError('Kunne ikke lagre innstillinger. Prøv igjen.');
+        return;
+      }
+
+      setCurrentSession((current) => ({
+        ...current,
+        title: data.session.title,
+        dotBudget: data.session.dotBudget,
+        allowNewItems: data.session.allowNewItems,
+        showTagHeaders: data.session.showTagHeaders,
+        showOthersInnspill: data.session.showOthersInnspill,
+        innspillMaxChars: data.session.innspillMaxChars,
+        status: data.session.status,
+        phase: data.session.phase,
+        resultsVisible: data.session.resultsVisible,
+        timerEndsAt: data.session.timerEndsAt,
+        timerLabel: data.session.timerLabel,
+      }));
+      setSessionStatus(data.session.status);
+      setSessionPhase(data.session.phase);
+      setResultsVisible(data.session.resultsVisible);
+      setTimerLabelInput(data.session.timerLabel ?? '');
+      setSettingsTitle(data.session.title);
+      setSettingsAllowNewItems(data.session.allowNewItems);
+      setSettingsShowTagHeaders(Boolean(data.session.showTagHeaders));
+      setSettingsShowOthersInnspill(data.session.showOthersInnspill);
+      setSettingsInnspillMaxChars(data.session.innspillMaxChars);
+      setSettingsDotBudget(data.session.dotBudget);
+      setSettingsSaved(true);
+      setTimeout(() => {
+        setSettingsSaved(false);
+      }, 2_000);
+    } catch {
+      setError('Kunne ikke lagre innstillinger. Prøv igjen.');
+    } finally {
+      setIsSavingSettings(false);
     }
   }
 
@@ -1804,6 +1921,116 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
       </section>
       ) : null}
+
+      <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
+        <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Innstillinger</h2>
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <label htmlFor="settings-title" className="text-sm text-slate-200">
+              Tittel
+            </label>
+            <input
+              id="settings-title"
+              type="text"
+              value={settingsTitle}
+              onChange={(event) => setSettingsTitle(event.target.value)}
+              className="w-56 rounded border border-slate-600 bg-slate-900 px-3 py-1.5 text-sm text-slate-100"
+            />
+          </div>
+
+          {currentSession.mode === 'kartlegging' ? (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-slate-200">Tillat nye forslag</span>
+              <ToggleButton
+                value={settingsAllowNewItems ? 'yes' : 'no'}
+                onChange={(value) => setSettingsAllowNewItems(value === 'yes')}
+                options={[
+                  { value: 'yes', label: 'Ja' },
+                  { value: 'no', label: 'Nei' },
+                ]}
+              />
+            </div>
+          ) : null}
+
+          {currentSession.mode === 'aapne-innspill' ? (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-slate-200">Vis andres innspill</span>
+              <ToggleButton
+                value={settingsShowOthersInnspill ? 'yes' : 'no'}
+                onChange={(value) => setSettingsShowOthersInnspill(value === 'yes')}
+                options={[
+                  { value: 'yes', label: 'Ja' },
+                  { value: 'no', label: 'Nei' },
+                ]}
+              />
+            </div>
+          ) : null}
+
+          {currentSession.mode === 'aapne-innspill' ? (
+            <div className="flex items-center justify-between gap-4">
+              <label htmlFor="settings-innspill-max-chars" className="text-sm text-slate-200">
+                Maks tegn på innspill
+              </label>
+              <input
+                id="settings-innspill-max-chars"
+                type="number"
+                min={50}
+                max={500}
+                value={settingsInnspillMaxChars}
+                onChange={(event) =>
+                  setSettingsInnspillMaxChars(
+                    Math.min(500, Math.max(50, Number(event.target.value) || 50)),
+                  )
+                }
+                className="w-24 rounded border border-slate-600 bg-slate-900 px-3 py-1.5 text-sm text-slate-100"
+              />
+            </div>
+          ) : null}
+
+          {summary.votingType === 'dots' ? (
+            <div className="flex items-center justify-between gap-4">
+              <label htmlFor="settings-dot-budget" className="text-sm text-slate-200">
+                Dot budget
+              </label>
+              <input
+                id="settings-dot-budget"
+                type="number"
+                min={1}
+                max={20}
+                value={settingsDotBudget}
+                onChange={(event) => setSettingsDotBudget(Math.min(20, Math.max(1, Number(event.target.value) || 1)))}
+                className="w-24 rounded border border-slate-600 bg-slate-900 px-3 py-1.5 text-sm text-slate-100"
+              />
+            </div>
+          ) : null}
+
+          {currentSession.mode === 'kartlegging' ? (
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-sm text-slate-200">Vis tag-overskrifter</span>
+              <ToggleButton
+                value={settingsShowTagHeaders ? 'yes' : 'no'}
+                onChange={(value) => setSettingsShowTagHeaders(value === 'yes')}
+                options={[
+                  { value: 'yes', label: 'Ja' },
+                  { value: 'no', label: 'Nei' },
+                ]}
+              />
+            </div>
+          ) : null}
+        </div>
+
+        <div className="mt-5 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => void saveSettings()}
+            disabled={isSavingSettings}
+            className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-white disabled:opacity-70"
+          >
+            Lagre endringer
+          </button>
+          {settingsSaved ? <p className="text-sm text-emerald-300">Lagret</p> : null}
+        </div>
+      </section>
     </div>
   );
 }
