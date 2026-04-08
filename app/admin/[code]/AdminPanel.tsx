@@ -120,6 +120,7 @@ type AdminPanelProps = {
   items: SessionItem[];
 };
 
+type KartleggingFilter = 'alle' | 'uenighet' | 'usikker' | 'enige';
 
 const modeLabels: Record<string, string> = {
   kartlegging: 'Kartlegging',
@@ -237,6 +238,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const [settingsShowTagHeaders, setSettingsShowTagHeaders] = useState(Boolean(session.showTagHeaders));
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsSaved, setSettingsSaved] = useState(false);
+  const [activeKartleggingFilter, setActiveKartleggingFilter] = useState<KartleggingFilter>('alle');
 
   async function fetchSummary() {
     try {
@@ -863,6 +865,23 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   );
 
   const finalListItems = useMemo(() => [...mainItems, ...proposedItems], [mainItems, proposedItems]);
+  const filteredFinalListItems = useMemo(
+    () =>
+      finalListItems.filter((item) => {
+        if (activeKartleggingFilter === 'alle') return true;
+
+        const tagEntries = Object.entries(item.tagCounts).filter(([, count]) => count > 0);
+        const hasMultipleTags = tagEntries.length > 1;
+        const hasOnlyOneTag = tagEntries.length === 1;
+        const hasUnsure = item.uncertainCount > 0;
+
+        if (activeKartleggingFilter === 'uenighet') return hasMultipleTags;
+        if (activeKartleggingFilter === 'usikker') return hasUnsure;
+        if (activeKartleggingFilter === 'enige') return hasOnlyOneTag && !hasMultipleTags;
+        return true;
+      }),
+    [activeKartleggingFilter, finalListItems],
+  );
 
   const voteResults = useMemo(
     () =>
@@ -1363,6 +1382,52 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
           <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Kuratér til stemming</h2>
           <p className="mt-2 text-sm text-slate-300">Grupper etter tag, velg endelig tag og om elementet tas med videre.</p>
           <div className="mt-4 space-y-6">
+            <div className="mb-6 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setActiveKartleggingFilter('alle')}
+                className={
+                  activeKartleggingFilter === 'alle'
+                    ? 'rounded-full bg-violet-600 px-4 py-1.5 text-sm font-medium text-white'
+                    : 'rounded-full border border-slate-600 px-4 py-1.5 text-sm text-slate-400'
+                }
+              >
+                Alle
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveKartleggingFilter('uenighet')}
+                className={
+                  activeKartleggingFilter === 'uenighet'
+                    ? 'rounded-full bg-violet-600 px-4 py-1.5 text-sm font-medium text-white'
+                    : 'rounded-full border border-slate-600 px-4 py-1.5 text-sm text-slate-400'
+                }
+              >
+                ⚠️ Uenighet
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveKartleggingFilter('usikker')}
+                className={
+                  activeKartleggingFilter === 'usikker'
+                    ? 'rounded-full bg-violet-600 px-4 py-1.5 text-sm font-medium text-white'
+                    : 'rounded-full border border-slate-600 px-4 py-1.5 text-sm text-slate-400'
+                }
+              >
+                💬 Usikker
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveKartleggingFilter('enige')}
+                className={
+                  activeKartleggingFilter === 'enige'
+                    ? 'rounded-full bg-violet-600 px-4 py-1.5 text-sm font-medium text-white'
+                    : 'rounded-full border border-slate-600 px-4 py-1.5 text-sm text-slate-400'
+                }
+              >
+                ✓ Enige
+              </button>
+            </div>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -1414,7 +1479,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                 return { totalVotes, ratio, consensusTag, distributionEntries };
               };
 
-              const itemsWithStats = finalListItems.map((item) => ({
+              const itemsWithStats = filteredFinalListItems.map((item) => ({
                 item,
                 stats: getStats(item),
               }));
@@ -1439,6 +1504,9 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
               return (
                 <>
+                  {itemsWithStats.length === 0 ? (
+                    <p className="mt-8 text-center text-sm text-slate-500">Ingen elementer matcher dette filteret.</p>
+                  ) : null}
                   {tagGroups.map(([tagName, groupItems], groupIndex) => (
                     <article
                       key={tagName}
@@ -1525,16 +1593,17 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                     </article>
                   ))}
 
-                  <article
-                    className="mt-8 rounded-xl border border-amber-600/50 border-l-4 border-t border-slate-700 bg-amber-950/20 p-4"
-                    style={{ borderLeftColor: '#f59e0b' }}
-                  >
-                    <h3 className="text-lg font-bold text-white">⚠️ Uavklart</h3>
-                    <div className="mt-4 space-y-3">
-                      {unresolvedItems.length === 0 ? <p className="text-sm text-slate-400">Ingen uavklarte elementer.</p> : null}
-                      {unresolvedItems.map(({ item, stats }) => {
-                        return (
-                          <div key={item.id} className="rounded-xl border border-slate-700 bg-slate-950 p-3 transition-all duration-300">
+                  {itemsWithStats.length > 0 ? (
+                    <article
+                      className="mt-8 rounded-xl border border-amber-600/50 border-l-4 border-t border-slate-700 bg-amber-950/20 p-4"
+                      style={{ borderLeftColor: '#f59e0b' }}
+                    >
+                      <h3 className="text-lg font-bold text-white">⚠️ Uavklart</h3>
+                      <div className="mt-4 space-y-3">
+                        {unresolvedItems.length === 0 ? <p className="text-sm text-slate-400">Ingen uavklarte elementer.</p> : null}
+                        {unresolvedItems.map(({ item, stats }) => {
+                          return (
+                            <div key={item.id} className="rounded-xl border border-slate-700 bg-slate-950 p-3 transition-all duration-300">
                             <p className="text-sm font-semibold text-slate-100">{item.text}</p>
                             <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
                               {stats.totalVotes > 0
@@ -1603,11 +1672,12 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                                 {savingIncludeByItem[item.id] ? <span className="text-xs text-slate-400">(Lagrer…)</span> : null}
                               </label>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </article>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </article>
+                  ) : null}
                 </>
               );
             })()}

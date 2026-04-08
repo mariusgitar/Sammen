@@ -28,6 +28,8 @@ type KartleggingSummaryItem = {
   final_tag?: string | null;
   tagCounts: Record<string, number>;
   untaggedCount: number;
+  uncertainCount?: number;
+  responses?: Array<{ value: string }>;
 };
 
 type StemmingSummaryItem = {
@@ -142,12 +144,15 @@ function consensusWidth(distribution: Record<string, number>, voteCount: number)
   return 24 + agreement * 76;
 }
 
+type KartleggingFilter = 'alle' | 'uenighet' | 'usikker' | 'enige';
+
 export default function PresentationPage({ params }: { params: { code: string } }) {
   const code = params.code.toUpperCase();
   const [sessionData, setSessionData] = useState<SessionResponse | null>(null);
   const [summaryData, setSummaryData] = useState<SummaryResponse | null>(null);
   const [innspillData, setInnspillData] = useState<InnspillSummaryResponse | null>(null);
   const [themeData, setThemeData] = useState<ThemeResponse | null>(null);
+  const [activeFilter, setActiveFilter] = useState<KartleggingFilter>('alle');
   const [visible, setVisible] = useState(false);
   const initialized = useRef(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -249,7 +254,22 @@ export default function PresentationPage({ params }: { params: { code: string } 
     [uniqueFinalTags],
   );
   const groupedKartleggingItems = useMemo(() => {
-    const grouped = kartleggingItems.reduce<Record<string, KartleggingSummaryItem[]>>((acc, item) => {
+    const filteredItems = kartleggingItems.filter((item) => {
+      if (activeFilter === 'alle') return true;
+
+      const tagResponses = item.responses?.filter((response) => response.value !== 'uklart_flag') ?? [];
+      const tagValues = tagResponses.length > 0 ? tagResponses.map((response) => response.value) : Object.keys(item.tagCounts).filter((tag) => item.tagCounts[tag] > 0);
+      const hasMultipleTags = new Set(tagValues).size > 1;
+      const hasOnlyOneTag = new Set(tagValues).size === 1;
+      const hasUnsure = item.responses?.some((response) => response.value === 'uklart_flag') ?? (item.uncertainCount ?? 0) > 0;
+
+      if (activeFilter === 'uenighet') return hasMultipleTags;
+      if (activeFilter === 'usikker') return hasUnsure;
+      if (activeFilter === 'enige') return hasOnlyOneTag && !hasMultipleTags;
+      return true;
+    });
+
+    const grouped = filteredItems.reduce<Record<string, KartleggingSummaryItem[]>>((acc, item) => {
       const tag = getDisplayTag(item) || 'Ikke kategorisert';
       if (!acc[tag]) {
         acc[tag] = [];
@@ -263,7 +283,7 @@ export default function PresentationPage({ params }: { params: { code: string } 
       if (b === 'Ikke kategorisert') return -1;
       return a.localeCompare(b, 'no');
     });
-  }, [kartleggingItems]);
+  }, [activeFilter, kartleggingItems]);
 
   const stemmingItems = useMemo(
     () =>
@@ -323,7 +343,57 @@ export default function PresentationPage({ params }: { params: { code: string } 
           ) : (
             <div className="transition-all duration-1000 ease-out opacity-100">
             {session?.phase === 'kartlegging' ? (
-              <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+              <>
+                <div className="mb-8 flex justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilter('alle')}
+                    className={
+                      activeFilter === 'alle'
+                        ? 'rounded-full bg-violet-600 px-5 py-2 text-sm font-medium text-white'
+                        : 'rounded-full border border-slate-600 px-5 py-2 text-sm text-slate-400'
+                    }
+                  >
+                    Alle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilter('uenighet')}
+                    className={
+                      activeFilter === 'uenighet'
+                        ? 'rounded-full bg-violet-600 px-5 py-2 text-sm font-medium text-white'
+                        : 'rounded-full border border-slate-600 px-5 py-2 text-sm text-slate-400'
+                    }
+                  >
+                    ⚠️ Uenighet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilter('usikker')}
+                    className={
+                      activeFilter === 'usikker'
+                        ? 'rounded-full bg-violet-600 px-5 py-2 text-sm font-medium text-white'
+                        : 'rounded-full border border-slate-600 px-5 py-2 text-sm text-slate-400'
+                    }
+                  >
+                    💬 Usikker
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveFilter('enige')}
+                    className={
+                      activeFilter === 'enige'
+                        ? 'rounded-full bg-violet-600 px-5 py-2 text-sm font-medium text-white'
+                        : 'rounded-full border border-slate-600 px-5 py-2 text-sm text-slate-400'
+                    }
+                  >
+                    ✓ Enige
+                  </button>
+                </div>
+                {groupedKartleggingItems.length === 0 ? (
+                  <p className="mt-8 text-center text-sm text-slate-500">Ingen elementer matcher dette filteret.</p>
+                ) : null}
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                 {groupedKartleggingItems.map(([groupName, items]) => {
                   const groupColor = groupName === 'Ikke kategorisert' ? '#94a3b8' : (tagColorMap[groupName.toLowerCase()] ?? TAG_COLORS[0]);
                   return (
@@ -374,7 +444,8 @@ export default function PresentationPage({ params }: { params: { code: string } 
                     </section>
                   );
                 })}
-              </div>
+                </div>
+              </>
             ) : null}
 
             {session?.phase === 'stemming' && session.votingType === 'scale' ? (
