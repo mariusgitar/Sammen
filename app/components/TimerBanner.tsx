@@ -5,6 +5,8 @@ export function TimerBanner({ timerEndsAt, timerLabel }: {
   timerEndsAt: string | null; 
   timerLabel: string | null; 
 }) {
+  return null;
+
   const [remaining, setRemaining] = useState(0);
 
   useEffect(() => {
