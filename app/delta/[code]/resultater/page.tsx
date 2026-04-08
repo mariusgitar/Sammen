@@ -190,11 +190,11 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             resultsVisible?: boolean;
             active_filter?: 'alle' | 'uenighet' | 'usikker' | 'konsensus';
           };
-          const syncedFilter =
+          const filter =
             sessionPayload.session?.active_filter ??
             sessionPayload.active_filter ??
             'alle';
-          setActiveFilter(syncedFilter);
+          setActiveFilter(filter);
           const visible =
             sessionPayload.session?.resultsVisible ??
             sessionPayload.session?.results_visible ??
@@ -475,26 +475,21 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const kartleggingItems = results.items
     .filter((item): item is KartleggingSummaryItem => 'tagCounts' in item)
     .filter((item) => !item.excluded);
-  const getTopTagShare = (item: KartleggingSummaryItem) => {
+  const filteredItems = kartleggingItems.filter((item) => {
+    if (activeFilter === 'alle') return true;
+    if (activeFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;
     const tagEntries = Object.entries(item.tagCounts ?? {})
       .filter(([tag]) => tag !== 'uklart_flag')
       .map(([tag, count]) => ({ tag, count: count as number }));
-    if (tagEntries.length === 0) return 0;
     const total = tagEntries.reduce((sum, entry) => sum + entry.count, 0);
-    if (total === 0) return 0;
-    const maxCount = Math.max(...tagEntries.map((entry) => entry.count));
-    return maxCount / total;
-  };
-  const filteredKartleggingItems = kartleggingItems.filter((item) => {
-    if (activeFilter === 'alle') return true;
-    if (activeFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;
-    const share = getTopTagShare(item);
+    const maxCount = total > 0 ? Math.max(...tagEntries.map((entry) => entry.count)) : 0;
+    const share = total > 0 ? maxCount / total : 0;
     if (activeFilter === 'uenighet') return share < 0.67;
     if (activeFilter === 'konsensus') return share >= 0.67;
     return true;
   });
-  const mainKartleggingItems = filteredKartleggingItems.filter((item) => !item.is_new);
-  const newKartleggingItems = filteredKartleggingItems.filter((item) => item.is_new);
+  const mainKartleggingItems = filteredItems.filter((item) => !item.is_new);
+  const newKartleggingItems = filteredItems.filter((item) => item.is_new);
   const groupedKartleggingItems = mainKartleggingItems.reduce<Record<string, KartleggingSummaryItem[]>>((acc, item) => {
     const tag = getDisplayTag(item) || 'Ikke kategorisert';
     if (!acc[tag]) {
@@ -530,6 +525,11 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     .filter((item): item is StemmingSummaryItem => 'averageScore' in item)
     .filter((item) => !item.excluded)
     .sort((a, b) => b.averageScore - a.averageScore);
+  const filterLabels: Record<string, string> = {
+    uenighet: '🔴 Uenighet',
+    usikker: '💬 Usikker',
+    konsensus: '🟢 Konsensus',
+  };
 
   return (
     <main className="min-h-screen bg-[#f8fafc] px-4 py-8 pb-16">
@@ -537,12 +537,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
         <h1 className="text-center text-2xl font-semibold text-[#0f172a]">{title}</h1>
         {results.phase === 'kartlegging' && activeFilter !== 'alle' ? (
           <p className="mb-4 text-center text-xs text-slate-400">
-            Fasilitator viser:{' '}
-            {activeFilter === 'uenighet'
-              ? '🔴 Uenighet'
-              : activeFilter === 'usikker'
-                ? '💬 Usikker'
-                : '🟢 Konsensus'}
+            Fasilitator viser: {filterLabels[activeFilter]}
           </p>
         ) : null}
 
