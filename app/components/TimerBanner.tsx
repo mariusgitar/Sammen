@@ -1,119 +1,69 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
-type TimerBannerProps = {
-  code: string;
-};
+export function TimerBanner({ code }: { code: string }) {
+  const [endsAt, setEndsAt] = useState<number | null>(null);
+  const [remaining, setRemaining] = useState(0);
 
-function formatRemaining(ms: number) {
-  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
-export function TimerBanner({ code }: TimerBannerProps) {
-  const [timerEndsAt, setTimerEndsAt] = useState<string | null>(null);
-  const [timerLabel, setTimerLabel] = useState<string | null>(null);
-  const [remainingMs, setRemainingMs] = useState(0);
-  const [isRendered, setIsRendered] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
-
-  const label = useMemo(() => timerLabel?.trim() ?? '', [timerLabel]);
-
+  // Poll timer-APIet
   useEffect(() => {
     const poll = async () => {
       try {
-        const response = await fetch(`/api/delta/${code}/timer`);
-        if (!response.ok) {
-          return;
+        const res = await fetch(`/api/delta/${code}/timer`);
+        const data = await res.json();
+        if (data.timerEndsAt) {
+          setEndsAt(new Date(data.timerEndsAt).getTime());
+        } else {
+          setEndsAt(null);
         }
-
-        const data = (await response.json()) as {
-          timerEndsAt?: string | null;
-          timerLabel?: string | null;
-        };
-
-        setTimerEndsAt(data.timerEndsAt ?? null);
-        console.log('TimerBanner state:', { timerEndsAt: data.timerEndsAt ?? null, isRendered, isVisible });
-        setTimerLabel(data.timerLabel ?? null);
-      } catch {
-        // Ignore polling errors.
-      }
+      } catch {}
     };
-
-    void poll();
-    const interval = setInterval(() => {
-      void poll();
-    }, 2_000);
-
-    return () => {
-      clearInterval(interval);
-    };
+    poll();
+    const id = setInterval(poll, 2000);
+    return () => clearInterval(id);
   }, [code]);
 
+  // Countdown-ticker
   useEffect(() => {
-    if (!timerEndsAt) {
-      setRemainingMs(0);
-      setIsVisible(false);
-      const timeout = setTimeout(() => {
-        setIsRendered(false);
-      }, 500);
-      return () => clearTimeout(timeout);
-    }
+    if (!endsAt) return;
+    const id = setInterval(() => {
+      setRemaining(Math.max(0, endsAt - Date.now()));
+    }, 500);
+    return () => clearInterval(id);
+  }, [endsAt]);
 
-    const end = new Date(timerEndsAt).getTime();
+  if (!endsAt || remaining <= 0) return null;
 
-    if (!Number.isFinite(end)) {
-      setRemainingMs(0);
-      setIsVisible(false);
-      setIsRendered(false);
-      return;
-    }
-
-    const tick = () => {
-      const ms = end - Date.now();
-      setRemainingMs(ms);
-
-      if (ms > 0) {
-        setIsRendered(true);
-        setIsVisible(true);
-        return;
-      }
-
-      setIsVisible(false);
-    };
-
-    tick();
-    const interval = setInterval(tick, 1_000);
-    const timeout = setTimeout(() => {
-      setIsRendered(false);
-    }, Math.max(end - Date.now(), 0) + 500);
-
-    return () => {
-      clearInterval(interval);
-      clearTimeout(timeout);
-    };
-  }, [timerEndsAt]);
-
-  if (!isRendered) {
-    return null;
-  }
-
-  const isUnderOneMinute = remainingMs > 0 && remainingMs < 60_000;
+  const mins = Math.floor(remaining / 60000);
+  const secs = Math.floor((remaining % 60000) / 1000);
+  const display = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 
   return (
     <div
-      className={`fixed bottom-0 left-0 right-0 z-40 transition-opacity duration-500 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
-      style={{ backgroundColor: '#0f172a', minHeight: '52px' }}
+      style={{
+        position: 'fixed',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: '52px',
+        backgroundColor: '#0f172a',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+      }}
     >
-      <div className="mx-auto flex h-[52px] max-w-4xl items-center justify-center gap-4 px-4">
-        {label ? <p className="text-sm text-slate-300">{label}</p> : null}
-        <p className={`text-sm font-mono font-medium ${isUnderOneMinute ? 'text-red-400' : 'text-white'}`}>
-          {formatRemaining(remainingMs)}
-        </p>
-      </div>
+      <span
+        style={{
+          fontFamily: 'monospace',
+          fontSize: '14px',
+          fontWeight: 600,
+          color: remaining < 60000 ? '#f87171' : '#ffffff',
+        }}
+      >
+        {display}
+      </span>
     </div>
   );
 }
