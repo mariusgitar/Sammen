@@ -125,7 +125,8 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const router = useRouter();
   const code = useMemo(() => params.code.toUpperCase(), [params.code]);
   const [title, setTitle] = useState('');
-  const [isVisible, setIsVisible] = useState(false);
+  const initialResultsVisible = false;
+  const [resultsVisible, setResultsVisible] = useState<boolean>(initialResultsVisible);
   const [sessionStatus, setSessionStatus] = useState<'setup' | 'active' | 'paused' | 'closed' | null>(null);
   const [sessionMode, setSessionMode] = useState<SessionInfoResponse['session']['mode'] | null>(null);
   const [results, setResults] = useState<ResultsResponse | null>(null);
@@ -158,6 +159,25 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             ? sessionData.session.results_visible
             : Boolean(sessionData.session.resultsVisible);
 
+        let currentResultsVisible = serverVisibility;
+
+        const sessionRes = await fetch(`/api/sessions/${code}`);
+        if (sessionRes.ok) {
+          const sessionPayload = (await sessionRes.json()) as {
+            session?: { resultsVisible?: boolean; results_visible?: boolean };
+            resultsVisible?: boolean;
+          };
+          const visible =
+            sessionPayload.session?.resultsVisible ??
+            sessionPayload.session?.results_visible ??
+            sessionPayload.resultsVisible ??
+            false;
+          currentResultsVisible = visible;
+          setResultsVisible(visible);
+        } else {
+          setResultsVisible(serverVisibility);
+        }
+
         if (sessionData.session.status === 'active' && sessionData.session.phase === 'stemming') {
           const stemmingKey = `samen_stemming_done_${code}`;
           const alreadyVoted = localStorage.getItem(stemmingKey) === 'true';
@@ -169,13 +189,12 @@ export default function ParticipantResultsPage({ params }: PageProps) {
         }
 
         setTitle(sessionData.session.title);
-        setIsVisible(serverVisibility);
         setSessionStatus(sessionData.session.status);
         setSessionMode(sessionData.session.mode);
         setTimerEndsAt(sessionData.session.timerEndsAt ?? null);
         setTimerLabel(sessionData.session.timerLabel ?? null);
 
-        if (!serverVisibility) {
+        if (!currentResultsVisible) {
           setResults(null);
           setError('');
           return;
@@ -190,7 +209,12 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           }
 
           if (themesResponse.ok && 'themes' in themesData) {
-            setThemeResults(themesData);
+            setThemeResults((previous) => {
+              if (themesData.themes.length === 0 && themesData.ungrouped.length === 0 && previous && (previous.themes.length > 0 || previous.ungrouped.length > 0)) {
+                return previous;
+              }
+              return themesData;
+            });
             setResults(null);
             setError('');
             return;
@@ -210,7 +234,12 @@ export default function ParticipantResultsPage({ params }: PageProps) {
         }
 
         setError('');
-        setResults(resultsData);
+        setResults((previous) => {
+          if (resultsData.items.length === 0 && previous && previous.items.length > 0) {
+            return previous;
+          }
+          return resultsData;
+        });
         setThemeResults(null);
       } catch {
         if (!isMounted) {
@@ -251,7 +280,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     viewModeInitialized.current = true;
   }, [themeResults]);
 
-  if (!isVisible) {
+  if (!resultsVisible) {
     return (
       <main className="bg-[#f8fafc] px-4 py-8 pb-16">
         <section className="flex min-h-[60vh] flex-col items-center justify-center space-y-4 p-6 text-center">
