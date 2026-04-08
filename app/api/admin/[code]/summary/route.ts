@@ -2,7 +2,7 @@ import { asc, eq, inArray } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 import { getDb } from '@/db';
-import { innspill, innspillThemes, items, responses, sessions, themes } from '@/db/schema';
+import { innspill, innspillThemes, items, participants, responses, sessions, themes } from '@/db/schema';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -111,6 +111,32 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .where(eq(responses.sessionId, session.id));
 
     const participantCount = new Set(allResponses.map((r) => r.participant_id)).size;
+    const participantRows = await db
+      .select({
+        nickname: participants.nickname,
+        participantId: participants.participantId,
+        joinedAt: participants.joinedAt,
+      })
+      .from(participants)
+      .where(eq(participants.sessionId, session.id))
+      .orderBy(asc(participants.joinedAt));
+
+    const submittedRows =
+      session.mode === 'aapne-innspill'
+        ? await db
+            .select({
+              participantId: innspill.participantId,
+            })
+            .from(innspill)
+            .where(eq(innspill.sessionId, session.id))
+        : await db
+            .select({
+              participantId: responses.participantId,
+            })
+            .from(responses)
+            .where(eq(responses.sessionId, session.id));
+
+    const submittedParticipantIds = [...new Set(submittedRows.map((row) => row.participantId))];
 
     const sessionThemes = await db
       .select({
@@ -227,6 +253,12 @@ export async function GET(_request: Request, { params }: RouteContext) {
         status: session.status,
         votingType: session.votingType,
         participantCount,
+        participants: participantRows.map((participant) => ({
+          nickname: participant.nickname,
+          participantId: participant.participantId,
+          joinedAt: participant.joinedAt?.toISOString() ?? new Date(0).toISOString(),
+        })),
+        submittedParticipantIds,
         items: summaryItems,
         themes: themeResults,
       });
@@ -288,6 +320,12 @@ export async function GET(_request: Request, { params }: RouteContext) {
         status: session.status,
         votingType: session.votingType,
         participantCount,
+        participants: participantRows.map((participant) => ({
+          nickname: participant.nickname,
+          participantId: participant.participantId,
+          joinedAt: participant.joinedAt?.toISOString() ?? new Date(0).toISOString(),
+        })),
+        submittedParticipantIds,
         items: summaryItems,
         themes: themeResults,
       });
@@ -331,6 +369,12 @@ export async function GET(_request: Request, { params }: RouteContext) {
       status: session.status,
       votingType: session.votingType,
       participantCount,
+      participants: participantRows.map((participant) => ({
+        nickname: participant.nickname,
+        participantId: participant.participantId,
+        joinedAt: participant.joinedAt?.toISOString() ?? new Date(0).toISOString(),
+      })),
+      submittedParticipantIds,
       items: itemSummaries,
       themes: themeResults,
     });

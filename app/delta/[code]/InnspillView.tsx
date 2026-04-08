@@ -410,9 +410,27 @@ export function InnspillView({
           <button
             type="button"
             disabled={!nickname.trim()}
-            onClick={() => {
-              localStorage.setItem(nicknameStorageKey, nickname.trim());
+            onClick={async () => {
+              const trimmedNickname = nickname.trim();
+
+              localStorage.setItem(nicknameStorageKey, trimmedNickname);
               localStorage.setItem(participantStorageKey, participantId);
+
+              try {
+                await fetch(`/api/delta/${session.code}/join`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    participantId,
+                    nickname: trimmedNickname,
+                  }),
+                });
+              } catch {
+                // noop
+              }
+
               setHasJoined(true);
             }}
             className="mt-4 w-full bg-[#0f172a] text-white rounded-full px-6 py-3 font-semibold hover:bg-[#1e293b] transition-colors disabled:opacity-60"
