@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, sql } from 'drizzle-orm';
 
 import { getDb } from '@/db';
 import { items, sessions } from '@/db/schema';
+
+export const dynamic = 'force-dynamic';
 
 type RouteContext = {
   params: {
@@ -14,6 +16,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
   try {
     const code = params.code.toUpperCase();
     const db = getDb();
+    await db.execute(sql`SELECT 1`);
 
     const [session] = await db
       .select({
