@@ -208,6 +208,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             sessionPayload.active_filter ??
             'alle';
           setActiveFilter(filter);
+          console.log('[debug] active_filter from session:', filter);
           const visible =
             sessionPayload.session?.resultsVisible ??
             sessionPayload.session?.results_visible ??
@@ -281,7 +282,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           }
           return {
             mode: sessionData.session.mode,
-            phase: summaryData.phase,
+            phase: summaryData.phase ?? sessionData.session.phase ?? 'kartlegging',
             votingType: summaryData.votingType ?? sessionData.session.votingType,
             participantCount: summaryData.participantCount,
             items: summaryData.items,
@@ -488,6 +489,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const kartleggingItems = results.items
     .filter((item): item is KartleggingSummaryItem => 'tagCounts' in item)
     .filter((item) => !item.excluded);
+  console.log('[debug] activeFilter state:', activeFilter, 'items:', kartleggingItems.length);
   const filteredItems = kartleggingItems.filter((item) => {
     if (activeFilter === 'alle') return true;
     if (activeFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;
@@ -543,7 +545,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     <main className="min-h-screen bg-[#f8fafc] px-4 py-8 pb-16">
       <div className="mx-auto max-w-4xl space-y-4">
         <h1 className="text-center text-2xl font-semibold text-[#0f172a]">{title}</h1>
-        {results.phase === 'kartlegging' && activeFilter !== 'alle' ? (
+        {(results.phase === 'kartlegging' || results.mode === 'kartlegging') && activeFilter !== 'alle' ? (
           <p className="text-xs text-slate-400 text-center mb-4">
             Fasilitator viser: {filterLabels[activeFilter]}
           </p>
@@ -578,7 +580,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
               ))}
             </div>
           </>
-        ) : results.phase === 'kartlegging' ? (
+        ) : results.phase === 'kartlegging' || results.mode === 'kartlegging' ? (
           <>
             <h2 className="text-xl font-semibold text-[#0f172a]">Kartlegging-resultater</h2>
             <div className="space-y-4">
