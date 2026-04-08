@@ -67,6 +67,8 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   const [error, setError] = useState('');
   const [isNotFound, setIsNotFound] = useState(false);
   const [data, setData] = useState<SessionResponse | null>(null);
+  const initialStatus: SessionStatus = 'setup';
+  const [sessionStatus, setSessionStatus] = useState<string>(initialStatus);
 
   useEffect(() => {
     let isMounted = true;
@@ -95,6 +97,17 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
         setIsNotFound(false);
         setError('');
         setData(payload);
+
+        setSessionStatus(payload.session.status);
+
+        const sessionRes = await fetch(`/api/sessions/${code}`);
+        if (sessionRes.ok) {
+          const sessionData = (await sessionRes.json()) as { session?: { status?: SessionStatus }; status?: SessionStatus };
+          const status = sessionData.session?.status ?? sessionData.status;
+          if (status) {
+            setSessionStatus(status);
+          }
+        }
       } catch (fetchError) {
         if (!isMounted) {
           return;
@@ -135,21 +148,21 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
 
   const { session, items } = data;
 
-  if (session.status === 'closed') {
+  if (sessionStatus === 'closed') {
     return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er avsluttet.</h1></div><TimerBanner 
   timerEndsAt={data?.session?.timerEndsAt ?? null}
   timerLabel={data?.session?.timerLabel ?? null}
 /></main>;
   }
 
-  if (session.status === 'setup' || session.status === 'paused') {
+  if (sessionStatus === 'setup' || sessionStatus === 'paused') {
     return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er ikke åpen ennå. Vent på fasilitator.</h1></div><TimerBanner 
   timerEndsAt={data?.session?.timerEndsAt ?? null}
   timerLabel={data?.session?.timerLabel ?? null}
 /></main>;
   }
 
-  if (session.mode === 'aapne-innspill' && session.status === 'active') {
+  if (session.mode === 'aapne-innspill' && sessionStatus === 'active') {
     return (
       <>
         <InnspillView session={session} items={items.filter((item) => item.isQuestion)} />
@@ -162,7 +175,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   }
 
 
-  if (session.mode === 'rangering' && session.status === 'active') {
+  if (session.mode === 'rangering' && sessionStatus === 'active') {
     return (
       <>
         <RangeringView
@@ -182,7 +195,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
     );
   }
 
-  if (session.status === 'active' && (session.phase === 'stemming' || session.mode === 'stemming')) {
+  if (sessionStatus === 'active' && (session.phase === 'stemming' || session.mode === 'stemming')) {
     const tagOrder = new Map(session.tags.map((tag, index) => [tag, index]));
     const votableItems = items
       .filter((item) => !item.excluded && !item.isQuestion)
