@@ -133,6 +133,8 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const [viewMode, setViewMode] = useState<'temaer' | 'alle'>('alle');
   const viewModeInitialized = useRef(false);
   const [error, setError] = useState('');
+  const [timerEndsAt, setTimerEndsAt] = useState<string | null>(null);
+  const [timerLabel, setTimerLabel] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -170,6 +172,8 @@ export default function ParticipantResultsPage({ params }: PageProps) {
         setIsVisible(serverVisibility);
         setSessionStatus(sessionData.session.status);
         setSessionMode(sessionData.session.mode);
+        setTimerEndsAt(sessionData.session.timerEndsAt ?? null);
+        setTimerLabel(sessionData.session.timerLabel ?? null);
 
         if (!serverVisibility) {
           setResults(null);
@@ -271,7 +275,10 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             ← Tilbake
           </a>
         </section>
-        <TimerBanner code={code} />
+        <TimerBanner 
+  timerEndsAt={timerEndsAt}
+  timerLabel={timerLabel}
+/>
       </main>
     );
   }
@@ -283,7 +290,10 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           <h1 className="text-2xl font-semibold text-[#0f172a]">Kunne ikke laste resultater</h1>
           {error ? <p className="mt-3 text-sm text-[#64748b]">{error}</p> : null}
         </section>
-        <TimerBanner code={code} />
+        <TimerBanner 
+  timerEndsAt={timerEndsAt}
+  timerLabel={timerLabel}
+/>
       </main>
     );
   }
@@ -376,7 +386,10 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             </section>
           )}
         </div>
-        <TimerBanner code={code} />
+        <TimerBanner 
+  timerEndsAt={timerEndsAt}
+  timerLabel={timerLabel}
+/>
       </main>
     );
   }
@@ -387,7 +400,10 @@ export default function ParticipantResultsPage({ params }: PageProps) {
         <section className="w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-8 text-center shadow-sm">
           <h1 className="text-2xl font-semibold text-[#0f172a]">Ingen resultater enda</h1>
         </section>
-        <TimerBanner code={code} />
+        <TimerBanner 
+  timerEndsAt={timerEndsAt}
+  timerLabel={timerLabel}
+/>
       </main>
     );
   }
@@ -620,7 +636,10 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           </>
         )}
       </div>
-      <TimerBanner code={code} />
+      <TimerBanner 
+  timerEndsAt={timerEndsAt}
+  timerLabel={timerLabel}
+/>
     </main>
   );
 }
