@@ -8,6 +8,8 @@ import { KartleggingView } from './KartleggingView';
 import { StemmingView } from './StemmingView';
 import { RangeringView } from './RangeringView';
 import { TimerBanner } from '@/app/components/TimerBanner';
+import { normalizeSession, type NormalizedSession } from '@/app/lib/normalizeSession';
+import { resolveView } from '@/app/lib/resolveView';
 
 type ParticipantPageProps = {
   params: {
@@ -15,33 +17,10 @@ type ParticipantPageProps = {
   };
 };
 
-type SessionStatus = 'setup' | 'active' | 'paused' | 'closed';
-type SessionPhase = 'kartlegging' | 'stemming' | 'innspill' | 'rangering';
 type QuestionStatus = 'inactive' | 'active' | 'locked';
 
 type SessionResponse = {
-  session: {
-    id: string;
-    code: string;
-    title: string;
-    mode: 'kartlegging' | 'stemming' | 'aapne-innspill' | 'rangering';
-    votingType: 'scale' | 'dots';
-    dotBudget: number;
-    allowMultipleDots: boolean;
-    phase: SessionPhase;
-    status: SessionStatus;
-    resultsVisible: boolean;
-    tags: string[];
-    allowNewItems: boolean;
-    showTagHeaders: boolean;
-    visibilityMode: 'manual' | 'all';
-    show_others_innspill: boolean;
-    innspill_mode: 'enkel' | 'detaljert';
-    innspill_max_chars: number;
-    maxRankItems: number | null;
-    timerEndsAt: string | null;
-    timerLabel: string | null;
-  };
+  session: Record<string, unknown>;
   items: Array<{
     id: string;
     text: string;
@@ -58,9 +37,34 @@ type SessionResponse = {
   }>;
 };
 
+type NormalizedSessionResponse = {
+  session: NormalizedSession;
+  items: SessionResponse['items'];
+};
+
 type ErrorResponse = {
   error: string;
 };
+
+function WaitingView({ reason }: { reason: string }) {
+  return (
+    <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6">
+      <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
+        <h1 className="text-2xl font-semibold text-[#0f172a]">{reason}</h1>
+      </div>
+    </main>
+  );
+}
+
+function ClosedView() {
+  return (
+    <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6">
+      <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
+        <h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er avsluttet.</h1>
+      </div>
+    </main>
+  );
+}
 
 export default function ParticipantPage({ params }: ParticipantPageProps) {
   const code = useMemo(() => params.code.toUpperCase(), [params.code]);
@@ -68,7 +72,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isNotFound, setIsNotFound] = useState(false);
-  const [data, setData] = useState<SessionResponse | null>(null);
+  const [data, setData] = useState<NormalizedSessionResponse | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -94,28 +98,32 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
           return;
         }
 
+        const normalizedSession = normalizeSession(payload.session);
+
         setIsNotFound(false);
         setError('');
         setData((current) => {
           if (!current) {
-            return payload;
+            return {
+              session: normalizedSession,
+              items: payload.items,
+            };
           }
 
           const incomingItems = payload.items;
           const shouldUpdateItems =
             incomingItems.length > 0 && JSON.stringify(incomingItems) !== JSON.stringify(current.items);
-          const shouldUpdateSession = JSON.stringify(payload.session) !== JSON.stringify(current.session);
+          const shouldUpdateSession = JSON.stringify(normalizedSession) !== JSON.stringify(current.session);
 
           if (!shouldUpdateItems && !shouldUpdateSession) {
             return current;
           }
 
           return {
-            session: shouldUpdateSession ? payload.session : current.session,
+            session: shouldUpdateSession ? normalizedSession : current.session,
             items: shouldUpdateItems ? incomingItems : current.items,
           };
         });
-
       } catch (fetchError) {
         if (!isMounted) {
           return;
@@ -140,16 +148,18 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
     };
   }, [code]);
 
+  const viewState = useMemo(() => (data ? resolveView(data.session) : null), [data]);
+
   useEffect(() => {
-    if (data?.session.status === 'paused' && data.session.resultsVisible) {
+    if (viewState?.view === 'results') {
       router.push(`/delta/${code}/resultater`);
     }
-  }, [code, data?.session.resultsVisible, data?.session.status, router]);
+  }, [code, router, viewState]);
 
   if (isLoading) return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Laster sesjon…</h1></div></main>;
   if (isNotFound) return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjon ikke funnet</h1></div></main>;
 
-  if (error || !data) {
+  if (error || !data || !viewState) {
     return (
       <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6">
         <div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm">
@@ -161,148 +171,112 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   }
 
   const { session, items } = data;
-  const sessionStatus = session.status;
-  const isStemmingPhase = session.phase === 'stemming' || session.mode === 'stemming';
-  const isKartleggingPhase = session.phase === 'kartlegging' && session.mode === 'kartlegging';
 
-  if (sessionStatus === 'closed') {
-    return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er avsluttet.</h1></div><TimerBanner 
-  timerEndsAt={data?.session?.timerEndsAt ?? null}
-  timerLabel={data?.session?.timerLabel ?? null}
-/></main>;
-  }
-
-  if (sessionStatus === 'setup' && !isStemmingPhase && !isKartleggingPhase) {
-    return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er ikke åpen ennå. Vent på fasilitator.</h1></div><TimerBanner 
-  timerEndsAt={data?.session?.timerEndsAt ?? null}
-  timerLabel={data?.session?.timerLabel ?? null}
-/></main>;
-  }
-
-  if (sessionStatus === 'paused') {
-    if (session.resultsVisible) return null;
-
-    return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er ikke åpen ennå. Vent på fasilitator.</h1></div><TimerBanner 
-  timerEndsAt={data?.session?.timerEndsAt ?? null}
-  timerLabel={data?.session?.timerLabel ?? null}
-/></main>;
-  }
-
-  if (session.mode === 'aapne-innspill' && sessionStatus === 'active') {
-    return (
-      <>
-        <InnspillView session={session} items={items.filter((item) => item.isQuestion)} />
-        <TimerBanner 
-  timerEndsAt={data?.session?.timerEndsAt ?? null}
-  timerLabel={data?.session?.timerLabel ?? null}
-/>
-      </>
-    );
-  }
-
-
-  if (session.mode === 'rangering' && sessionStatus === 'active') {
-    return (
-      <>
-        <RangeringView
-          items={items.filter((item) => !item.excluded).map((item) => ({ id: item.id, text: item.text, description: item.description }))}
-          session={{
-            id: session.id,
-            title: session.title,
-            code: session.code,
-            maxRankItems: session.maxRankItems,
-          }}
-        />
-        <TimerBanner 
-  timerEndsAt={data?.session?.timerEndsAt ?? null}
-  timerLabel={data?.session?.timerLabel ?? null}
-/>
-      </>
-    );
-  }
-
-  if ((sessionStatus === 'active' || sessionStatus === 'setup') && isStemmingPhase) {
-    const tagOrder = new Map(session.tags.map((tag, index) => [tag, index]));
-    const votableItems = items
-      .filter((item) => !item.excluded && !item.isQuestion)
-      .sort((a, b) => {
-        const aFinalTag = a.finalTag ?? a.final_tag;
-        const bFinalTag = b.finalTag ?? b.final_tag;
-
-        if (!aFinalTag && !bFinalTag) {
-          return a.orderIndex - b.orderIndex;
-        }
-
-        if (!aFinalTag) {
-          return 1;
-        }
-
-        if (!bFinalTag) {
-          return -1;
-        }
-
-        const aTagIndex = tagOrder.get(aFinalTag);
-        const bTagIndex = tagOrder.get(bFinalTag);
-
-        if (aTagIndex !== undefined && bTagIndex !== undefined && aTagIndex !== bTagIndex) {
-          return aTagIndex - bTagIndex;
-        }
-
-        if (aTagIndex !== undefined && bTagIndex === undefined) {
-          return -1;
-        }
-
-        if (aTagIndex === undefined && bTagIndex !== undefined) {
-          return 1;
-        }
-
-        const alphabeticalSort = aFinalTag.localeCompare(bFinalTag, 'nb');
-
-        if (alphabeticalSort !== 0) {
-          return alphabeticalSort;
-        }
-
-        return a.orderIndex - b.orderIndex;
-      });
-
-    return (
-      <>
-        <StemmingView
-          items={votableItems.map((item) => ({ id: item.id, text: item.text, isQuestion: item.isQuestion }))}
-          session={{
-            id: session.id,
-            title: session.title,
-            code: session.code,
-            votingType: session.votingType,
-            dotBudget: session.dotBudget,
-            allowMultipleDots: session.allowMultipleDots,
-          }}
-        />
-        <TimerBanner 
-  timerEndsAt={data?.session?.timerEndsAt ?? null}
-  timerLabel={data?.session?.timerLabel ?? null}
-/>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <KartleggingView
-        items={items}
-        session={{
-          id: session.id,
-          code: session.code,
-          title: session.title,
-          tags: session.tags,
-          allowNewItems: session.allowNewItems,
-          showTagHeaders: session.showTagHeaders,
-        }}
-      />
-      <TimerBanner 
-  timerEndsAt={data?.session?.timerEndsAt ?? null}
-  timerLabel={data?.session?.timerLabel ?? null}
-/>
-    </>
+  const timerBanner = (
+    <TimerBanner
+      timerEndsAt={session.timerEndsAt}
+      timerLabel={session.timerLabel}
+    />
   );
+
+  switch (viewState.view) {
+    case 'kartlegging':
+      return (
+        <>
+          <KartleggingView
+            items={items}
+            session={session}
+          />
+          {timerBanner}
+        </>
+      );
+    case 'stemming': {
+      const tagOrder = new Map((session.tags ?? []).map((tag, index) => [tag, index]));
+      const votableItems = items
+        .filter((item) => !item.excluded && !item.isQuestion)
+        .sort((a, b) => {
+          const aFinalTag = a.finalTag ?? a.final_tag;
+          const bFinalTag = b.finalTag ?? b.final_tag;
+
+          if (!aFinalTag && !bFinalTag) {
+            return a.orderIndex - b.orderIndex;
+          }
+
+          if (!aFinalTag) {
+            return 1;
+          }
+
+          if (!bFinalTag) {
+            return -1;
+          }
+
+          const aTagIndex = tagOrder.get(aFinalTag);
+          const bTagIndex = tagOrder.get(bFinalTag);
+
+          if (aTagIndex !== undefined && bTagIndex !== undefined && aTagIndex !== bTagIndex) {
+            return aTagIndex - bTagIndex;
+          }
+
+          if (aTagIndex !== undefined && bTagIndex === undefined) {
+            return -1;
+          }
+
+          if (aTagIndex === undefined && bTagIndex !== undefined) {
+            return 1;
+          }
+
+          const alphabeticalSort = aFinalTag.localeCompare(bFinalTag, 'nb');
+
+          if (alphabeticalSort !== 0) {
+            return alphabeticalSort;
+          }
+
+          return a.orderIndex - b.orderIndex;
+        });
+
+      return (
+        <>
+          <StemmingView
+            items={votableItems.map((item) => ({ id: item.id, text: item.text, isQuestion: item.isQuestion }))}
+            session={session}
+          />
+          {timerBanner}
+        </>
+      );
+    }
+    case 'innspill':
+      return (
+        <>
+          <InnspillView session={session} items={items.filter((item) => item.isQuestion)} />
+          {timerBanner}
+        </>
+      );
+    case 'rangering':
+      return (
+        <>
+          <RangeringView
+            items={items.filter((item) => !item.excluded).map((item) => ({ id: item.id, text: item.text, description: item.description }))}
+            session={session}
+          />
+          {timerBanner}
+        </>
+      );
+    case 'results':
+      return null;
+    case 'closed':
+      return (
+        <>
+          <ClosedView />
+          {timerBanner}
+        </>
+      );
+    case 'waiting':
+    default:
+      return (
+        <>
+          <WaitingView reason={viewState.reason} />
+          {timerBanner}
+        </>
+      );
+  }
 }
