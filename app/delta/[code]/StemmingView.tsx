@@ -45,6 +45,7 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   const [isToastVisible, setIsToastVisible] = useState(false);
   const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const initializedRef = useRef(false);
+  const votesHydratedRef = useRef(false);
   const participantStorageKey = 'samen_participant_id';
   const nicknameStorageKey = `samen_nickname_${session.code}`;
   const votesStorageKey = `samen_stemming_votes_${session.code}`;
@@ -86,10 +87,16 @@ export function StemmingView({ session, items }: StemmingViewProps) {
       setVotes(validVotes);
     } catch {
       // noop
+    } finally {
+      votesHydratedRef.current = true;
     }
   }, [votesStorageKey, votableItems]);
 
   useEffect(() => {
+    if (!votesHydratedRef.current) {
+      return;
+    }
+
     localStorage.setItem(votesStorageKey, JSON.stringify(votes));
   }, [votes, votesStorageKey]);
 
