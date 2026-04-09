@@ -1,7 +1,7 @@
 import type { NormalizedSession } from './normalizeSession'
 
 export type ViewState =
-  | { view: 'waiting';     reason: string }
+  | { view: 'waiting'; reason: string }
   | { view: 'kartlegging' }
   | { view: 'stemming' }
   | { view: 'innspill' }
