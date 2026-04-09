@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 import { InnspillView } from './InnspillView';
 import { KartleggingView } from './KartleggingView';
@@ -63,12 +64,13 @@ type ErrorResponse = {
 
 export default function ParticipantPage({ params }: ParticipantPageProps) {
   const code = useMemo(() => params.code.toUpperCase(), [params.code]);
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isNotFound, setIsNotFound] = useState(false);
   const [data, setData] = useState<SessionResponse | null>(null);
   const initialStatus: SessionStatus = 'setup';
-  const [sessionStatus, setSessionStatus] = useState<string>(initialStatus);
+  const [sessionStatus, setSessionStatus] = useState<SessionStatus>(initialStatus);
 
   useEffect(() => {
     let isMounted = true;
@@ -96,18 +98,27 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
 
         setIsNotFound(false);
         setError('');
-        setData(payload);
+        setData((current) => {
+          if (!current) {
+            return payload;
+          }
+
+          const incomingItems = payload.items;
+          const shouldUpdateItems =
+            incomingItems.length > 0 && JSON.stringify(incomingItems) !== JSON.stringify(current.items);
+          const shouldUpdateSession = JSON.stringify(payload.session) !== JSON.stringify(current.session);
+
+          if (!shouldUpdateItems && !shouldUpdateSession) {
+            return current;
+          }
+
+          return {
+            session: shouldUpdateSession ? payload.session : current.session,
+            items: shouldUpdateItems ? incomingItems : current.items,
+          };
+        });
 
         setSessionStatus(payload.session.status);
-
-        const sessionRes = await fetch(`/api/sessions/${code}`);
-        if (sessionRes.ok) {
-          const sessionData = (await sessionRes.json()) as { session?: { status?: SessionStatus }; status?: SessionStatus };
-          const status = sessionData.session?.status ?? sessionData.status;
-          if (status) {
-            setSessionStatus(status);
-          }
-        }
       } catch (fetchError) {
         if (!isMounted) {
           return;
@@ -155,7 +166,20 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
 /></main>;
   }
 
-  if (sessionStatus === 'setup' || sessionStatus === 'paused') {
+  if (sessionStatus === 'setup') {
+    return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er ikke åpen ennå. Vent på fasilitator.</h1></div><TimerBanner 
+  timerEndsAt={data?.session?.timerEndsAt ?? null}
+  timerLabel={data?.session?.timerLabel ?? null}
+/></main>;
+  }
+
+  if (sessionStatus === 'paused') {
+    const isVisible = data?.session?.resultsVisible ?? false;
+    if (isVisible) {
+      router.push(`/delta/${code}/resultater`);
+      return null;
+    }
+
     return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er ikke åpen ennå. Vent på fasilitator.</h1></div><TimerBanner 
   timerEndsAt={data?.session?.timerEndsAt ?? null}
   timerLabel={data?.session?.timerLabel ?? null}
