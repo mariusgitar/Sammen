@@ -19,7 +19,6 @@ type SessionInfoResponse = {
     votingType: 'scale' | 'dots';
     status: 'setup' | 'active' | 'paused' | 'closed';
     resultsVisible?: boolean;
-    results_visible?: boolean;
     timerEndsAt: string | null;
     timerLabel: string | null;
     active_filter?: 'alle' | 'uenighet' | 'usikker' | 'konsensus';
@@ -185,10 +184,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           return;
         }
 
-        const serverVisibility =
-          typeof sessionData.session.results_visible === 'boolean'
-            ? sessionData.session.results_visible
-            : Boolean(sessionData.session.resultsVisible);
+        const serverVisibility = Boolean(sessionData.session.resultsVisible);
 
         let currentResultsVisible = serverVisibility;
 
@@ -197,7 +193,6 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           const sessionPayload = (await sessionRes.json()) as {
             session?: {
               resultsVisible?: boolean;
-              results_visible?: boolean;
               active_filter?: 'alle' | 'uenighet' | 'usikker' | 'konsensus';
             };
             resultsVisible?: boolean;
@@ -211,7 +206,6 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           console.log('[debug] active_filter from session:', filter);
           const visible =
             sessionPayload.session?.resultsVisible ??
-            sessionPayload.session?.results_visible ??
             sessionPayload.resultsVisible ??
             false;
           currentResultsVisible = visible;

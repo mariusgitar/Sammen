@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { asc, eq } from 'drizzle-orm';
 
+import { normalizeSession } from '@/app/lib/normalizeSession';
 import { getDb } from '@/db';
 import { items, sessionPhases, sessionStatuses, sessions } from '@/db/schema';
 
@@ -170,7 +171,15 @@ export async function GET(_request: Request, { params }: RouteContext) {
       .where(eq(items.sessionId, session.id))
       .orderBy(asc(items.orderIndex), asc(items.createdAt));
 
-    return NextResponse.json({ session, items: sessionItems });
+    return NextResponse.json({
+      session: {
+        ...normalizeSession(session),
+        showTagHeaders: Boolean(session.showTagHeaders ?? session.show_tag_headers ?? false),
+        maxRankItems: (session.maxRankItems ?? null) as number | null,
+        activeFilter: (session.active_filter ?? 'alle') as 'alle' | 'uenighet' | 'usikker' | 'konsensus',
+      },
+      items: sessionItems,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
