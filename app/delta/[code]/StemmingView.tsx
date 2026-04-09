@@ -44,8 +44,10 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isToastVisible, setIsToastVisible] = useState(false);
   const toastTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initializedRef = useRef(false);
   const participantStorageKey = 'samen_participant_id';
   const nicknameStorageKey = `samen_nickname_${session.code}`;
+  const votesStorageKey = `samen_stemming_votes_${session.code}`;
 
   const votableItems = useMemo(() => items.filter((item) => !item.isQuestion), [items]);
   const isDotVoting = session.votingType === 'dots' && session.dotBudget > 0;
@@ -59,6 +61,37 @@ export function StemmingView({ session, items }: StemmingViewProps) {
   );
   const dotsRemaining = Math.max(0, session.dotBudget - dotsUsed);
   const canSubmit = isDotVoting ? dotsUsed === session.dotBudget : allItemsVoted;
+
+  useEffect(() => {
+    if (initializedRef.current) {
+      return;
+    }
+
+    initializedRef.current = true;
+
+    const storedVotes = localStorage.getItem(votesStorageKey);
+    if (!storedVotes) {
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedVotes) as Record<string, number>;
+      const validVotes = votableItems.reduce<Record<string, number>>((acc, item) => {
+        const value = parsed[item.id];
+        if (typeof value === 'number') {
+          acc[item.id] = value;
+        }
+        return acc;
+      }, {});
+      setVotes(validVotes);
+    } catch {
+      // noop
+    }
+  }, [votesStorageKey, votableItems]);
+
+  useEffect(() => {
+    localStorage.setItem(votesStorageKey, JSON.stringify(votes));
+  }, [votes, votesStorageKey]);
 
   useEffect(() => {
     const storedId = localStorage.getItem(participantStorageKey);
