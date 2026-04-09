@@ -1,6 +1,12 @@
 /*
 Run this SQL manually in the Neon SQL editor:
 
+-- PR 1: add visibility jsonb column
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS visibility jsonb NOT NULL DEFAULT '{}';
+
+-- Previous migrations (already applied):
+
+
 ALTER TABLE items ADD COLUMN excluded boolean NOT NULL DEFAULT false;
 ALTER TABLE items ADD COLUMN is_question boolean NOT NULL DEFAULT false;
 ALTER TABLE items ADD COLUMN question_status text NOT NULL DEFAULT 'inactive';
@@ -104,7 +110,7 @@ CREATE TABLE IF NOT EXISTS innspill_likes (
 );
 */
 
-import { boolean, integer, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
+import { boolean, integer, jsonb, pgTable, text, timestamp, unique, uuid } from 'drizzle-orm/pg-core';
 
 export const sessionModes = ['kartlegging', 'stemming', 'aapne-innspill', 'rangering'] as const;
 export const sessionPhases = ['kartlegging', 'stemming', 'innspill', 'rangering'] as const;
@@ -147,6 +153,7 @@ export const sessions = pgTable('sessions', {
   tags: text('tags').array().notNull().default([]),
   allowNewItems: boolean('allow_new_items').notNull().default(true),
   showTagHeaders: boolean('show_tag_headers').default(false),
+  visibility: jsonb('visibility').notNull().default({}),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 });
 

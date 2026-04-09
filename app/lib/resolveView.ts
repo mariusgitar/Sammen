@@ -13,7 +13,7 @@ export function resolveView(session: NormalizedSession): ViewState {
   if (session.status === 'closed') {
     return { view: 'closed' }
   }
-  if (session.resultsVisible) {
+  if (session.visibility.participant.showResults) {
     return { view: 'results' }
   }
   if (session.status === 'paused') {
@@ -23,7 +23,7 @@ export function resolveView(session: NormalizedSession): ViewState {
     return { view: 'waiting', reason: 'Sesjonen har ikke startet ennå.' }
   }
   // status === 'active'
-  switch (session.phase) {
+  switch (session.moduleType) {
     case 'kartlegging': return { view: 'kartlegging' }
     case 'stemming':    return { view: 'stemming' }
     case 'innspill':    return { view: 'innspill' }
