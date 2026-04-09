@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/db';
 import { innspill, innspillThemes, sessions, themes } from '@/db/schema';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(_request: Request, { params }: { params: { code: string } }) {
   try {
     const db = getDb();

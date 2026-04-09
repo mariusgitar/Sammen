@@ -111,73 +111,36 @@ export async function GET(_request: Request, { params }: RouteContext) {
     const code = params.code.toUpperCase();
     const db = getDb();
 
-    const [session] = await db
-      .select({
-        id: sessions.id,
-        code: sessions.code,
-        title: sessions.title,
-        mode: sessions.mode,
-        votingType: sessions.votingType,
-        dotBudget: sessions.dotBudget,
-        allowMultipleDots: sessions.allowMultipleDots,
-        phase: sessions.phase,
-        status: sessions.status,
-        resultsVisible: sessions.resultsVisible,
-        results_visible: sessions.resultsVisible,
-        tags: sessions.tags,
-        allowNewItems: sessions.allowNewItems,
-        showTagHeaders: sessions.showTagHeaders,
-        show_tag_headers: sessions.showTagHeaders,
-        visibilityMode: sessions.visibilityMode,
-        show_others_innspill: sessions.showOthersInnspill,
-        showOthersInnspill: sessions.showOthersInnspill,
-        innspill_mode: sessions.innspillMode,
-        innspill_max_chars: sessions.innspillMaxChars,
-        maxRankItems: sessions.maxRankItems,
-        timerEndsAt: sessions.timerEndsAt,
-        timerLabel: sessions.timerLabel,
-        active_filter: sessions.activeFilter,
-        timer_ends_at: sessions.timerEndsAt,
-        timer_label: sessions.timerLabel,
-        createdAt: sessions.createdAt,
-      })
+    const [sessionRow] = await db
+      .select()
       .from(sessions)
       .where(eq(sessions.code, code))
       .limit(1);
 
-    if (!session) {
+    if (!sessionRow) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
     const sessionItems = await db
       .select({
         id: items.id,
-        sessionId: items.sessionId,
         text: items.text,
         description: items.description,
-        createdBy: items.createdBy,
         isNew: items.isNew,
         excluded: items.excluded,
         isQuestion: items.isQuestion,
         questionStatus: items.questionStatus,
         defaultTag: items.defaultTag,
-        default_tag: items.defaultTag,
         finalTag: items.finalTag,
-        final_tag: items.finalTag,
         orderIndex: items.orderIndex,
         createdAt: items.createdAt,
       })
       .from(items)
-      .where(eq(items.sessionId, session.id))
+      .where(eq(items.sessionId, sessionRow.id))
       .orderBy(asc(items.orderIndex), asc(items.createdAt));
 
     return NextResponse.json({
-      session: {
-        ...normalizeSession(session),
-        showTagHeaders: Boolean(session.showTagHeaders ?? session.show_tag_headers ?? false),
-        maxRankItems: (session.maxRankItems ?? null) as number | null,
-        activeFilter: (session.active_filter ?? 'alle') as 'alle' | 'uenighet' | 'usikker' | 'konsensus',
-      },
+      session: normalizeSession(sessionRow as Record<string, unknown>),
       items: sessionItems,
     });
   } catch (error) {
@@ -197,7 +160,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
     const db = getDb();
     const code = params.code.toUpperCase();
 
-    const [updatedSession] = await db
+    const [updatedRow] = await db
       .update(sessions)
       .set({
         ...(typeof body.title === 'string' ? { title: body.title.trim() } : {}),
@@ -216,33 +179,13 @@ export async function PATCH(request: Request, { params }: RouteContext) {
         ...(typeof body.active_filter === 'string' ? { activeFilter: body.active_filter } : {}),
       })
       .where(eq(sessions.code, code))
-      .returning({
-        title: sessions.title,
-        dotBudget: sessions.dotBudget,
-        dot_budget: sessions.dotBudget,
-        phase: sessions.phase,
-        status: sessions.status,
-        resultsVisible: sessions.resultsVisible,
-        allowNewItems: sessions.allowNewItems,
-        allow_new_items: sessions.allowNewItems,
-        showOthersInnspill: sessions.showOthersInnspill,
-        show_others_innspill: sessions.showOthersInnspill,
-        innspillMaxChars: sessions.innspillMaxChars,
-        innspill_max_chars: sessions.innspillMaxChars,
-        showTagHeaders: sessions.showTagHeaders,
-        show_tag_headers: sessions.showTagHeaders,
-        timerEndsAt: sessions.timerEndsAt,
-        timerLabel: sessions.timerLabel,
-        active_filter: sessions.activeFilter,
-        timer_ends_at: sessions.timerEndsAt,
-        timer_label: sessions.timerLabel,
-      });
+      .returning();
 
-    if (!updatedSession) {
+    if (!updatedRow) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ session: updatedSession });
+    return NextResponse.json({ session: normalizeSession(updatedRow as Record<string, unknown>) });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
