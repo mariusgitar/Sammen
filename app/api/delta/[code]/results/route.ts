@@ -1,6 +1,7 @@
 import { asc, eq, inArray } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
+import { normalizeSession } from '@/app/lib/normalizeSession';
 import { getDb } from '@/db';
 import { innspillThemes, items, responses, sessions, themes } from '@/db/schema';
 
@@ -197,6 +198,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
         .sort((a, b) => a.average_position - b.average_position);
 
       return NextResponse.json({
+        session: normalizeSession(session),
         phase: session.phase,
         status: session.status,
         mode: session.mode,
@@ -261,6 +263,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       });
 
       return NextResponse.json({
+        session: normalizeSession(session),
         phase: session.phase,
         status: session.status,
         mode: session.mode,
@@ -294,6 +297,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
     });
 
     return NextResponse.json({
+      session: normalizeSession(session),
       phase: session.phase,
       status: session.status,
       mode: session.mode,

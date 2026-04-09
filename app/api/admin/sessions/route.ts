@@ -1,6 +1,7 @@
 import { desc } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
+import { normalizeSession } from '@/app/lib/normalizeSession';
 import { getDb } from '@/db';
 import { sessions } from '@/db/schema';
 
@@ -22,7 +23,7 @@ export async function GET() {
       .from(sessions)
       .orderBy(desc(sessions.createdAt));
 
-    return NextResponse.json({ sessions: allSessions });
+    return NextResponse.json({ sessions: allSessions.map((session) => normalizeSession(session)) });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
