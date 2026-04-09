@@ -69,8 +69,6 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   const [error, setError] = useState('');
   const [isNotFound, setIsNotFound] = useState(false);
   const [data, setData] = useState<SessionResponse | null>(null);
-  const initialStatus: SessionStatus = 'setup';
-  const [sessionStatus, setSessionStatus] = useState<SessionStatus>(initialStatus);
 
   useEffect(() => {
     let isMounted = true;
@@ -118,7 +116,6 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
           };
         });
 
-        setSessionStatus(payload.session.status);
       } catch (fetchError) {
         if (!isMounted) {
           return;
@@ -143,6 +140,12 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
     };
   }, [code]);
 
+  useEffect(() => {
+    if (data?.session.status === 'paused' && data.session.resultsVisible) {
+      router.push(`/delta/${code}/resultater`);
+    }
+  }, [code, data?.session.resultsVisible, data?.session.status, router]);
+
   if (isLoading) return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Laster sesjon…</h1></div></main>;
   if (isNotFound) return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjon ikke funnet</h1></div></main>;
 
@@ -158,6 +161,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   }
 
   const { session, items } = data;
+  const sessionStatus = session.status;
 
   if (sessionStatus === 'closed') {
     return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er avsluttet.</h1></div><TimerBanner 
@@ -174,11 +178,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   }
 
   if (sessionStatus === 'paused') {
-    const isVisible = data?.session?.resultsVisible ?? false;
-    if (isVisible) {
-      router.push(`/delta/${code}/resultater`);
-      return null;
-    }
+    if (session.resultsVisible) return null;
 
     return <main className="min-h-screen bg-[#f8fafc] px-4 py-10 pb-16 sm:px-6"><div className="mx-auto w-full max-w-lg rounded-2xl border border-[#e2e8f0] bg-white p-6 shadow-sm"><h1 className="text-2xl font-semibold text-[#0f172a]">Sesjonen er ikke åpen ennå. Vent på fasilitator.</h1></div><TimerBanner 
   timerEndsAt={data?.session?.timerEndsAt ?? null}
