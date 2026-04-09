@@ -1,17 +1,13 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import type { NormalizedSession } from '@/app/lib/normalizeSession';
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, arrayMove, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
 type RangeringViewProps = {
-  session: {
-    id: string;
-    code: string;
-    title: string;
-    maxRankItems: number | null;
-  };
+  session: NormalizedSession;
   items: Array<{
     id: string;
     text: string;

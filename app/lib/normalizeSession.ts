@@ -7,13 +7,15 @@ export type NormalizedSession = {
   phase: 'kartlegging' | 'stemming' | 'innspill' | 'rangering'
   tags: string[] | null
   allowNewItems: boolean
+  showTagHeaders: boolean
   dotBudget: number
   votingType: 'scale' | 'dots'
   allowMultipleDots: boolean
   visibilityMode: string
+  maxRankItems: number | null
   resultsVisible: boolean
   showOthersInnspill: boolean
-  innspillMode: string
+  innspillMode: 'enkel' | 'detaljert'
   innspillMaxChars: number
   includesStemming: boolean
   votingTarget: string | null
@@ -32,13 +34,15 @@ export function normalizeSession(raw: Record<string, unknown>): NormalizedSessio
     phase: (raw.phase ?? 'kartlegging') as NormalizedSession['phase'],
     tags: (raw.tags ?? null) as string[] | null,
     allowNewItems: Boolean(raw.allow_new_items ?? raw.allowNewItems ?? true),
+    showTagHeaders: Boolean(raw.show_tag_headers ?? raw.showTagHeaders ?? false),
     dotBudget: Number(raw.dot_budget ?? raw.dotBudget ?? 5),
     votingType: (raw.voting_type ?? raw.votingType ?? 'dots') as NormalizedSession['votingType'],
     allowMultipleDots: Boolean(raw.allow_multiple_dots ?? raw.allowMultipleDots ?? false),
     visibilityMode: String(raw.visibility_mode ?? raw.visibilityMode ?? 'manual'),
+    maxRankItems: (raw.max_rank_items ?? raw.maxRankItems ?? null) as number | null,
     resultsVisible: Boolean(raw.results_visible ?? raw.resultsVisible ?? false),
     showOthersInnspill: Boolean(raw.show_others_innspill ?? raw.showOthersInnspill ?? false),
-    innspillMode: String(raw.innspill_mode ?? raw.innspillMode ?? 'enkel'),
+    innspillMode: (raw.innspill_mode ?? raw.innspillMode ?? 'enkel') as NormalizedSession['innspillMode'],
     innspillMaxChars: Number(raw.innspill_max_chars ?? raw.innspillMaxChars ?? 500),
     includesStemming: Boolean(raw.includes_stemming ?? raw.includesStemming ?? false),
     votingTarget: (raw.voting_target ?? raw.votingTarget ?? null) as string | null,

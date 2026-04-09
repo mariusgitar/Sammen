@@ -1,15 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-
-type SessionView = {
-  id: string;
-  code: string;
-  title: string;
-  votingType: 'scale' | 'dots';
-  dotBudget: number;
-  allowMultipleDots: boolean;
-};
+import type { NormalizedSession } from '@/app/lib/normalizeSession';
 
 type SessionItem = {
   id: string;
@@ -18,7 +10,7 @@ type SessionItem = {
 };
 
 type StemmingViewProps = {
-  session: SessionView;
+  session: NormalizedSession;
   items: SessionItem[];
 };
 

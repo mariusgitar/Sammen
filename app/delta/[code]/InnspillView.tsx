@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { NormalizedSession } from "@/app/lib/normalizeSession";
 
 type Question = {
   id: string;
@@ -8,14 +9,7 @@ type Question = {
   questionStatus: "inactive" | "active" | "locked";
 };
 
-type SessionInfo = {
-  id: string;
-  code: string;
-  title: string;
-  show_others_innspill: boolean;
-  innspill_mode: "enkel" | "detaljert";
-  innspill_max_chars: number;
-};
+type SessionInfo = NormalizedSession;
 
 type Entry = {
   id: string;
@@ -76,7 +70,7 @@ export function InnspillView({
   const [showOthers, setShowOthers] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const canSeeOthers = session.show_others_innspill;
+  const canSeeOthers = session.showOthersInnspill;
   const initialized = useRef(false);
   const participantStorageKey = "samen_participant_id";
   const nicknameStorageKey = `samen_nickname_${session.code}`;
@@ -264,7 +258,7 @@ export function InnspillView({
     if (!text || !participantId || !nickname.trim()) {
       return;
     }
-    if (text.length > session.innspill_max_chars) {
+    if (text.length > session.innspillMaxChars) {
       return;
     }
 
@@ -281,7 +275,7 @@ export function InnspillView({
           nickname: nickname.trim(),
           text,
           detaljer:
-            session.innspill_mode === "detaljert" ? detaljer : undefined,
+            session.innspillMode === "detaljert" ? detaljer : undefined,
         }),
       });
       const responseBody = (await response.json()) as {
@@ -341,10 +335,10 @@ export function InnspillView({
   }
 
   function getHvaPlaceholder() {
-    if (session.innspill_max_chars <= 60) {
+    if (session.innspillMaxChars <= 60) {
       return "Kort og konkret — én setning";
     }
-    if (session.innspill_max_chars <= 100) {
+    if (session.innspillMaxChars <= 100) {
       return "f.eks. 'Vi mangler felles rutiner for onboarding'";
     }
     return "Beskriv innspillet ditt";
@@ -356,7 +350,7 @@ export function InnspillView({
     detaljer: string | null;
   }) {
     const showDetailText =
-      session.innspill_mode === "detaljert" && Boolean(entry.detaljer?.trim());
+      session.innspillMode === "detaljert" && Boolean(entry.detaljer?.trim());
     const detailText = entry.detaljer?.trim() ?? "";
     const requiresToggle = detailText.length > 80;
     const isExpanded = expandedDetails[entry.id] ?? false;
@@ -560,7 +554,7 @@ export function InnspillView({
                       {(() => {
                         const currentLength = (inputText[question.id] ?? "")
                           .length;
-                        const limit = session.innspill_max_chars;
+                        const limit = session.innspillMaxChars;
                         const showCounter =
                           currentLength >= Math.ceil(limit * 0.6);
                         const ratio = currentLength / limit;
@@ -576,7 +570,7 @@ export function InnspillView({
                         const detailLength = (detailsText[question.id] ?? "")
                           .length;
 
-                        return session.innspill_mode === "enkel" ? (
+                        return session.innspillMode === "enkel" ? (
                           <>
                             <label className="text-sm font-medium text-slate-700 mb-1.5 block">
                               Ditt innspill
@@ -585,7 +579,7 @@ export function InnspillView({
                               className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#3b5bdb] transition-colors text-sm resize-none"
                               rows={2}
                               placeholder="Skriv én ting — kort nok til å leses på 5 sekunder"
-                              maxLength={session.innspill_max_chars}
+                              maxLength={session.innspillMaxChars}
                               value={inputText[question.id] || ""}
                               onChange={(event) =>
                                 setInputText((current) => ({
@@ -626,7 +620,7 @@ export function InnspillView({
                                 className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-[#3b5bdb] transition-colors text-sm resize-none"
                                 rows={2}
                                 placeholder={getHvaPlaceholder()}
-                                maxLength={session.innspill_max_chars}
+                                maxLength={session.innspillMaxChars}
                                 value={inputText[question.id] || ""}
                                 onChange={(event) =>
                                   setInputText((current) => ({
@@ -690,7 +684,7 @@ export function InnspillView({
                         disabled={
                           submitting[question.id] ||
                           (inputText[question.id] ?? "").trim().length >
-                            session.innspill_max_chars
+                            session.innspillMaxChars
                         }
                       >
                         {submitting[question.id] ? "Lagrer..." : "Legg til"}

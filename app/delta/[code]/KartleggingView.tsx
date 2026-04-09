@@ -1,15 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
-
-type SessionView = {
-  id: string;
-  code: string;
-  title: string;
-  tags: string[];
-  allowNewItems: boolean;
-  showTagHeaders: boolean;
-};
+import type { NormalizedSession } from '@/app/lib/normalizeSession';
 
 type SessionItem = {
   id: string;
@@ -27,7 +19,7 @@ type ProposedItem = {
 };
 
 type KartleggingViewProps = {
-  session: SessionView;
+  session: NormalizedSession;
   items: SessionItem[];
 };
 
@@ -205,7 +197,7 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
       });
     }
 
-    const tagOrder = new Map(session.tags.map((tag, index) => [tag, index]));
+    const tagOrder = new Map((session.tags ?? []).map((tag, index) => [tag, index]));
 
     return [...originalItems].sort((a, b) => {
       const aDefaultTag = a.defaultTag ?? a.default_tag;
@@ -560,7 +552,7 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
                   <p className="text-sm text-slate-400 mt-1 mb-3 leading-snug">{item.description}</p>
                 ) : null}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {session.tags.map((tag) => {
+                  {(session.tags ?? []).map((tag) => {
                     const selected = responses[item.id] === tag;
                     const hasDefaultTag = Boolean(defaultTag);
                     const suggested = selected && hasDefaultTag && !changedByUser.has(item.id);
@@ -611,7 +603,7 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
                 <p className="text-base font-medium text-[#0f172a]">{item.text}</p>
               </div>
               <div className="mt-4 flex flex-wrap gap-2">
-                {session.tags.map((tag) => {
+                {(session.tags ?? []).map((tag) => {
                   const selected = responses[item.id] === tag;
 
                   return (
