@@ -159,6 +159,30 @@ export async function PATCH(request: Request, { params }: RouteContext) {
 
     const db = getDb();
     const code = params.code.toUpperCase();
+    const region = process.env.VERCEL_REGION ?? process.env.FLY_REGION ?? 'unknown';
+    const runtimeEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'unknown';
+
+    const [existingRow] = await db
+      .select({
+        id: sessions.id,
+        status: sessions.status,
+      })
+      .from(sessions)
+      .where(eq(sessions.code, code))
+      .limit(1);
+
+    if (!existingRow) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    console.info('[sessions.patch] request', {
+      code,
+      sessionId: existingRow.id,
+      statusBefore: existingRow.status,
+      requestedStatus: body.status ?? null,
+      region,
+      env: runtimeEnv,
+    });
 
     const [updatedRow] = await db
       .update(sessions)
@@ -180,12 +204,35 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       })
       .where(eq(sessions.code, code))
       .returning();
-
-    if (!updatedRow) {
-      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    const [verifiedRow] = await db
+      .select()
+      .from(sessions)
+      .where(eq(sessions.code, code))
+      .limit(1);
+    if (!verifiedRow) {
+      return NextResponse.json({ error: 'Session not found after update' }, { status: 404 });
     }
 
-    return NextResponse.json({ session: normalizeSession(updatedRow as Record<string, unknown>) });
+    const normalizedUpdated = normalizeSession((updatedRow ?? verifiedRow) as Record<string, unknown>);
+    const normalizedVerified = normalizeSession(verifiedRow as Record<string, unknown>);
+
+    console.info('[sessions.patch] persisted', {
+      code,
+      sessionId: normalizedVerified.id,
+      statusAfterWrite: normalizedUpdated.status,
+      statusAfterVerifyRead: normalizedVerified.status,
+      region,
+      env: runtimeEnv,
+    });
+
+    return NextResponse.json({
+      session: normalizedVerified,
+      writeConsistency: {
+        requestedStatus: body.status ?? null,
+        statusAfterWrite: normalizedUpdated.status,
+        statusAfterVerifyRead: normalizedVerified.status,
+      },
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: message }, { status: 500 });
