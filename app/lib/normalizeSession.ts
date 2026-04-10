@@ -1,12 +1,13 @@
-import { sessionStatuses } from '@/db/schema'
 import { getVisibility, type VisibilityConfig } from './getVisibility'
+
+const SESSION_STATUSES = ['setup', 'active', 'paused', 'closed'] as const
 
 export type NormalizedSession = {
   id: string
   code: string
   title: string
   moduleType: 'kartlegging' | 'stemming' | 'aapne-innspill' | 'rangering'
-  status: 'setup' | 'active' | 'paused' | 'closed'
+  status: (typeof SESSION_STATUSES)[number]
   tags: string[] | null
   allowNewItems: boolean
   dotBudget: number
@@ -65,7 +66,7 @@ export function normalizeSession(raw: Record<string, unknown>): NormalizedSessio
     })(),
     status: (() => {
       const s = raw.status
-      if (sessionStatuses.includes(s as NormalizedSession['status'])) {
+      if (typeof s === 'string' && SESSION_STATUSES.includes(s as (typeof SESSION_STATUSES)[number])) {
         return s as NormalizedSession['status']
       }
       if (s !== null && s !== undefined) {
