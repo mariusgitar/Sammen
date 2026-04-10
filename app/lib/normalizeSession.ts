@@ -24,6 +24,8 @@ export type NormalizedSession = {
   createdAt: string
   timerEndsAt: string | null
   timerLabel: string | null
+  // Backward-compat: legacy admin payload consumers read this directly
+  resultsVisible: boolean
   visibility: VisibilityConfig
 }
 
@@ -87,6 +89,7 @@ export function normalizeSession(raw: Record<string, unknown>): NormalizedSessio
     createdAt: String(raw.created_at ?? raw.createdAt ?? ''),
     timerEndsAt: timerRaw !== null ? String(timerRaw) : null,
     timerLabel: (raw.timer_label ?? raw.timerLabel ?? null) as string | null,
+    resultsVisible: visibility.participant.showResults,
     visibility,
   }
 }

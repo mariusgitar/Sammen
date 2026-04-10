@@ -27,7 +27,16 @@ export async function GET(request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    console.log('[state] raw sessionRow:', JSON.stringify(sessionRow, null, 2));
+    const region = process.env.VERCEL_REGION ?? process.env.FLY_REGION ?? 'unknown';
+    const runtimeEnv = process.env.VERCEL_ENV ?? process.env.NODE_ENV ?? 'unknown';
+    console.info('[delta.state] session', {
+      code,
+      sessionId: sessionRow.id,
+      status: sessionRow.status,
+      participantId: participantId || null,
+      region,
+      env: runtimeEnv,
+    });
 
     const session = normalizeSession(sessionRow as Record<string, unknown>);
 

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
 import ToggleButton from '@/app/components/ui/ToggleButton';
+import { type NormalizedSession } from '@/app/lib/normalizeSession';
 
 import { InnspillAdmin } from './InnspillAdmin';
 import { ThemePanel } from './ThemePanel';
@@ -121,6 +122,15 @@ type AdminPanelProps = {
   items: SessionItem[];
 };
 
+type PatchSessionResponse = {
+  session: NormalizedSession;
+  writeConsistency?: {
+    requestedStatus: string | null;
+    statusAfterWrite: SessionView['status'];
+    statusAfterVerifyRead: SessionView['status'];
+  };
+};
+
 type KartleggingFilter = 'alle' | 'uenighet' | 'usikker' | 'konsensus';
 
 const modeLabels: Record<string, string> = {
@@ -171,6 +181,19 @@ function hasSplitVotes(item: KartleggingSummaryItem, participantCount: number) {
 
   const highestTagCount = Object.values(item.tagCounts).reduce((max, count) => Math.max(max, count), 0);
   return highestTagCount / participantCount <= 0.5;
+}
+
+function isPatchSessionResponse(data: unknown): data is PatchSessionResponse {
+  if (!data || typeof data !== 'object' || !('session' in data)) {
+    return false;
+  }
+
+  const session = (data as { session?: unknown }).session;
+  if (!session || typeof session !== 'object') {
+    return false;
+  }
+
+  return typeof (session as { status?: unknown }).status === 'string';
 }
 
 export function AdminPanel({ session, items }: AdminPanelProps) {
@@ -241,6 +264,38 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const [settingsSaved, setSettingsSaved] = useState(false);
   const [activeKartleggingFilter, setActiveKartleggingFilter] = useState<KartleggingFilter>(session.activeFilter ?? 'alle');
   const [activeTagFilter, setActiveTagFilter] = useState<string>('alle');
+
+  function applySessionFromApi(nextSession: NormalizedSession) {
+    const nextResultsVisible = nextSession.visibility.participant.showResults;
+
+    setSessionStatus(nextSession.status);
+    setResultsVisible(nextResultsVisible);
+    setCurrentSession((current) => ({
+      ...current,
+      status: nextSession.status,
+      resultsVisible: nextResultsVisible,
+      timerEndsAt: nextSession.timerEndsAt,
+      timerLabel: nextSession.timerLabel,
+    }));
+    setTimerLabelInput(nextSession.timerLabel ?? '');
+  }
+
+  async function verifySessionStatus(expectedStatus: SessionView['status']) {
+    const verifyResponse = await fetch(`/api/sessions/${currentSession.code}`, { cache: 'no-store' });
+    const verifyData = (await verifyResponse.json()) as { session?: NormalizedSession; error?: string };
+
+    if (!verifyResponse.ok || !verifyData.session) {
+      throw new Error('Kunne ikke verifisere sesjonsstatus etter oppdatering.');
+    }
+
+    applySessionFromApi(verifyData.session);
+
+    if (verifyData.session.status !== expectedStatus) {
+      throw new Error(
+        `Sesjonen ble ikke persistert som ${expectedStatus}. Lest verdi er ${verifyData.session.status}.`,
+      );
+    }
+  }
 
   const saveFilter = async (filter: KartleggingFilter) => {
     setActiveKartleggingFilter(filter);
@@ -375,31 +430,21 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         body: JSON.stringify({ status }),
       });
 
-      const data = (await response.json()) as
-        | {
-            session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible' | 'timerEndsAt' | 'timerLabel'>;
-          }
-        | { error: string };
+      const data = (await response.json()) as PatchSessionResponse | { error: string };
 
-      if (!response.ok || !('session' in data)) {
+      if (!response.ok || !isPatchSessionResponse(data)) {
         setError('Kunne ikke oppdatere sesjonen. Prøv igjen.');
         return;
       }
 
-      setSessionStatus(data.session.status);
-      setSessionPhase(data.session.phase);
-      setCurrentSession((current) => ({
-        ...current,
-        status: data.session.status,
-        phase: data.session.phase,
-        resultsVisible: data.session.resultsVisible,
-        timerEndsAt: data.session.timerEndsAt,
-        timerLabel: data.session.timerLabel,
-      }));
-      setResultsVisible(data.session.resultsVisible);
-      setTimerLabelInput(data.session.timerLabel ?? '');
-    } catch {
-      setError('Kunne ikke oppdatere sesjonen. Prøv igjen.');
+      applySessionFromApi(data.session);
+      await verifySessionStatus(status);
+    } catch (updateError) {
+      setError(
+        updateError instanceof Error
+          ? updateError.message
+          : 'Kunne ikke oppdatere sesjonen. Prøv igjen.',
+      );
     } finally {
       setIsUpdatingStatus(false);
     }
@@ -418,29 +463,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         body: JSON.stringify({ results_visible: !resultsVisible }),
       });
 
-      const data = (await response.json()) as
-        | {
-            session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible' | 'timerEndsAt' | 'timerLabel'>;
-          }
-        | { error: string };
+      const data = (await response.json()) as PatchSessionResponse | { error: string };
 
-      if (!response.ok || !('session' in data)) {
+      if (!response.ok || !isPatchSessionResponse(data)) {
         setError('Kunne ikke oppdatere resultatvisning. Prøv igjen.');
         return;
       }
 
-      setSessionStatus(data.session.status);
-      setSessionPhase(data.session.phase);
-      setResultsVisible(data.session.resultsVisible);
-      setCurrentSession((current) => ({
-        ...current,
-        status: data.session.status,
-        phase: data.session.phase,
-        resultsVisible: data.session.resultsVisible,
-        timerEndsAt: data.session.timerEndsAt,
-        timerLabel: data.session.timerLabel,
-      }));
-      setTimerLabelInput(data.session.timerLabel ?? '');
+      applySessionFromApi(data.session);
     } catch {
       setError('Kunne ikke oppdatere resultatvisning. Prøv igjen.');
     } finally {
@@ -461,29 +491,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         body: JSON.stringify(payload),
       });
 
-      const data = (await response.json()) as
-        | {
-            session: Pick<SessionView, 'status' | 'phase' | 'resultsVisible' | 'timerEndsAt' | 'timerLabel'>;
-          }
-        | { error: string };
+      const data = (await response.json()) as PatchSessionResponse | { error: string };
 
-      if (!response.ok || !('session' in data)) {
+      if (!response.ok || !isPatchSessionResponse(data)) {
         setError('Kunne ikke oppdatere timeren. Prøv igjen.');
         return;
       }
 
-      setCurrentSession((current) => ({
-        ...current,
-        status: data.session.status,
-        phase: data.session.phase,
-        resultsVisible: data.session.resultsVisible,
-        timerEndsAt: data.session.timerEndsAt,
-        timerLabel: data.session.timerLabel,
-      }));
-      setSessionStatus(data.session.status);
-      setSessionPhase(data.session.phase);
-      setResultsVisible(data.session.resultsVisible);
-      setTimerLabelInput(data.session.timerLabel ?? '');
+      applySessionFromApi(data.session);
     } catch {
       setError('Kunne ikke oppdatere timeren. Prøv igjen.');
     } finally {
@@ -536,30 +551,14 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         body: JSON.stringify(payload),
       });
 
-      const data = (await response.json()) as
-        | {
-            session: Pick<
-              SessionView,
-              | 'title'
-              | 'dotBudget'
-              | 'allowNewItems'
-              | 'showTagHeaders'
-              | 'showOthersInnspill'
-              | 'innspillMaxChars'
-              | 'status'
-              | 'phase'
-              | 'resultsVisible'
-              | 'timerEndsAt'
-              | 'timerLabel'
-            >;
-          }
-        | { error: string };
+      const data = (await response.json()) as PatchSessionResponse | { error: string };
 
-      if (!response.ok || !('session' in data)) {
+      if (!response.ok || !isPatchSessionResponse(data)) {
         setError('Kunne ikke lagre innstillinger. Prøv igjen.');
         return;
       }
 
+      applySessionFromApi(data.session);
       setCurrentSession((current) => ({
         ...current,
         title: data.session.title,
@@ -568,16 +567,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         showTagHeaders: data.session.showTagHeaders,
         showOthersInnspill: data.session.showOthersInnspill,
         innspillMaxChars: data.session.innspillMaxChars,
-        status: data.session.status,
-        phase: data.session.phase,
-        resultsVisible: data.session.resultsVisible,
-        timerEndsAt: data.session.timerEndsAt,
-        timerLabel: data.session.timerLabel,
       }));
-      setSessionStatus(data.session.status);
-      setSessionPhase(data.session.phase);
-      setResultsVisible(data.session.resultsVisible);
-      setTimerLabelInput(data.session.timerLabel ?? '');
       setSettingsTitle(data.session.title);
       setSettingsAllowNewItems(data.session.allowNewItems);
       setSettingsShowTagHeaders(Boolean(data.session.showTagHeaders));
