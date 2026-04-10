@@ -111,31 +111,7 @@ export function RangeringView({ session, items }: RangeringViewProps) {
     setRankedItems(items);
   }, [items]);
 
-  useEffect(() => {
-    if (!submitted) {
-      return;
-    }
-
-    const checkSession = async () => {
-      const response = await fetch(`/api/sessions/${session.code}`, { cache: 'no-store' });
-      const data = (await response.json()) as {
-        session?: {
-          status?: string;
-          phase?: string;
-        };
-      };
-
-      if (data.session?.status === 'active' && data.session?.phase === 'stemming') {
-        window.location.reload();
-      }
-    };
-
-    const interval = setInterval(() => {
-      void checkSession();
-    }, 5_000);
-
-    return () => clearInterval(interval);
-  }, [submitted, session.code]);
+  // Phase transitions are detected by the parent page poll — no secondary poll needed here.
 
   const visibleRankedItems = useMemo(() => {
     if (session.maxRankItems && session.maxRankItems > 0) {

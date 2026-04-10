@@ -21,6 +21,7 @@ type ProposedItem = {
 type KartleggingViewProps = {
   session: NormalizedSession;
   items: SessionItem[];
+  myResponses?: Array<{ itemId: string; value: string }>;
 };
 
 type SubmitResponsesResult =
@@ -43,7 +44,7 @@ type CreateItemResult =
       error: string;
     };
 
-export function KartleggingView({ session, items }: KartleggingViewProps) {
+export function KartleggingView({ session, items, myResponses }: KartleggingViewProps) {
   const UNCERTAIN_FLAG_VALUE = 'uklart_flag';
   const [nickname, setNickname] = useState('');
   const [hasJoined, setHasJoined] = useState(false);
@@ -92,81 +93,25 @@ export function KartleggingView({ session, items }: KartleggingViewProps) {
     }
   }, [nicknameStorageKey]);
 
+  // Initialise flaggedItems from server-provided myResponses (replaces the old /api/responses poll)
   useEffect(() => {
-    if (!submitted) {
-      return;
-    }
+    if (!myResponses || myResponses.length === 0) return;
 
-    const checkSession = async () => {
-      const response = await fetch(`/api/sessions/${session.code}`, { cache: 'no-store' });
-      const data = (await response.json()) as {
-        session?: {
-          status?: string;
-          phase?: string;
-        };
-      };
+    const flaggedIds = new Set(
+      myResponses.filter((r) => r.value === UNCERTAIN_FLAG_VALUE).map((r) => r.itemId),
+    );
+    if (flaggedIds.size === 0) return;
 
-      if (data.session?.status === 'active' && data.session?.phase === 'stemming') {
-        window.location.reload();
+    setFlaggedItems((current) => {
+      if (!initializedFlags.current) {
+        initializedFlags.current = true;
+        return flaggedIds;
       }
-    };
-
-    const interval = setInterval(() => {
-      void checkSession();
-    }, 5_000);
-
-    return () => clearInterval(interval);
-  }, [submitted, session.code]);
-
-  useEffect(() => {
-    if (!hasJoined || !participantId) {
-      return;
-    }
-
-    let isMounted = true;
-
-    const fetchFlaggedItems = async () => {
-      try {
-        const response = await fetch(
-          `/api/responses?session_id=${encodeURIComponent(session.id)}&participant_id=${encodeURIComponent(participantId)}&value=${encodeURIComponent(UNCERTAIN_FLAG_VALUE)}`,
-          { cache: 'no-store' },
-        );
-        const data = (await response.json()) as { itemIds?: string[] };
-
-        if (!response.ok || !isMounted || !Array.isArray(data.itemIds)) {
-          return;
-        }
-
-        const incomingSet = new Set(data.itemIds);
-        setFlaggedItems((current) => {
-          if (!initializedFlags.current) {
-            initializedFlags.current = true;
-            return incomingSet;
-          }
-
-          if (incomingSet.size === 0) {
-            return current;
-          }
-
-          const merged = new Set(current);
-          incomingSet.forEach((itemId) => merged.add(itemId));
-          return merged;
-        });
-      } catch {
-        // noop
-      }
-    };
-
-    void fetchFlaggedItems();
-    const timer = setInterval(() => {
-      void fetchFlaggedItems();
-    }, 5_000);
-
-    return () => {
-      isMounted = false;
-      clearInterval(timer);
-    };
-  }, [UNCERTAIN_FLAG_VALUE, hasJoined, participantId, session.id]);
+      const merged = new Set(current);
+      flaggedIds.forEach((id) => merged.add(id));
+      return merged;
+    });
+  }, [myResponses, UNCERTAIN_FLAG_VALUE]);
 
   const originalItems = useMemo(() => items.filter((item) => !item.isNew), [items]);
   const sortedOriginalItems = useMemo(() => {
