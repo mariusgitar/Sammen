@@ -4,6 +4,7 @@ import { asc, eq } from 'drizzle-orm';
 import { normalizeSession } from '@/app/lib/normalizeSession';
 import { getDb } from '@/db';
 import { items, sessionPhases, sessionStatuses, sessions } from '@/db/schema';
+import { isIllegalSetupReset, type SessionStatus } from './statusTransitionGuard';
 
 type RouteContext = {
   params: {
@@ -183,6 +184,24 @@ export async function PATCH(request: Request, { params }: RouteContext) {
       region,
       env: runtimeEnv,
     });
+
+    if (isIllegalSetupReset(existingRow.status as SessionStatus, body.status as SessionStatus | undefined)) {
+      console.warn('[sessions.patch] illegal status transition rejected', {
+        code,
+        sessionId: existingRow.id,
+        statusBefore: existingRow.status,
+        requestedStatus: body.status,
+        region,
+        env: runtimeEnv,
+        userAgent: request.headers.get('user-agent'),
+        referer: request.headers.get('referer'),
+      });
+
+      return NextResponse.json(
+        { error: 'Kan ikke sette sesjon tilbake til setup etter oppstart.' },
+        { status: 400 },
+      );
+    }
 
     const [updatedRow] = await db
       .update(sessions)
