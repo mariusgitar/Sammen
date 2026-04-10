@@ -9,6 +9,23 @@ type Question = {
   questionStatus: "inactive" | "active" | "locked";
 };
 
+type ServerInnspillEntry = {
+  id: string;
+  text: string;
+  detaljer: string | null;
+  nickname: string;
+  likes: number;
+  participantId: string;
+  createdAt: string;
+};
+
+type ServerQuestion = {
+  id: string;
+  text: string;
+  questionStatus: "inactive" | "active" | "locked";
+  innspill: ServerInnspillEntry[];
+};
+
 type SessionInfo = NormalizedSession;
 
 type Entry = {
@@ -49,9 +66,11 @@ const columnColors = [
 export function InnspillView({
   session,
   items,
+  serverInnspill,
 }: {
   session: SessionInfo;
   items: Question[];
+  serverInnspill?: ServerQuestion[];
 }) {
   const [questions, setQuestions] = useState<Question[]>(items);
   const [nickname, setNickname] = useState("");
@@ -184,49 +203,53 @@ export function InnspillView({
     });
   }
 
+  // Update innspill state when parent provides fresh server data (replaces the old /api/delta/innspill poll)
   useEffect(() => {
-    if (!hasJoined) {
-      return;
-    }
+    if (!serverInnspill || serverInnspill.length === 0 || !participantId) return;
 
-    void fetchInnspill();
-    const timer = setInterval(() => {
-      void fetchInnspill();
-    }, 5_000);
+    setQuestions((prev) =>
+      prev.map((q) => {
+        const updated = serverInnspill.find((p) => p.id === q.id);
+        return updated ? { ...q, questionStatus: updated.questionStatus } : q;
+      }),
+    );
 
-    return () => clearInterval(timer);
-  }, [hasJoined, participantId]);
+    const mine: Record<string, MyEntry[]> = {};
+    const others: Record<string, OtherEntry[]> = {};
 
-  useEffect(() => {
-    if (!submitted) {
-      return;
-    }
+    for (const question of serverInnspill) {
+      mine[question.id] = [];
+      others[question.id] = [];
 
-    const checkSession = async () => {
-      const response = await fetch(`/api/sessions/${session.code}`, {
-        cache: "no-store",
-      });
-      const data = (await response.json()) as {
-        session?: {
-          status?: string;
-          phase?: string;
-        };
-      };
-
-      if (
-        data.session?.status === "active" &&
-        data.session?.phase === "stemming"
-      ) {
-        window.location.reload();
+      for (const entry of question.innspill) {
+        if (entry.participantId === participantId) {
+          mine[question.id].push({ id: entry.id, text: entry.text, detaljer: entry.detaljer, likes: entry.likes, likedByMe: false });
+        } else {
+          others[question.id].push({ id: entry.id, text: entry.text, detaljer: entry.detaljer, nickname: entry.nickname, likes: entry.likes, likedByMe: false, participant_id: entry.participantId });
+        }
       }
-    };
+    }
 
-    const interval = setInterval(() => {
-      void checkSession();
-    }, 5_000);
+    setMyInnspill((prev) => {
+      const merged = { ...prev };
+      serverInnspill.forEach((q) => {
+        const incoming = mine[q.id] ?? [];
+        if (incoming.length > 0 || !merged[q.id]) merged[q.id] = incoming;
+      });
+      return merged;
+    });
+    setAllInnspill((prev) => {
+      const merged = { ...prev };
+      serverInnspill.forEach((q) => {
+        const incoming = others[q.id] ?? [];
+        if (incoming.length > 0 || !merged[q.id]) merged[q.id] = incoming;
+      });
+      return merged;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [serverInnspill, participantId]);
 
-    return () => clearInterval(interval);
-  }, [submitted, session.code]);
+  // Phase transitions are detected by the parent page poll — no secondary poll needed here.
 
   const visibleQuestions = useMemo(
     () =>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { InnspillView } from './InnspillView';
@@ -19,27 +19,49 @@ type ParticipantPageProps = {
 
 type QuestionStatus = 'inactive' | 'active' | 'locked';
 
-type SessionResponse = {
-  session: Record<string, unknown>;
-  items: Array<{
-    id: string;
-    text: string;
-    description: string | null;
-    isNew: boolean;
-    excluded: boolean;
-    orderIndex: number;
-    isQuestion: boolean;
-    questionStatus: QuestionStatus;
-    defaultTag: string | null;
-    default_tag: string | null;
-    finalTag: string | null;
-    final_tag: string | null;
-  }>;
+type StateItem = {
+  id: string;
+  text: string;
+  description: string | null;
+  isNew: boolean;
+  excluded: boolean;
+  orderIndex: number;
+  isQuestion: boolean;
+  questionStatus: QuestionStatus;
+  defaultTag: string | null;
+  finalTag: string | null;
+  createdAt: string;
 };
 
-type NormalizedSessionResponse = {
+type ServerInnspillEntry = {
+  id: string;
+  text: string;
+  detaljer: string | null;
+  nickname: string;
+  likes: number;
+  participantId: string;
+  createdAt: string;
+};
+
+type ServerQuestion = {
+  id: string;
+  text: string;
+  questionStatus: QuestionStatus;
+  innspill: ServerInnspillEntry[];
+};
+
+type StateData = {
   session: NormalizedSession;
-  items: SessionResponse['items'];
+  items: StateItem[];
+  innspill: ServerQuestion[];
+  myResponses: Array<{ itemId: string; value: string }>;
+};
+
+type StateResponse = {
+  session: Record<string, unknown>;
+  items: StateItem[];
+  innspill: ServerQuestion[];
+  myResponses: Array<{ itemId: string; value: string }>;
 };
 
 type ErrorResponse = {
@@ -72,19 +94,36 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [isNotFound, setIsNotFound] = useState(false);
-  const [data, setData] = useState<NormalizedSessionResponse | null>(null);
+  const [data, setData] = useState<StateData | null>(null);
+  const [participantId, setParticipantId] = useState('');
+  const initializedRef = useRef(false);
+
+  // Read participantId from localStorage once on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('samen_participant_id');
+    if (stored) {
+      setParticipantId(stored);
+    } else {
+      const newId = crypto.randomUUID();
+      localStorage.setItem('samen_participant_id', newId);
+      setParticipantId(newId);
+    }
+  }, []);
 
   useEffect(() => {
+    if (!participantId) return;
+
     let isMounted = true;
 
-    async function fetchSession() {
+    async function fetchState() {
       try {
-        const response = await fetch(`/api/delta/${code}`, { cache: 'no-store' });
-        const payload = (await response.json()) as SessionResponse | ErrorResponse;
+        const response = await fetch(
+          `/api/delta/${code}/state?participantId=${encodeURIComponent(participantId)}`,
+          { cache: 'no-store' },
+        );
+        const payload = (await response.json()) as StateResponse | ErrorResponse;
 
-        if (!isMounted) {
-          return;
-        }
+        if (!isMounted) return;
 
         if (response.status === 404) {
           setIsNotFound(true);
@@ -98,55 +137,46 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
           return;
         }
 
-        const normalizedSession = normalizeSession(payload.session);
+        const normalized = normalizeSession(payload.session);
 
         setIsNotFound(false);
         setError('');
         setData((current) => {
-          if (!current) {
-            return {
-              session: normalizedSession,
-              items: payload.items,
-            };
-          }
+          const incoming: StateData = {
+            session: normalized,
+            items: payload.items,
+            innspill: payload.innspill ?? [],
+            myResponses: payload.myResponses ?? [],
+          };
 
-          const incomingItems = payload.items;
-          const shouldUpdateItems =
-            incomingItems.length > 0 && JSON.stringify(incomingItems) !== JSON.stringify(current.items);
-          const shouldUpdateSession = JSON.stringify(normalizedSession) !== JSON.stringify(current.session);
-
-          if (!shouldUpdateItems && !shouldUpdateSession) {
-            return current;
+          if (!initializedRef.current || !current) {
+            initializedRef.current = true;
+            return incoming;
           }
 
           return {
-            session: shouldUpdateSession ? normalizedSession : current.session,
-            items: shouldUpdateItems ? incomingItems : current.items,
+            session: incoming.session,
+            items: incoming.items.length > 0 ? incoming.items : current.items,
+            innspill: incoming.innspill.length > 0 ? incoming.innspill : current.innspill,
+            myResponses: incoming.myResponses,
           };
         });
       } catch (fetchError) {
-        if (!isMounted) {
-          return;
-        }
-
+        if (!isMounted) return;
         setError(fetchError instanceof Error ? fetchError.message : 'Kunne ikke hente sesjonsdata.');
       } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
+        if (isMounted) setIsLoading(false);
       }
     }
 
-    void fetchSession();
-    const timer = setInterval(() => {
-      void fetchSession();
-    }, 5_000);
+    void fetchState();
+    const timer = setInterval(() => { void fetchState(); }, 5_000);
 
     return () => {
       isMounted = false;
       clearInterval(timer);
     };
-  }, [code]);
+  }, [code, participantId]);
 
   const viewState = useMemo(() => (data ? resolveView(data.session) : null), [data]);
 
@@ -170,7 +200,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
     );
   }
 
-  const { session, items } = data;
+  const { session, items, innspill, myResponses } = data;
 
   const timerBanner = (
     <TimerBanner
@@ -186,6 +216,7 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
           <KartleggingView
             items={items}
             session={session}
+            myResponses={myResponses}
           />
           {timerBanner}
         </>
@@ -195,42 +226,22 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
       const votableItems = items
         .filter((item) => !item.excluded && !item.isQuestion)
         .sort((a, b) => {
-          const aFinalTag = a.finalTag ?? a.final_tag;
-          const bFinalTag = b.finalTag ?? b.final_tag;
+          const aTag = a.finalTag;
+          const bTag = b.finalTag;
 
-          if (!aFinalTag && !bFinalTag) {
-            return a.orderIndex - b.orderIndex;
-          }
+          if (!aTag && !bTag) return a.orderIndex - b.orderIndex;
+          if (!aTag) return 1;
+          if (!bTag) return -1;
 
-          if (!aFinalTag) {
-            return 1;
-          }
+          const aIdx = tagOrder.get(aTag) ?? null;
+          const bIdx = tagOrder.get(bTag) ?? null;
 
-          if (!bFinalTag) {
-            return -1;
-          }
+          if (aIdx !== null && bIdx !== null && aIdx !== bIdx) return aIdx - bIdx;
+          if (aIdx !== null && bIdx === null) return -1;
+          if (aIdx === null && bIdx !== null) return 1;
 
-          const aTagIndex = tagOrder.get(aFinalTag);
-          const bTagIndex = tagOrder.get(bFinalTag);
-
-          if (aTagIndex !== undefined && bTagIndex !== undefined && aTagIndex !== bTagIndex) {
-            return aTagIndex - bTagIndex;
-          }
-
-          if (aTagIndex !== undefined && bTagIndex === undefined) {
-            return -1;
-          }
-
-          if (aTagIndex === undefined && bTagIndex !== undefined) {
-            return 1;
-          }
-
-          const alphabeticalSort = aFinalTag.localeCompare(bFinalTag, 'nb');
-
-          if (alphabeticalSort !== 0) {
-            return alphabeticalSort;
-          }
-
+          const alpha = aTag.localeCompare(bTag, 'nb');
+          if (alpha !== 0) return alpha;
           return a.orderIndex - b.orderIndex;
         });
 
@@ -247,7 +258,11 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
     case 'innspill':
       return (
         <>
-          <InnspillView session={session} items={items.filter((item) => item.isQuestion)} />
+          <InnspillView
+            session={session}
+            items={items.filter((item) => item.isQuestion)}
+            serverInnspill={innspill}
+          />
           {timerBanner}
         </>
       );
