@@ -8,7 +8,7 @@ import { KartleggingView } from './KartleggingView';
 import { StemmingView } from './StemmingView';
 import { RangeringView } from './RangeringView';
 import { TimerBanner } from '@/app/components/TimerBanner';
-import { normalizeSession, type NormalizedSession } from '@/app/lib/normalizeSession';
+import { type NormalizedSession } from '@/app/lib/normalizeSession';
 import { resolveView } from '@/app/lib/resolveView';
 
 type ParticipantPageProps = {
@@ -58,7 +58,7 @@ type StateData = {
 };
 
 type StateResponse = {
-  session: Record<string, unknown>;
+  session: NormalizedSession;
   items: StateItem[];
   innspill: ServerQuestion[];
   myResponses: Array<{ itemId: string; value: string }>;
@@ -137,13 +137,11 @@ export default function ParticipantPage({ params }: ParticipantPageProps) {
           return;
         }
 
-        const normalized = normalizeSession(payload.session);
-
         setIsNotFound(false);
         setError('');
         setData((current) => {
           const incoming: StateData = {
-            session: normalized,
+            session: payload.session,
             items: payload.items,
             innspill: payload.innspill ?? [],
             myResponses: payload.myResponses ?? [],
