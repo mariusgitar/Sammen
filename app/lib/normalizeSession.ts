@@ -4,7 +4,7 @@ export type NormalizedSession = {
   id: string
   code: string
   title: string
-  moduleType: 'kartlegging' | 'stemming' | 'innspill' | 'rangering'
+  moduleType: 'kartlegging' | 'stemming' | 'aapne-innspill' | 'rangering'
   status: 'setup' | 'active' | 'paused' | 'closed'
   tags: string[] | null
   allowNewItems: boolean
@@ -55,7 +55,11 @@ export function normalizeSession(raw: Record<string, unknown>): NormalizedSessio
     id: String(raw.id ?? ''),
     code: String(raw.code ?? ''),
     title: String(raw.title ?? ''),
-    moduleType: (raw.phase ?? raw.module_type ?? 'kartlegging') as NormalizedSession['moduleType'],
+    moduleType: (() => {
+      const raw_mode = raw.mode ?? raw.phase ?? raw.module_type ?? 'kartlegging'
+      // Map legacy v1 value 'innspill' → canonical v2 value 'aapne-innspill'
+      return (raw_mode === 'innspill' ? 'aapne-innspill' : raw_mode) as NormalizedSession['moduleType']
+    })(),
     status: (raw.status ?? 'setup') as NormalizedSession['status'],
     tags: (raw.tags ?? null) as string[] | null,
     allowNewItems: Boolean(raw.allow_new_items ?? raw.allowNewItems ?? true),
