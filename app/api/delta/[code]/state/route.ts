@@ -1,17 +1,27 @@
 import { and, asc, eq, inArray } from 'drizzle-orm';
+import { neon } from '@neondatabase/serverless';
+import { drizzle } from 'drizzle-orm/neon-http';
 import { NextResponse } from 'next/server';
 
 import { normalizeSession } from '@/app/lib/normalizeSession';
-import { getDb } from '@/db';
 import { innspill, innspillThemes, items, responses, sessions, themes } from '@/db/schema';
 
+export const fetchCache = 'force-no-store';
 export const dynamic = 'force-dynamic';
 
 type RouteContext = { params: { code: string } };
 
 export async function GET(request: Request, { params }: RouteContext) {
   try {
-    const db = getDb();
+    const dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      throw new Error('DATABASE_URL is not set');
+    }
+
+    const sql = neon(dbUrl, {
+      fetchOptions: { cache: 'no-store' },
+    });
+    const db = drizzle(sql);
     const code = params.code.toUpperCase();
     const { searchParams } = new URL(request.url);
     const participantId = searchParams.get('participantId') ?? '';
