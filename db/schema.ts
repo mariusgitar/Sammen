@@ -4,6 +4,10 @@ Run this SQL manually in the Neon SQL editor:
 -- PR 1: add visibility jsonb column
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS visibility jsonb NOT NULL DEFAULT '{}';
 
+-- Fix status column: ensure DEFAULT and backfill any NULL rows
+ALTER TABLE sessions ALTER COLUMN status SET DEFAULT 'setup';
+UPDATE sessions SET status = 'setup' WHERE status IS NULL;
+
 -- Previous migrations (already applied):
 
 

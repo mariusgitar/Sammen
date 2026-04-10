@@ -1,3 +1,4 @@
+import { sessionStatuses } from '@/db/schema'
 import { getVisibility, type VisibilityConfig } from './getVisibility'
 
 export type NormalizedSession = {
@@ -60,7 +61,16 @@ export function normalizeSession(raw: Record<string, unknown>): NormalizedSessio
       // Map legacy v1 value 'innspill' → canonical v2 value 'aapne-innspill'
       return (raw_mode === 'innspill' ? 'aapne-innspill' : raw_mode) as NormalizedSession['moduleType']
     })(),
-    status: (raw.status ?? 'setup') as NormalizedSession['status'],
+    status: (() => {
+      const s = raw.status
+      if (sessionStatuses.includes(s as NormalizedSession['status'])) {
+        return s as NormalizedSession['status']
+      }
+      if (s !== null && s !== undefined) {
+        throw new Error(`normalizeSession: unexpected status value "${s}" for session ${raw.id}`)
+      }
+      return 'setup' as const
+    })(),
     tags: (raw.tags ?? null) as string[] | null,
     allowNewItems: Boolean(raw.allow_new_items ?? raw.allowNewItems ?? true),
     dotBudget: Number(raw.dot_budget ?? raw.dotBudget ?? 5),

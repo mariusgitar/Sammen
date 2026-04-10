@@ -27,6 +27,8 @@ export async function GET(request: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
+    console.log('[state] raw sessionRow:', JSON.stringify(sessionRow, null, 2));
+
     const session = normalizeSession(sessionRow as Record<string, unknown>);
 
     // --- items ---
