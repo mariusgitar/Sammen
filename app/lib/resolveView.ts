@@ -26,7 +26,7 @@ export function resolveView(session: NormalizedSession): ViewState {
   switch (session.moduleType) {
     case 'kartlegging': return { view: 'kartlegging' }
     case 'stemming':    return { view: 'stemming' }
-    case 'innspill':    return { view: 'innspill' }
+    case 'aapne-innspill': return { view: 'innspill' }
     case 'rangering':   return { view: 'rangering' }
     default:            return { view: 'waiting', reason: 'Venter på fasilitator.' }
   }
