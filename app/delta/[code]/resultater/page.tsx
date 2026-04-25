@@ -158,6 +158,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const initializedRef = useRef(false);
   const loadedResultsKeyRef = useRef('');
   const [error, setError] = useState('');
+  const [participantId, setParticipantId] = useState('');
 
   const title = session?.title ?? '';
   const resultsVisible = session?.visibility.participant.showResults ?? false;
@@ -168,11 +169,29 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const activeFilter = session?.activeFilter ?? 'alle';
 
   useEffect(() => {
+    const stored = localStorage.getItem('samen_participant_id');
+    if (stored) {
+      setParticipantId(stored);
+    } else {
+      const newId = crypto.randomUUID();
+      localStorage.setItem('samen_participant_id', newId);
+      setParticipantId(newId);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!participantId) {
+      return;
+    }
+
     let isMounted = true;
 
     async function fetchSessionState() {
       try {
-        const stateResponse = await fetch(`/api/delta/${code}/state`, { cache: 'no-store' });
+        const stateResponse = await fetch(
+          `/api/delta/${code}/state?participantId=${encodeURIComponent(participantId)}`,
+          { cache: 'no-store' },
+        );
         const stateData = (await stateResponse.json()) as SessionState | ErrorResponse;
 
         if (!isMounted) {
@@ -215,7 +234,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
       isMounted = false;
       clearInterval(timer);
     };
-  }, [code]);
+  }, [code, participantId]);
 
   useEffect(() => {
     if (!session || session.status !== 'active' || session.moduleType !== 'stemming') {
@@ -331,7 +350,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     return () => {
       isMounted = false;
     };
-  }, [code, session]);
+  }, [code, session?.moduleType, session?.visibility.participant.showResults, session?.status]);
 
   useEffect(() => {
     if (!themeResults) {
