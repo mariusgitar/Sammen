@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
 import ToggleButton from '@/app/components/ui/ToggleButton';
 import { type NormalizedSession } from '@/app/lib/normalizeSession';
+import { resolveAdminView } from '@/app/lib/resolveAdminView';
 
 import { InnspillAdmin } from './InnspillAdmin';
 import { ThemePanel } from './ThemePanel';
@@ -344,7 +345,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   }
 
   async function fetchInnspillSummary() {
-    if (currentSession.mode !== 'aapne-innspill') {
+    if (!isInnspillModule) {
       return;
     }
 
@@ -517,19 +518,19 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       payload.title = trimmedTitle;
     }
 
-    if (currentSession.mode === 'kartlegging' && settingsAllowNewItems !== currentSession.allowNewItems) {
+    if (currentModuleType === 'kartlegging' && settingsAllowNewItems !== currentSession.allowNewItems) {
       payload.allow_new_items = settingsAllowNewItems;
     }
 
-    if (currentSession.mode === 'kartlegging' && settingsShowTagHeaders !== Boolean(currentSession.showTagHeaders)) {
+    if (currentModuleType === 'kartlegging' && settingsShowTagHeaders !== Boolean(currentSession.showTagHeaders)) {
       payload.show_tag_headers = settingsShowTagHeaders;
     }
 
-    if (currentSession.mode === 'aapne-innspill' && settingsShowOthersInnspill !== currentSession.showOthersInnspill) {
+    if (isInnspillModule && settingsShowOthersInnspill !== currentSession.showOthersInnspill) {
       payload.show_others_innspill = settingsShowOthersInnspill;
     }
 
-    if (currentSession.mode === 'aapne-innspill' && settingsInnspillMaxChars !== currentSession.innspillMaxChars) {
+    if (isInnspillModule && settingsInnspillMaxChars !== currentSession.innspillMaxChars) {
       payload.innspill_max_chars = settingsInnspillMaxChars;
     }
 
@@ -803,7 +804,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     setError('');
 
     try {
-      if (sessionPhase === 'kartlegging') {
+      if (currentPhase === 'kartlegging') {
         const excludedIds = Object.entries(includeMap)
           .filter(([, included]) => !included)
           .map(([itemId]) => itemId);
@@ -958,6 +959,11 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
 
   const participantUrl = typeof window !== 'undefined' ? `${window.location.origin}/delta/${currentSession.code}` : `/delta/${currentSession.code}`;
 
+  const currentModuleType = currentSession.mode as NormalizedSession['moduleType'];
+  const currentPhase = sessionPhase;
+  const currentStatus = sessionStatus;
+  const isInnspillModule = currentModuleType === 'aapne-innspill';
+
   const selectedInnspillEntries = useMemo(
     () =>
       innspillQuestions.flatMap((question) =>
@@ -968,9 +974,9 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     [innspillQuestions, selectedInnspill],
   );
 
-  const isMultiPhaseMode = currentSession.mode === 'kartlegging' || currentSession.mode === 'aapne-innspill';
+  const isMultiPhaseMode = currentModuleType === 'kartlegging' || isInnspillModule;
   const flowSteps =
-    currentSession.mode === 'aapne-innspill'
+    isInnspillModule
       ? ['Samle inn', 'Velg innspill', 'Stem']
       : ['Samle inn', 'Kuratér liste', 'Stem'];
   const timerPresets = [2, 3, 5, 10];
@@ -981,20 +987,72 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
   const timerSecondsDisplay = String(remainingSeconds % 60).padStart(2, '0');
 
   const currentFlowStep = useMemo(() => {
-    if (sessionStatus === 'closed') {
+    if (currentStatus === 'closed') {
       return 3;
     }
 
-    if (sessionPhase === 'stemming' && sessionStatus === 'active') {
+    if (currentPhase === 'stemming' && currentStatus === 'active') {
       return 3;
     }
 
-    if (sessionStatus === 'paused' && sessionPhase !== 'stemming') {
+    if (currentStatus === 'paused' && currentPhase !== 'stemming') {
       return 2;
     }
 
     return 1;
   }, [sessionPhase, sessionStatus]);
+
+  const normalizedSessionForAdminView = useMemo(
+    () =>
+      ({
+        id: currentSession.id,
+        code: currentSession.code,
+        title: currentSession.title,
+        moduleType: currentSession.mode as NormalizedSession['moduleType'],
+        status: sessionStatus,
+        tags: currentSession.tags,
+        allowNewItems: currentSession.allowNewItems,
+        dotBudget: currentSession.dotBudget,
+        votingType: currentSession.votingType,
+        allowMultipleDots,
+        maxRankItems: 0,
+        showOthersInnspill: currentSession.showOthersInnspill,
+        showTagHeaders: Boolean(currentSession.showTagHeaders),
+        innspillMode: 'enkel',
+        innspillMaxChars: currentSession.innspillMaxChars,
+        includesStemming: false,
+        votingTarget: null,
+        activeFilter: activeKartleggingFilter,
+        createdAt: '',
+        timerEndsAt: currentSession.timerEndsAt
+          ? String(currentSession.timerEndsAt)
+          : null,
+        timerLabel: currentSession.timerLabel,
+        resultsVisible,
+        visibility: {
+          facilitator: {
+            showRawResponses: false,
+            showDistribution: false,
+            showParticipantIds: false,
+          },
+          participant: {
+            showOwnResponses: false,
+            showAggregated: currentSession.showOthersInnspill,
+            showResults: resultsVisible,
+          },
+          presentation: {
+            showResults: resultsVisible,
+            pinnedItemIds: [],
+          },
+        },
+        phase: sessionPhase,
+      }) as NormalizedSession,
+    [activeKartleggingFilter, allowMultipleDots, currentSession, resultsVisible, sessionPhase, sessionStatus],
+  );
+  const adminView = useMemo(
+    () => resolveAdminView(normalizedSessionForAdminView),
+    [normalizedSessionForAdminView],
+  );
 
   return (
     <div className="space-y-6">
@@ -1052,7 +1110,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Sesjonsinfo</h2>
         <h1 className="mt-3 text-3xl font-semibold tracking-tight text-white">{currentSession.title}</h1>
-        {sessionStatus !== 'setup' ? (
+        {adminView.state !== 'setup' ? (
           <Link
             href={`/admin/${currentSession.code}/results`}
             className="mt-2 inline-block text-sm text-white/40 transition-colors hover:text-white/60"
@@ -1061,8 +1119,8 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
           </Link>
         ) : null}
         <p className="mt-2 text-slate-300">Modus: {modeLabels[currentSession.mode] ?? currentSession.mode}</p>
-        <p className="text-slate-300">Status: {statusLabels[sessionStatus] ?? sessionStatus}</p>
-        <p className="text-slate-300">Fase: {phaseLabels[sessionPhase] ?? sessionPhase}</p>
+        <p className="text-slate-300">Status: {statusLabels[currentStatus] ?? currentStatus}</p>
+        <p className="text-slate-300">Fase: {phaseLabels[currentPhase] ?? currentPhase}</p>
         <Link
           href={`/vis/${currentSession.code}`}
           target="_blank"
@@ -1116,7 +1174,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
           <div className="mt-4 flex items-center">
             {flowSteps.map((stepLabel, index) => {
               const stepNumber = index + 1;
-              const isClosed = sessionStatus === 'closed';
+              const isClosed = adminView.state === 'closed';
               const isCompleted = isClosed || stepNumber < currentFlowStep;
               const isCurrent = !isClosed && stepNumber === currentFlowStep;
 
@@ -1163,228 +1221,264 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-white/40">Sesjonskontroller</h2>
         <div className="mt-4 space-y-3">
-          {sessionStatus === 'setup' ? (
-            <>
-              <p className="text-sm text-white/60">Klar til oppstart. Åpne sesjonen når deltakerne er klare.</p>
-              <button
-                type="button"
-                onClick={() => updateSessionStatus('active')}
-                disabled={isUpdatingStatus}
-                className={PRIMARY_BUTTON_CLASS}
-              >
-                Åpne for deltakere →
-              </button>
-            </>
-          ) : null}
-
-          {sessionStatus === 'active' && sessionPhase !== 'stemming' ? (
-            <>
-              <p className="text-sm text-white/60">Innsamling pågår. Avslutt når dere er klare for neste steg.</p>
-              <button
-                type="button"
-                onClick={() => updateSessionStatus('paused')}
-                disabled={isUpdatingStatus}
-                className={PRIMARY_BUTTON_CLASS}
-              >
-                Avslutt innsamling
-              </button>
-            </>
-          ) : null}
-
-          {sessionStatus === 'paused' && currentSession.mode === 'kartlegging' ? (
-            <>
-              <p className="text-sm text-white/60">
-                Innsamling avsluttet. Kuratér listen nedenfor, velg stemmetype og start stemming.
-              </p>
-              <ToggleButton
-                value={kartleggingVotingType}
-                onChange={(value) => {
-                  const next = value as 'scale' | 'dots';
-                  setKartleggingVotingType(next);
-                  setShowKartleggingDotOptions(next === 'dots');
-                }}
-                options={[
-                  { value: 'scale', label: 'Skala 1-5' },
-                  { value: 'dots', label: 'Dot voting' },
-                ]}
-              />
-              {kartleggingVotingType === 'scale' ? (
-                <button
-                  type="button"
-                  onClick={() => void startStemming('scale')}
-                  disabled={isOpeningVoting}
-                  className={PRIMARY_BUTTON_CLASS}
-                >
-                  Åpne for stemming (skala 1-5) →
-                </button>
-              ) : null}
-              {showKartleggingDotOptions ? (
-                <div className="space-y-3 rounded-lg border border-slate-700 bg-slate-950/60 p-4">
-                  <label className="block text-sm text-slate-200">
-                    Dot-budget per deltaker
-                    <input
-                      type="number"
-                      min={1}
-                      value={dotBudget}
-                      onChange={(event) => setDotBudget(Math.max(1, Number(event.target.value) || 1))}
-                      className="mt-1 block w-28 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-slate-100"
+          {(() => {
+            switch (adminView.state) {
+              case 'setup':
+                return (
+                  <>
+                    <p className="text-sm text-white/60">Klar til oppstart. Åpne sesjonen når deltakerne er klare.</p>
+                    <button
+                      type="button"
+                      onClick={() => updateSessionStatus('active')}
+                      disabled={isUpdatingStatus}
+                      className={PRIMARY_BUTTON_CLASS}
+                    >
+                      Åpne for deltakere →
+                    </button>
+                  </>
+                );
+              case 'collecting':
+                return (
+                  <>
+                    <p className="text-sm text-white/60">Innsamling pågår. Avslutt når dere er klare for neste steg.</p>
+                    <button
+                      type="button"
+                      onClick={() => updateSessionStatus('paused')}
+                      disabled={isUpdatingStatus}
+                      className={PRIMARY_BUTTON_CLASS}
+                    >
+                      Avslutt innsamling
+                    </button>
+                  </>
+                );
+              case 'paused-kartlegging':
+              case 'stemming-setup':
+                return (
+                  <>
+                    <p className="text-sm text-white/60">
+                      Innsamling avsluttet. Kuratér listen nedenfor, velg stemmetype og start stemming.
+                    </p>
+                    <ToggleButton
+                      value={kartleggingVotingType}
+                      onChange={(value) => {
+                        const next = value as 'scale' | 'dots';
+                        setKartleggingVotingType(next);
+                        setShowKartleggingDotOptions(next === 'dots');
+                      }}
+                      options={[
+                        { value: 'scale', label: 'Skala 1-5' },
+                        { value: 'dots', label: 'Dot voting' },
+                      ]}
                     />
-                  </label>
-                  <label className="flex items-center gap-2 text-sm text-slate-200">
-                    <input
-                      type="checkbox"
-                      checked={allowMultipleDots}
-                      onChange={(event) => setAllowMultipleDots(event.target.checked)}
-                      className="h-4 w-4 rounded border-slate-500 bg-slate-900"
-                    />
-                    Tillat flere dots på samme element
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => void startStemming('dots')}
-                    disabled={isOpeningVoting}
-                    className="rounded bg-emerald-200 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-70"
-                  >
-                    Start dot voting
-                  </button>
-                </div>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => updateSessionStatus('active')}
-                disabled={isUpdatingStatus}
-                className={TERTIARY_BUTTON_CLASS}
-              >
-                Åpne kartlegging igjen
-              </button>
-              {confirmClose ? (
-                <div className="flex items-center gap-3 rounded-xl bg-rose-500/10 p-3">
-                  <span className="text-sm text-rose-300">Er du sikker? Dette kan ikke angres.</span>
-                  <button
-                    type="button"
-                    onClick={() => updateSessionStatus('closed')}
-                    disabled={isUpdatingStatus}
-                    className="text-sm font-medium text-rose-400"
-                  >
-                    Ja, avslutt
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmClose(false)}
-                    className="text-sm text-white/40"
-                  >
-                    Avbryt
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setConfirmClose(true)}
-                  className={DANGER_BUTTON_CLASS}
-                >
-                  Avslutt sesjon
-                </button>
-              )}
-            </>
-          ) : null}
+                    {kartleggingVotingType === 'scale' ? (
+                      <button
+                        type="button"
+                        onClick={() => void startStemming('scale')}
+                        disabled={isOpeningVoting}
+                        className={PRIMARY_BUTTON_CLASS}
+                      >
+                        Åpne for stemming (skala 1-5) →
+                      </button>
+                    ) : null}
+                    {showKartleggingDotOptions ? (
+                      <div className="space-y-3 rounded-lg border border-slate-700 bg-slate-950/60 p-4">
+                        <label className="block text-sm text-slate-200">
+                          Dot-budget per deltaker
+                          <input
+                            type="number"
+                            min={1}
+                            value={dotBudget}
+                            onChange={(event) => setDotBudget(Math.max(1, Number(event.target.value) || 1))}
+                            className="mt-1 block w-28 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-slate-100"
+                          />
+                        </label>
+                        <label className="flex items-center gap-2 text-sm text-slate-200">
+                          <input
+                            type="checkbox"
+                            checked={allowMultipleDots}
+                            onChange={(event) => setAllowMultipleDots(event.target.checked)}
+                            className="h-4 w-4 rounded border-slate-500 bg-slate-900"
+                          />
+                          Tillat flere dots på samme element
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => void startStemming('dots')}
+                          disabled={isOpeningVoting}
+                          className="rounded bg-emerald-200 px-4 py-2 text-sm font-medium text-emerald-950 transition hover:bg-emerald-100 disabled:opacity-70"
+                        >
+                          Start dot voting
+                        </button>
+                      </div>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => updateSessionStatus('active')}
+                      disabled={isUpdatingStatus}
+                      className={TERTIARY_BUTTON_CLASS}
+                    >
+                      Åpne kartlegging igjen
+                    </button>
+                    {confirmClose ? (
+                      <div className="flex items-center gap-3 rounded-xl bg-rose-500/10 p-3">
+                        <span className="text-sm text-rose-300">Er du sikker? Dette kan ikke angres.</span>
+                        <button
+                          type="button"
+                          onClick={() => updateSessionStatus('closed')}
+                          disabled={isUpdatingStatus}
+                          className="text-sm font-medium text-rose-400"
+                        >
+                          Ja, avslutt
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setConfirmClose(false)}
+                          className="text-sm text-white/40"
+                        >
+                          Avbryt
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmClose(true)}
+                        className={DANGER_BUTTON_CLASS}
+                      >
+                        Avslutt sesjon
+                      </button>
+                    )}
+                  </>
+                );
+              case 'paused-innspill':
+                return (
+                  <div className="space-y-4">
+                    <p className="text-sm text-white/60">
+                      Innsamling avsluttet. Velg innspill som skal tas med til stemming nedenfor.
+                    </p>
 
-          {sessionStatus === 'paused' && currentSession.mode === 'aapne-innspill' ? (
-            <div className="space-y-4">
-              <p className="text-sm text-white/60">
-                Innsamling avsluttet. Velg innspill som skal tas med til stemming nedenfor.
-              </p>
+                    <button
+                      type="button"
+                      onClick={scrollToStemming}
+                      className="w-full rounded-xl bg-white py-3 text-sm font-semibold text-[#0f172a] transition-colors hover:bg-white/90"
+                    >
+                      Gå til stemmeoppsett ↓
+                    </button>
 
-              <button
-                type="button"
-                onClick={scrollToStemming}
-                className="w-full rounded-xl bg-white py-3 text-sm font-semibold text-[#0f172a] transition-colors hover:bg-white/90"
-              >
-                Gå til stemmeoppsett ↓
-              </button>
+                    <div className="border-t border-white/10" />
 
-              <div className="border-t border-white/10" />
+                    <div className="flex flex-col gap-2">
+                      <button
+                        type="button"
+                        onClick={handleReopenCollection}
+                        disabled={isUpdatingStatus}
+                        className="flex items-center gap-2 text-left text-sm text-white/50 transition-colors hover:text-white/80 disabled:opacity-70"
+                      >
+                        <span>↩</span> Åpne innsamling igjen
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmClose(true)}
+                        className="text-left text-sm text-rose-400/70 transition-colors hover:text-rose-400"
+                      >
+                        Avslutt sesjon
+                      </button>
+                    </div>
 
-              <div className="flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={handleReopenCollection}
-                  disabled={isUpdatingStatus}
-                  className="flex items-center gap-2 text-left text-sm text-white/50 transition-colors hover:text-white/80 disabled:opacity-70"
-                >
-                  <span>↩</span> Åpne innsamling igjen
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmClose(true)}
-                  className="text-left text-sm text-rose-400/70 transition-colors hover:text-rose-400"
-                >
-                  Avslutt sesjon
-                </button>
-              </div>
+                    <div className="border-t border-white/10" />
 
-              <div className="border-t border-white/10" />
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-white/70">Resultater synlige for deltakere</p>
+                        <p className="mt-0.5 text-xs text-white/30">Deltakere kan se resultater på sin enhet</p>
+                      </div>
+                      <div className="flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={handleToggleResults}
+                          disabled={isUpdatingStatus}
+                          aria-label="Bytt synlighet for resultater"
+                          className={`
+                            relative inline-flex h-5 w-9 flex-shrink-0
+                            cursor-pointer rounded-full border-2 border-transparent 
+                            transition-colors duration-200
+                            ${resultsVisible ? 'bg-violet-400' : 'bg-white/20'}
+                          `}
+                        >
+                          <span
+                            className={`
+                              pointer-events-none inline-block h-4 w-4
+                              transform rounded-full bg-white shadow
+                              transition-transform duration-200
+                              ${resultsVisible ? 'translate-x-4' : 'translate-x-0'}
+                            `}
+                          />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              case 'stemming-active':
+                return (
+                  <>
+                    <p className="text-sm text-white/60">Stemming pågår.</p>
+                    <button
+                      type="button"
+                      onClick={() => updateSessionStatus('closed')}
+                      disabled={isUpdatingStatus}
+                      className={PRIMARY_BUTTON_CLASS}
+                    >
+                      Avslutt stemming
+                    </button>
+                  </>
+                );
+              case 'rangering-active':
+                return (
+                  <>
+                    <p className="text-sm text-white/60">Innsamling pågår. Avslutt når dere er klare for neste steg.</p>
+                    <button
+                      type="button"
+                      onClick={() => updateSessionStatus('paused')}
+                      disabled={isUpdatingStatus}
+                      className={PRIMARY_BUTTON_CLASS}
+                    >
+                      Avslutt innsamling
+                    </button>
+                  </>
+                );
+              case 'closed':
+                return (
+                  <>
+                    <p className="text-sm text-white/60">Sesjonen er avsluttet.</p>
+                    <button
+                      type="button"
+                      onClick={() => updateSessionStatus('active')}
+                      disabled={isUpdatingStatus}
+                      className={TERTIARY_BUTTON_CLASS}
+                    >
+                      Åpne igjen
+                    </button>
+                  </>
+                );
+              case 'paused-generic':
+                return (
+                  <>
+                    <p className="text-sm text-white/60">Innsamling er pauset.</p>
+                    <button
+                      type="button"
+                      onClick={() => updateSessionStatus('active')}
+                      disabled={isUpdatingStatus}
+                      className={PRIMARY_BUTTON_CLASS}
+                    >
+                      Fortsett
+                    </button>
+                  </>
+                );
+              default:
+                return null;
+            }
+          })()}
 
-              <div className="flex items-center gap-3">
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-white/70">Resultater synlige for deltakere</p>
-                  <p className="mt-0.5 text-xs text-white/30">Deltakere kan se resultater på sin enhet</p>
-                </div>
-                <div className="flex-shrink-0">
-                  <button
-                    type="button"
-                    onClick={handleToggleResults}
-                    disabled={isUpdatingStatus}
-                    aria-label="Bytt synlighet for resultater"
-                    className={`
-                      relative inline-flex h-5 w-9 flex-shrink-0
-                      cursor-pointer rounded-full border-2 border-transparent 
-                      transition-colors duration-200
-                      ${resultsVisible ? 'bg-violet-400' : 'bg-white/20'}
-                    `}
-                  >
-                    <span
-                      className={`
-                        pointer-events-none inline-block h-4 w-4
-                        transform rounded-full bg-white shadow
-                        transition-transform duration-200
-                        ${resultsVisible ? 'translate-x-4' : 'translate-x-0'}
-                      `}
-                    />
-                  </button>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {sessionPhase === 'stemming' && sessionStatus === 'active' ? (
-            <>
-              <p className="text-sm text-white/60">Stemming pågår.</p>
-              <button
-                type="button"
-                onClick={() => updateSessionStatus('closed')}
-                disabled={isUpdatingStatus}
-                className={PRIMARY_BUTTON_CLASS}
-              >
-                Avslutt stemming
-              </button>
-            </>
-          ) : null}
-
-          {sessionStatus === 'closed' ? (
-            <>
-              <p className="text-sm text-white/60">Sesjonen er avsluttet.</p>
-              <button
-                type="button"
-                onClick={() => updateSessionStatus('active')}
-                disabled={isUpdatingStatus}
-                className={TERTIARY_BUTTON_CLASS}
-              >
-                Åpne igjen
-              </button>
-            </>
-          ) : null}
-
-          {sessionStatus !== 'setup' && !(sessionStatus === 'paused' && currentSession.mode === 'aapne-innspill') ? (
+          {adminView.sections.showResultsToggleInMainControls ? (
             <div className="mt-2 flex items-center justify-between gap-4 border-t border-white/10 py-3">
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-white/70">Resultater synlige for deltakere</p>
@@ -1419,7 +1513,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         {error ? <p className="mt-4 text-sm text-red-400">{error}</p> : null}
       </section>
 
-      {sessionStatus === 'paused' && sessionPhase === 'kartlegging' ? (
+      {adminView.sections.showKartleggingCuration ? (
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
           <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Kuratér til stemming</h2>
           <p className="mt-2 text-sm text-slate-300">Grupper etter tag, velg endelig tag og om elementet tas med videre.</p>
@@ -1744,7 +1838,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         </section>
       ) : null}
 
-      {currentSession.mode === 'aapne-innspill' ? (
+      {isInnspillModule ? (
         <InnspillAdmin
           code={currentSession.code}
           showOthersInnspill={currentSession.showOthersInnspill}
@@ -1758,7 +1852,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         />
       ) : null}
 
-      {currentSession.mode === 'aapne-innspill' && sessionStatus === 'paused' ? (
+      {adminView.sections.showInnspillThemePanel ? (
         <section className="space-y-3">
           <div className="flex items-center gap-3">
             <div className="h-px flex-1 bg-slate-800" />
@@ -1769,7 +1863,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         </section>
       ) : null}
 
-      {currentSession.mode === 'aapne-innspill' && sessionStatus === 'paused' ? (
+      {adminView.sections.showInnspillStemmingSetup ? (
         <section id="stemming-oppsett" className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
           <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Gå videre til stemming</h2>
           <p className="mt-3 text-sm text-slate-300">
@@ -1861,7 +1955,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         </section>
       ) : null}
 
-      {currentSession.mode !== 'aapne-innspill' ? (
+      {adminView.sections.showParticipantsPanel ? (
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-4 shadow-xl shadow-slate-950/20">
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Deltakere</h2>
         <div className="mt-3 grid gap-3 text-sm text-slate-200 md:grid-cols-2">
@@ -1881,13 +1975,13 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
       </section>
       ) : null}
 
-      {currentSession.mode !== 'aapne-innspill' ? (
+      {adminView.sections.showLiveOverviewPanel ? (
       <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
         <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Live oversikt</h2>
         {summaryError ? <p className="mt-2 text-xs text-amber-300">{summaryError}</p> : null}
         <p className="mt-3 text-slate-100">Antall deltakere som har sendt inn: {summary.participantCount}</p>
 
-        {currentSession.mode === 'rangering' && (sessionPhase === 'rangering' || sessionPhase === 'stemming') ? (
+        {currentModuleType === 'rangering' && (currentPhase === 'rangering' || currentPhase === 'stemming') ? (
           <div className="mt-4 space-y-3">
             {rankingResults.map((item, index) => {
               const totalItems = Math.max(rankingResults.length, 1);
@@ -1925,7 +2019,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
               );
             })}
           </div>
-        ) : sessionPhase === 'stemming' ? (
+        ) : currentPhase === 'stemming' ? (
           summary.votingType === 'dots' && themedDotResults.length > 0 ? (
             <div className="mt-4 space-y-3">
               {themedDotResults.map((theme) => (
@@ -2072,7 +2166,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
             />
           </div>
 
-          {currentSession.mode === 'kartlegging' ? (
+          {currentModuleType === 'kartlegging' ? (
             <div className="flex items-center justify-between gap-4">
               <span className="text-sm text-slate-200">Tillat nye forslag</span>
               <ToggleButton
@@ -2086,7 +2180,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
             </div>
           ) : null}
 
-          {currentSession.mode === 'aapne-innspill' ? (
+          {isInnspillModule ? (
             <div className="flex items-center justify-between gap-4">
               <span className="text-sm text-slate-200">Vis andres innspill</span>
               <ToggleButton
@@ -2100,7 +2194,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
             </div>
           ) : null}
 
-          {currentSession.mode === 'aapne-innspill' ? (
+          {isInnspillModule ? (
             <div className="flex items-center justify-between gap-4">
               <label htmlFor="settings-innspill-max-chars" className="text-sm text-slate-200">
                 Maks tegn på innspill
@@ -2138,7 +2232,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
             </div>
           ) : null}
 
-          {currentSession.mode === 'kartlegging' ? (
+          {currentModuleType === 'kartlegging' ? (
             <div className="flex items-center justify-between gap-4">
               <span className="text-sm text-slate-200">Vis tag-overskrifter</span>
               <ToggleButton

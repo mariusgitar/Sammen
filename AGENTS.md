@@ -63,6 +63,32 @@ delta/[code]/page.tsx ONLY does:
 
 No other logic belongs in page.tsx.
 
+## resolveAdminView — single source of truth for admin routing
+
+app/lib/resolveAdminView.ts takes a NormalizedSession and returns an
+AdminViewState. This is the ONLY place that decides which high-level
+admin control state should be shown.
+
+AdminViewState union:
+  { state: 'setup', ... }
+  { state: 'collecting', ... }
+  { state: 'paused-kartlegging', ... }
+  { state: 'paused-innspill', ... }
+  { state: 'stemming-setup', ... }
+  { state: 'stemming-active', ... }
+  { state: 'rangering-active', ... }
+  { state: 'closed', ... }
+  { state: 'paused-generic', ... }
+
+Each state includes:
+  - facilitatorViewLabel
+  - primaryAction (button label + intent)
+  - secondaryActions
+  - sections flags for mode-specific admin UI blocks
+
+AdminPanel.tsx should switch on AdminViewState and must not implement
+its own mode+phase+status routing matrix.
+
 ## Visibility model
 
 sessions.visibility is a jsonb column. app/lib/getVisibility.ts
@@ -117,12 +143,12 @@ Modules are variants of one primitive: a list of elements + participants respond
   INNSPILL: 'aapne-innspill' — free text responses to questions
   PRIORITERING: 'rangering' — drag-and-drop ranking
 
-Adding a new module variant:
+Adding a new exercise type requires:
   1. Add moduleType value to db/schema.ts sessionModes array
-  2. Create app/delta/[code]/[ModuleName]View.tsx
-  3. Add case in app/lib/resolveView.ts
-  4. Add case in app/delta/[code]/page.tsx switch
-  No other files need to change for a variant.
+  2. Add case in app/lib/resolveView.ts
+  3. Add case in app/lib/resolveAdminView.ts
+  4. Create app/delta/[code]/[ModuleName]View.tsx
+  No changes to AdminPanel.tsx or delta/[code]/page.tsx needed.
 
 ## localStorage pattern
   samen_participant_id          — shared across all sessions
