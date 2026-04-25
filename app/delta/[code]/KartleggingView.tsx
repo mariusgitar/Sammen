@@ -10,7 +10,6 @@ type SessionItem = {
   isNew: boolean;
   orderIndex: number;
   defaultTag?: string | null;
-  default_tag?: string | null;
 };
 
 type ProposedItem = {
@@ -52,7 +51,7 @@ export function KartleggingView({ session, items, myResponses }: KartleggingView
     const initial: Record<string, string> = {};
 
     items.forEach((item) => {
-      const defaultTag = item.defaultTag ?? item.default_tag;
+      const defaultTag = item.defaultTag;
 
       if (defaultTag) {
         initial[item.id] = defaultTag;
@@ -117,8 +116,8 @@ export function KartleggingView({ session, items, myResponses }: KartleggingView
   const sortedOriginalItems = useMemo(() => {
     if (session.showTagHeaders) {
       return [...originalItems].sort((a, b) => {
-        const aDefaultTag = (a.defaultTag ?? a.default_tag)?.trim() ?? '';
-        const bDefaultTag = (b.defaultTag ?? b.default_tag)?.trim() ?? '';
+        const aDefaultTag = a.defaultTag?.trim() ?? '';
+        const bDefaultTag = b.defaultTag?.trim() ?? '';
 
         if (!aDefaultTag && !bDefaultTag) {
           return a.orderIndex - b.orderIndex;
@@ -145,8 +144,8 @@ export function KartleggingView({ session, items, myResponses }: KartleggingView
     const tagOrder = new Map((session.tags ?? []).map((tag, index) => [tag, index]));
 
     return [...originalItems].sort((a, b) => {
-      const aDefaultTag = a.defaultTag ?? a.default_tag;
-      const bDefaultTag = b.defaultTag ?? b.default_tag;
+      const aDefaultTag = a.defaultTag;
+      const bDefaultTag = b.defaultTag;
 
       if (!aDefaultTag && !bDefaultTag) {
         return a.orderIndex - b.orderIndex;
@@ -192,7 +191,7 @@ export function KartleggingView({ session, items, myResponses }: KartleggingView
     const groups: Array<{ tag: string; items: SessionItem[] }> = [];
 
     for (const item of sortedOriginalItems) {
-      const defaultTag = (item.defaultTag ?? item.default_tag)?.trim();
+      const defaultTag = item.defaultTag?.trim();
 
       if (!defaultTag) {
         continue;
@@ -214,7 +213,7 @@ export function KartleggingView({ session, items, myResponses }: KartleggingView
       return [];
     }
 
-    return sortedOriginalItems.filter((item) => !(item.defaultTag ?? item.default_tag)?.trim());
+    return sortedOriginalItems.filter((item) => !item.defaultTag?.trim());
   }, [session.showTagHeaders, sortedOriginalItems]);
   const responseItems = useMemo(
     () => [...originalItems, ...proposedItems.map((item, index) => ({ ...item, orderIndex: index, isNew: true }))],
@@ -487,7 +486,7 @@ export function KartleggingView({ session, items, myResponses }: KartleggingView
 
             const item = entry.item;
             const selectedTag = responses[item.id];
-            const defaultTag = item.defaultTag ?? item.default_tag;
+            const defaultTag = item.defaultTag;
             const showChangedFromLabel = Boolean(defaultTag && selectedTag && selectedTag !== defaultTag);
 
             return (

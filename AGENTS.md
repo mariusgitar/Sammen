@@ -160,6 +160,9 @@ themes, innspill_themes, innspill_likes: (unchanged)
   in the API route, never again in the client page.
 - Do not add dual snake_case/camelCase field checks in client pages.
   Normalize once in API responses, then read canonical camelCase fields.
+- InnspillView post-mutation refresh must use /api/delta/[code]/state,
+  not /api/delta/[code]/innspill — the latter returns snake_case and
+  breaks the normalization contract.
 - Neon query cache → Vercel caches DB reads. All participant-facing routes
   must use fetchOptions: { cache: 'no-store' } on the neon() instance.
 - sessionStatuses.includes() fails silently if sessionStatuses is not a

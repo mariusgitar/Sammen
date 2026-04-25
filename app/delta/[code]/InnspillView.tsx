@@ -28,15 +28,6 @@ type ServerQuestion = {
 
 type SessionInfo = NormalizedSession;
 
-type Entry = {
-  id: string;
-  text: string;
-  detaljer: string | null;
-  nickname: string;
-  likes: number;
-  participant_id: string;
-};
-
 type MyEntry = {
   id: string;
   text: string;
@@ -52,6 +43,10 @@ type OtherEntry = {
   likes: number;
   likedByMe: boolean;
   participant_id: string;
+};
+
+type DeltaStateResponse = {
+  innspill?: ServerQuestion[];
 };
 
 const columnColors = [
@@ -94,6 +89,48 @@ export function InnspillView({
   const participantStorageKey = "samen_participant_id";
   const nicknameStorageKey = `samen_nickname_${session.code}`;
 
+  function applyServerInnspillState(nextInnspill: ServerQuestion[]) {
+    setQuestions((prev) =>
+      prev.map((q) => {
+        const updated = nextInnspill.find((p) => p.id === q.id);
+        return updated ? { ...q, questionStatus: updated.questionStatus } : q;
+      }),
+    );
+
+    const mine: Record<string, MyEntry[]> = {};
+    const others: Record<string, OtherEntry[]> = {};
+
+    for (const question of nextInnspill) {
+      mine[question.id] = [];
+      others[question.id] = [];
+
+      for (const entry of question.innspill) {
+        if (entry.participantId === participantId) {
+          mine[question.id].push({ id: entry.id, text: entry.text, detaljer: entry.detaljer, likes: entry.likes, likedByMe: false });
+        } else {
+          others[question.id].push({ id: entry.id, text: entry.text, detaljer: entry.detaljer, nickname: entry.nickname, likes: entry.likes, likedByMe: false, participant_id: entry.participantId });
+        }
+      }
+    }
+
+    setMyInnspill((prev) => {
+      const merged = { ...prev };
+      nextInnspill.forEach((q) => {
+        const incoming = mine[q.id] ?? [];
+        if (incoming.length > 0 || !merged[q.id]) merged[q.id] = incoming;
+      });
+      return merged;
+    });
+    setAllInnspill((prev) => {
+      const merged = { ...prev };
+      nextInnspill.forEach((q) => {
+        const incoming = others[q.id] ?? [];
+        if (incoming.length > 0 || !merged[q.id]) merged[q.id] = incoming;
+      });
+      return merged;
+    });
+  }
+
   useEffect(() => {
     if (initialized.current) {
       return;
@@ -118,134 +155,27 @@ export function InnspillView({
     initialized.current = true;
   }, [nicknameStorageKey, participantStorageKey]);
 
-  async function fetchInnspill() {
-    const response = await fetch(`/api/delta/${session.code}/innspill`, {
+  async function refreshInnspillFromState() {
+    if (!participantId) {
+      return;
+    }
+
+    const response = await fetch(`/api/delta/${session.code}/state?participantId=${participantId}`, {
       cache: "no-store",
     });
-    const data = (await response.json()) as {
-      questions?: Array<{
-        id: string;
-        text: string;
-        question_status: string;
-        innspill: Entry[];
-      }>;
-    };
+    const data = (await response.json()) as DeltaStateResponse;
 
-    if (!response.ok || !data.questions) {
-      return;
-    }
-    if (data.questions.length === 0) {
+    if (!response.ok || !data.innspill || data.innspill.length === 0) {
       return;
     }
 
-    setQuestions((prev) =>
-      prev.map((q) => {
-        const updated = data.questions?.find((p) => p.id === q.id);
-        return updated
-          ? {
-              ...q,
-              questionStatus: updated.question_status as Question["questionStatus"],
-            }
-          : q;
-      }),
-    );
-
-    const mine: Record<string, MyEntry[]> = {};
-    const others: Record<string, OtherEntry[]> = {};
-
-    for (const question of data.questions) {
-      mine[question.id] = [];
-      others[question.id] = [];
-
-      for (const entry of question.innspill) {
-        const likedByMe = false;
-        if (entry.participant_id === participantId) {
-          mine[question.id].push({
-            id: entry.id,
-            text: entry.text,
-            detaljer: entry.detaljer,
-            likes: entry.likes,
-            likedByMe,
-          });
-        } else {
-          others[question.id].push({
-            id: entry.id,
-            text: entry.text,
-            detaljer: entry.detaljer,
-            nickname: entry.nickname,
-            likes: entry.likes,
-            likedByMe,
-            participant_id: entry.participant_id,
-          });
-        }
-      }
-    }
-
-    setMyInnspill((prev) => {
-      const merged = { ...prev };
-      data.questions?.forEach((q) => {
-        const incoming = mine[q.id] ?? [];
-        if (incoming.length > 0 || !merged[q.id]) {
-          merged[q.id] = incoming;
-        }
-      });
-      return merged;
-    });
-    setAllInnspill((prev) => {
-      const merged = { ...prev };
-      data.questions?.forEach((q) => {
-        const incoming = others[q.id] ?? [];
-        if (incoming.length > 0 || !merged[q.id]) {
-          merged[q.id] = incoming;
-        }
-      });
-      return merged;
-    });
+    applyServerInnspillState(data.innspill);
   }
 
   // Update innspill state when parent provides fresh server data (replaces the old /api/delta/innspill poll)
   useEffect(() => {
     if (!serverInnspill || serverInnspill.length === 0 || !participantId) return;
-
-    setQuestions((prev) =>
-      prev.map((q) => {
-        const updated = serverInnspill.find((p) => p.id === q.id);
-        return updated ? { ...q, questionStatus: updated.questionStatus } : q;
-      }),
-    );
-
-    const mine: Record<string, MyEntry[]> = {};
-    const others: Record<string, OtherEntry[]> = {};
-
-    for (const question of serverInnspill) {
-      mine[question.id] = [];
-      others[question.id] = [];
-
-      for (const entry of question.innspill) {
-        if (entry.participantId === participantId) {
-          mine[question.id].push({ id: entry.id, text: entry.text, detaljer: entry.detaljer, likes: entry.likes, likedByMe: false });
-        } else {
-          others[question.id].push({ id: entry.id, text: entry.text, detaljer: entry.detaljer, nickname: entry.nickname, likes: entry.likes, likedByMe: false, participant_id: entry.participantId });
-        }
-      }
-    }
-
-    setMyInnspill((prev) => {
-      const merged = { ...prev };
-      serverInnspill.forEach((q) => {
-        const incoming = mine[q.id] ?? [];
-        if (incoming.length > 0 || !merged[q.id]) merged[q.id] = incoming;
-      });
-      return merged;
-    });
-    setAllInnspill((prev) => {
-      const merged = { ...prev };
-      serverInnspill.forEach((q) => {
-        const incoming = others[q.id] ?? [];
-        if (incoming.length > 0 || !merged[q.id]) merged[q.id] = incoming;
-      });
-      return merged;
-    });
+    applyServerInnspillState(serverInnspill);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [serverInnspill, participantId]);
 
@@ -340,21 +270,25 @@ export function InnspillView({
   }
 
   async function deleteInnspill(id: string) {
-    await fetch(`/api/innspill/${id}`, {
+    const response = await fetch(`/api/innspill/${id}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ participantId }),
     });
-    await fetchInnspill();
+    if (response.ok) {
+      await refreshInnspillFromState();
+    }
   }
 
   async function toggleLike(id: string) {
-    await fetch(`/api/innspill/${id}/like`, {
+    const response = await fetch(`/api/innspill/${id}/like`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ participantId }),
     });
-    await fetchInnspill();
+    if (response.ok) {
+      await refreshInnspillFromState();
+    }
   }
 
   function getHvaPlaceholder() {
