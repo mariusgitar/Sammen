@@ -11,6 +11,7 @@ type AdminSecondaryAction = {
 }
 
 type AdminUiSections = {
+  showFlowStepper: boolean
   showKartleggingCuration: boolean
   showInnspillCuration: boolean
   showInnspillThemePanel: boolean
@@ -39,6 +40,7 @@ export type AdminViewState =
   | ({ state: 'paused-generic' } & AdminViewBase)
 
 const DEFAULT_SECTIONS: AdminUiSections = {
+  showFlowStepper: false,
   showKartleggingCuration: false,
   showInnspillCuration: false,
   showInnspillThemePanel: false,
@@ -74,6 +76,8 @@ function getSessionPhase(session: NormalizedSession): SessionPhase {
 
 export function resolveAdminView(session: NormalizedSession): AdminViewState {
   const phase = getSessionPhase(session)
+  const isInnspillModule = session.moduleType === 'aapne-innspill'
+  const isMultiPhaseMode = session.moduleType === 'kartlegging' || isInnspillModule
 
   if (session.status === 'closed') {
     return {
@@ -83,8 +87,10 @@ export function resolveAdminView(session: NormalizedSession): AdminViewState {
       secondaryActions: [],
       sections: {
         ...DEFAULT_SECTIONS,
-        showParticipantsPanel: session.moduleType !== 'aapne-innspill',
-        showLiveOverviewPanel: session.moduleType !== 'aapne-innspill',
+        showFlowStepper: isMultiPhaseMode,
+        showInnspillCuration: isInnspillModule,
+        showParticipantsPanel: !isInnspillModule,
+        showLiveOverviewPanel: !isInnspillModule,
       },
     }
   }
@@ -97,6 +103,8 @@ export function resolveAdminView(session: NormalizedSession): AdminViewState {
       secondaryActions: [],
       sections: {
         ...DEFAULT_SECTIONS,
+        showFlowStepper: isMultiPhaseMode,
+        showInnspillCuration: isInnspillModule,
       },
     }
   }
@@ -112,8 +120,10 @@ export function resolveAdminView(session: NormalizedSession): AdminViewState {
       secondaryActions: [],
       sections: {
         ...DEFAULT_SECTIONS,
-        showParticipantsPanel: session.moduleType !== 'aapne-innspill',
-        showLiveOverviewPanel: session.moduleType !== 'aapne-innspill',
+        showFlowStepper: isMultiPhaseMode,
+        showInnspillCuration: isInnspillModule,
+        showParticipantsPanel: !isInnspillModule,
+        showLiveOverviewPanel: !isInnspillModule,
       },
     }
   }
@@ -126,9 +136,11 @@ export function resolveAdminView(session: NormalizedSession): AdminViewState {
       secondaryActions: [],
       sections: {
         ...DEFAULT_SECTIONS,
+        showFlowStepper: isMultiPhaseMode,
+        showInnspillCuration: isInnspillModule,
         showResultsToggleInMainControls: false,
-        showParticipantsPanel: session.moduleType !== 'aapne-innspill',
-        showLiveOverviewPanel: session.moduleType !== 'aapne-innspill',
+        showParticipantsPanel: !isInnspillModule,
+        showLiveOverviewPanel: !isInnspillModule,
       },
     }
   }
@@ -144,6 +156,7 @@ export function resolveAdminView(session: NormalizedSession): AdminViewState {
       ],
       sections: {
         ...DEFAULT_SECTIONS,
+        showFlowStepper: isMultiPhaseMode,
         showKartleggingCuration: true,
       },
     }
@@ -160,6 +173,7 @@ export function resolveAdminView(session: NormalizedSession): AdminViewState {
       ],
       sections: {
         ...DEFAULT_SECTIONS,
+        showFlowStepper: isMultiPhaseMode,
         showInnspillCuration: true,
         showInnspillThemePanel: true,
         showInnspillStemmingSetup: true,
@@ -178,8 +192,10 @@ export function resolveAdminView(session: NormalizedSession): AdminViewState {
       secondaryActions: [{ label: 'Avslutt sesjon', description: 'Lukker sesjonen permanent.' }],
       sections: {
         ...DEFAULT_SECTIONS,
-        showParticipantsPanel: session.moduleType !== 'aapne-innspill',
-        showLiveOverviewPanel: session.moduleType !== 'aapne-innspill',
+        showFlowStepper: isMultiPhaseMode,
+        showInnspillCuration: isInnspillModule,
+        showParticipantsPanel: !isInnspillModule,
+        showLiveOverviewPanel: !isInnspillModule,
       },
     }
   }
@@ -191,8 +207,10 @@ export function resolveAdminView(session: NormalizedSession): AdminViewState {
     secondaryActions: [],
     sections: {
       ...DEFAULT_SECTIONS,
-      showParticipantsPanel: session.moduleType !== 'aapne-innspill',
-      showLiveOverviewPanel: session.moduleType !== 'aapne-innspill',
+      showFlowStepper: isMultiPhaseMode,
+      showInnspillCuration: isInnspillModule,
+      showParticipantsPanel: !isInnspillModule,
+      showLiveOverviewPanel: !isInnspillModule,
     },
   }
 }

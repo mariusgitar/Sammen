@@ -974,7 +974,6 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
     [innspillQuestions, selectedInnspill],
   );
 
-  const isMultiPhaseMode = currentModuleType === 'kartlegging' || isInnspillModule;
   const flowSteps =
     isInnspillModule
       ? ['Samle inn', 'Velg innspill', 'Stem']
@@ -1168,7 +1167,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         </div>
       </section>
 
-      {isMultiPhaseMode ? (
+      {adminView.sections.showFlowStepper ? (
         <section className="rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-xl shadow-slate-950/20">
           <h2 className="text-sm font-medium uppercase tracking-wide text-slate-400">Flyt</h2>
           <div className="mt-4 flex items-center">
@@ -1473,8 +1472,10 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
                     </button>
                   </>
                 );
-              default:
+              default: {
+                const _exhaustive: never = adminView;
                 return null;
+              }
             }
           })()}
 
@@ -1838,7 +1839,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         </section>
       ) : null}
 
-      {isInnspillModule ? (
+      {adminView.sections.showInnspillCuration ? (
         <InnspillAdmin
           code={currentSession.code}
           showOthersInnspill={currentSession.showOthersInnspill}
