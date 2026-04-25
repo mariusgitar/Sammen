@@ -144,11 +144,17 @@ Modules are variants of one primitive: a list of elements + participants respond
   PRIORITERING: 'rangering' — drag-and-drop ranking
 
 Adding a new exercise type requires:
-  1. Add moduleType value to db/schema.ts sessionModes array
+  1. Add moduleType to db/schema.ts sessionModes
   2. Add case in app/lib/resolveView.ts
-  3. Add case in app/lib/resolveAdminView.ts
+  3. Add case in app/lib/resolveAdminView.ts — including setting
+     the correct section flags (showFlowStepper, showInnspillCuration,
+     showKartleggingCuration etc.)
   4. Create app/delta/[code]/[ModuleName]View.tsx
-  No changes to AdminPanel.tsx or delta/[code]/page.tsx needed.
+  5. If the new module has a live overview display variant, add a
+     display branch in AdminPanel.tsx live overview section
+
+Steps 1-4 cover most cases. Step 5 is only needed for modules
+with unique live overview behavior.
 
 ## localStorage pattern
   samen_participant_id          — shared across all sessions
