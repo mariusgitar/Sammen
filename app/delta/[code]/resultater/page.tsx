@@ -24,7 +24,7 @@ type KartleggingSummaryItem = {
 };
 
 type AdminKartleggingSummaryItem = Omit<KartleggingSummaryItem, 'finalTag'> & {
-  final_tag?: string | null;
+  final_tag: string | null;
 };
 
 type StemmingSummaryItem = {
@@ -74,14 +74,13 @@ type ResultsResponse = {
 type AdminSummaryResponse = {
   phase: 'kartlegging' | 'stemming' | 'rangering' | 'innspill';
   status: 'setup' | 'active' | 'paused' | 'closed';
-  votingType?: 'scale' | 'dots';
+  votingType: 'scale' | 'dots';
   participantCount: number;
   items: Array<AdminKartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
   themes?: ThemeSummaryItem[];
 };
 
-
-type StateResponse = {
+type SessionState = {
   session: NormalizedSession;
 };
 
@@ -151,27 +150,30 @@ const getTopTagShare = (item: KartleggingSummaryItem) => {
 export default function ParticipantResultsPage({ params }: PageProps) {
   const router = useRouter();
   const code = useMemo(() => params.code.toUpperCase(), [params.code]);
-  const [title, setTitle] = useState('');
-  const initialResultsVisible = false;
-  const [resultsVisible, setResultsVisible] = useState<boolean>(initialResultsVisible);
-  const [sessionStatus, setSessionStatus] = useState<'setup' | 'active' | 'paused' | 'closed' | null>(null);
-  const [sessionMode, setSessionMode] = useState<NormalizedSession['moduleType'] | null>(null);
+  const [session, setSession] = useState<NormalizedSession | null>(null);
   const [results, setResults] = useState<ResultsResponse | null>(null);
   const [themeResults, setThemeResults] = useState<ThemeResponse | null>(null);
   const [viewMode, setViewMode] = useState<'temaer' | 'alle'>('alle');
   const viewModeInitialized = useRef(false);
+  const initializedRef = useRef(false);
+  const loadedResultsKeyRef = useRef('');
   const [error, setError] = useState('');
-  const [timerEndsAt, setTimerEndsAt] = useState<string | null>(null);
-  const [timerLabel, setTimerLabel] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<NormalizedSession['activeFilter']>('alle');
+
+  const title = session?.title ?? '';
+  const resultsVisible = session?.visibility.participant.showResults ?? false;
+  const sessionStatus = session?.status ?? null;
+  const sessionMode = session?.moduleType ?? null;
+  const timerEndsAt = session?.timerEndsAt ?? null;
+  const timerLabel = session?.timerLabel ?? null;
+  const activeFilter = session?.activeFilter ?? 'alle';
 
   useEffect(() => {
     let isMounted = true;
 
-    async function fetchData() {
+    async function fetchSessionState() {
       try {
         const stateResponse = await fetch(`/api/delta/${code}/state`, { cache: 'no-store' });
-        const stateData = (await stateResponse.json()) as StateResponse | ErrorResponse;
+        const stateData = (await stateResponse.json()) as SessionState | ErrorResponse;
 
         if (!isMounted) {
           return;
@@ -182,33 +184,76 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           return;
         }
 
-        const currentResultsVisible = stateData.session.visibility.participant.showResults;
-        setResultsVisible(currentResultsVisible);
-        setActiveFilter(stateData.session.activeFilter);
-
-        if (stateData.session.status === 'active' && stateData.session.moduleType === 'stemming') {
-          const stemmingKey = `samen_stemming_done_${code}`;
-          const alreadyVoted = localStorage.getItem(stemmingKey) === 'true';
-
-          if (!alreadyVoted) {
-            router.push(`/delta/${code}`);
-            return;
+        setSession((current) => {
+          if (!initializedRef.current || !current) {
+            initializedRef.current = true;
+            return stateData.session;
           }
-        }
 
-        setTitle(stateData.session.title);
-        setSessionStatus(stateData.session.status);
-        setSessionMode(stateData.session.moduleType);
-        setTimerEndsAt(stateData.session.timerEndsAt ?? null);
-        setTimerLabel(stateData.session.timerLabel ?? null);
-
-        if (!currentResultsVisible) {
-          setResults(null);
-          setError('');
+          return {
+            ...current,
+            ...stateData.session,
+            tags: stateData.session.tags ?? current.tags,
+          };
+        });
+        setError('');
+      } catch {
+        if (!isMounted) {
           return;
         }
 
-        if (stateData.session.moduleType === 'aapne-innspill') {
+        setError('Kunne ikke hente sesjon.');
+      }
+    }
+
+    void fetchSessionState();
+    const timer = setInterval(() => {
+      void fetchSessionState();
+    }, 5_000);
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+    };
+  }, [code]);
+
+  useEffect(() => {
+    if (!session || session.status !== 'active' || session.moduleType !== 'stemming') {
+      return;
+    }
+
+    const stemmingKey = `samen_stemming_done_${code}`;
+    const alreadyVoted = localStorage.getItem(stemmingKey) === 'true';
+
+    if (!alreadyVoted) {
+      router.push(`/delta/${code}`);
+    }
+  }, [code, router, session]);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    if (!session.visibility.participant.showResults) {
+      loadedResultsKeyRef.current = '';
+      setResults(null);
+      setThemeResults(null);
+      setError('');
+      return;
+    }
+
+    const sessionModuleType = session.moduleType;
+    const resultsKey = `${code}:${sessionModuleType}`;
+    if (loadedResultsKeyRef.current === resultsKey) {
+      return;
+    }
+
+    let isMounted = true;
+
+    async function fetchResultsData() {
+      try {
+        if (sessionModuleType === 'aapne-innspill') {
           const themesResponse = await fetch(`/api/delta/${code}/themes`, { cache: 'no-store' });
           const themesData = (await themesResponse.json()) as ThemeResponse | { error: string };
 
@@ -216,17 +261,21 @@ export default function ParticipantResultsPage({ params }: PageProps) {
             return;
           }
 
-          if (themesResponse.ok && 'themes' in themesData) {
-            setThemeResults((previous) => {
-              if (themesData.themes.length === 0 && themesData.ungrouped.length === 0 && previous && (previous.themes.length > 0 || previous.ungrouped.length > 0)) {
-                return previous;
-              }
-              return themesData;
-            });
-            setResults(null);
-            setError('');
+          if (!themesResponse.ok || !('themes' in themesData)) {
+            setError('Kunne ikke hente resultater.');
             return;
           }
+
+          loadedResultsKeyRef.current = resultsKey;
+          setThemeResults((previous) => {
+            if (themesData.themes.length === 0 && themesData.ungrouped.length === 0 && previous && (previous.themes.length > 0 || previous.ungrouped.length > 0)) {
+              return previous;
+            }
+            return themesData;
+          });
+          setResults(null);
+          setError('');
+          return;
         }
 
         const summaryResponse = await fetch(`/api/admin/${code}/summary`, { cache: 'no-store' });
@@ -241,51 +290,48 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           return;
         }
 
-        setError('');
+        const normalizedItems = summaryData.items.map((item) => {
+          if (!('tagCounts' in item)) {
+            return item;
+          }
+
+          return {
+            ...item,
+            finalTag: item.final_tag,
+          } satisfies KartleggingSummaryItem;
+        });
+
+        loadedResultsKeyRef.current = resultsKey;
         setResults((previous) => {
           if (summaryData.items.length === 0 && previous && previous.items.length > 0) {
             return previous;
           }
-          const normalizedItems = summaryData.items.map((item) => {
-            if (!('tagCounts' in item)) {
-              return item;
-            }
-
-            return {
-              ...item,
-              finalTag: item.final_tag ?? null,
-            } satisfies KartleggingSummaryItem;
-          });
 
           return {
-            mode: stateData.session.moduleType,
-            phase: summaryData.phase ?? 'kartlegging',
-            votingType: summaryData.votingType ?? stateData.session.votingType,
+            mode: sessionModuleType,
+            phase: summaryData.phase,
+            votingType: summaryData.votingType,
             participantCount: summaryData.participantCount,
             items: normalizedItems,
             themes: summaryData.themes,
           };
         });
         setThemeResults(null);
+        setError('');
       } catch {
         if (!isMounted) {
           return;
         }
-
         setError('Kunne ikke hente resultater.');
       }
     }
 
-    void fetchData();
-    const timer = setInterval(() => {
-      void fetchData();
-    }, 5_000);
+    void fetchResultsData();
 
     return () => {
       isMounted = false;
-      clearInterval(timer);
     };
-  }, [code, router]);
+  }, [code, session]);
 
   useEffect(() => {
     if (!themeResults) {
@@ -466,7 +512,6 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const kartleggingItems = results.items
     .filter((item): item is KartleggingSummaryItem => 'tagCounts' in item)
     .filter((item) => !item.excluded);
-  console.log('[debug] activeFilter state:', activeFilter, 'items:', kartleggingItems.length);
   const filteredItems = kartleggingItems.filter((item) => {
     if (activeFilter === 'alle') return true;
     if (activeFilter === 'usikker') return (item.uncertainCount ?? 0) > 0;

@@ -90,6 +90,15 @@ endpoint (title/status/moduleType/visibility/filters/timer) and should
 not fetch duplicate session payloads from other routes.
 Must use force-no-store and no-cache Neon instance (see above).
 
+Resultater page data split:
+- Poll /api/delta/[code]/state every 5 seconds for session state only
+  (including visibility and active filter).
+- Fetch mode-specific result payloads separately, one-time per mode/visibility:
+  - /api/admin/[code]/summary for kartlegging/stemming/rangering aggregates
+  - /api/delta/[code]/themes for aapne-innspill themed/ungrouped innspill
+- Do not add a second session polling source (no /api/sessions/[code] in
+  resultater/page.tsx).
+
 ## Polling pattern (use everywhere, no exceptions)
 - Participant pages poll every 5 seconds via useEffect + setInterval
 - Admin pages poll every 10 seconds
