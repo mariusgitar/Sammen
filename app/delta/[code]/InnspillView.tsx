@@ -117,7 +117,7 @@ export function InnspillView({
       const merged = { ...prev };
       nextInnspill.forEach((q) => {
         const incoming = mine[q.id] ?? [];
-        if (incoming.length > 0 || !merged[q.id]) merged[q.id] = incoming;
+        merged[q.id] = incoming;
       });
       return merged;
     });
@@ -125,7 +125,7 @@ export function InnspillView({
       const merged = { ...prev };
       nextInnspill.forEach((q) => {
         const incoming = others[q.id] ?? [];
-        if (incoming.length > 0 || !merged[q.id]) merged[q.id] = incoming;
+        merged[q.id] = incoming;
       });
       return merged;
     });
