@@ -85,6 +85,9 @@ Returns everything the participant page needs in one call:
   { session: NormalizedSession, items, innspill, themes, ungrouped, myResponses }
 
 This is the ONLY endpoint delta/[code]/page.tsx should poll.
+delta/[code]/resultater/page.tsx also reads session state from this
+endpoint (title/status/moduleType/visibility/filters/timer) and should
+not fetch duplicate session payloads from other routes.
 Must use force-no-store and no-cache Neon instance (see above).
 
 ## Polling pattern (use everywhere, no exceptions)
@@ -155,6 +158,8 @@ themes, innspill_themes, innspill_likes: (unchanged)
 - normalizeSession() called twice on same object → second call returns wrong
   status because camelCase fields don't match snake_case reads. Call ONCE
   in the API route, never again in the client page.
+- Do not add dual snake_case/camelCase field checks in client pages.
+  Normalize once in API responses, then read canonical camelCase fields.
 - Neon query cache → Vercel caches DB reads. All participant-facing routes
   must use fetchOptions: { cache: 'no-store' } on the neon() instance.
 - sessionStatuses.includes() fails silently if sessionStatuses is not a

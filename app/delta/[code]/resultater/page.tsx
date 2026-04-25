@@ -3,25 +3,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TimerBanner } from '@/app/components/TimerBanner';
+import { type NormalizedSession } from '@/app/lib/normalizeSession';
 
 type PageProps = {
   params: {
     code: string;
-  };
-};
-
-type SessionInfoResponse = {
-  session: {
-    code: string;
-    title: string;
-    mode: 'kartlegging' | 'stemming' | 'rangering' | 'aapne-innspill';
-    phase: 'kartlegging' | 'stemming' | 'rangering' | 'innspill';
-    votingType: 'scale' | 'dots';
-    status: 'setup' | 'active' | 'paused' | 'closed';
-    resultsVisible?: boolean;
-    timerEndsAt: string | null;
-    timerLabel: string | null;
-    active_filter?: 'alle' | 'uenighet' | 'usikker' | 'konsensus';
   };
 };
 
@@ -32,10 +18,13 @@ type KartleggingSummaryItem = {
   is_new: boolean;
   excluded: boolean;
   finalTag?: string | null;
-  final_tag?: string | null;
   tagCounts: Record<string, number>;
   untaggedCount: number;
   uncertainCount?: number;
+};
+
+type AdminKartleggingSummaryItem = Omit<KartleggingSummaryItem, 'finalTag'> & {
+  final_tag?: string | null;
 };
 
 type StemmingSummaryItem = {
@@ -87,8 +76,17 @@ type AdminSummaryResponse = {
   status: 'setup' | 'active' | 'paused' | 'closed';
   votingType?: 'scale' | 'dots';
   participantCount: number;
-  items: Array<KartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
+  items: Array<AdminKartleggingSummaryItem | StemmingSummaryItem | RangeringSummaryItem>;
   themes?: ThemeSummaryItem[];
+};
+
+
+type StateResponse = {
+  session: NormalizedSession;
+};
+
+type ErrorResponse = {
+  error: string;
 };
 
 type ThemeResponse = {
@@ -130,7 +128,7 @@ const CONSENSUS_TAG_COLORS: Record<string, string> = {
 };
 
 const getDisplayTag = (item: KartleggingSummaryItem) => {
-  const finalTag = (item.finalTag ?? item.final_tag)?.trim();
+  const finalTag = item.finalTag?.trim();
   if (finalTag) return finalTag;
   const entries = Object.entries(item.tagCounts ?? {});
   if (entries.length === 0) return null;
@@ -157,7 +155,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const initialResultsVisible = false;
   const [resultsVisible, setResultsVisible] = useState<boolean>(initialResultsVisible);
   const [sessionStatus, setSessionStatus] = useState<'setup' | 'active' | 'paused' | 'closed' | null>(null);
-  const [sessionMode, setSessionMode] = useState<SessionInfoResponse['session']['mode'] | null>(null);
+  const [sessionMode, setSessionMode] = useState<NormalizedSession['moduleType'] | null>(null);
   const [results, setResults] = useState<ResultsResponse | null>(null);
   const [themeResults, setThemeResults] = useState<ThemeResponse | null>(null);
   const [viewMode, setViewMode] = useState<'temaer' | 'alle'>('alle');
@@ -165,56 +163,30 @@ export default function ParticipantResultsPage({ params }: PageProps) {
   const [error, setError] = useState('');
   const [timerEndsAt, setTimerEndsAt] = useState<string | null>(null);
   const [timerLabel, setTimerLabel] = useState<string | null>(null);
-  const [activeFilter, setActiveFilter] = useState<'alle' | 'uenighet' | 'usikker' | 'konsensus'>('alle');
+  const [activeFilter, setActiveFilter] = useState<NormalizedSession['activeFilter']>('alle');
 
   useEffect(() => {
     let isMounted = true;
 
     async function fetchData() {
       try {
-        const sessionResponse = await fetch(`/api/delta/${code}`, { cache: 'no-store' });
-        const sessionData = (await sessionResponse.json()) as SessionInfoResponse | { error: string };
+        const stateResponse = await fetch(`/api/delta/${code}/state`, { cache: 'no-store' });
+        const stateData = (await stateResponse.json()) as StateResponse | ErrorResponse;
 
         if (!isMounted) {
           return;
         }
 
-        if (!sessionResponse.ok || !('session' in sessionData)) {
+        if (!stateResponse.ok || !('session' in stateData)) {
           setError('Kunne ikke hente sesjon.');
           return;
         }
 
-        const serverVisibility = Boolean(sessionData.session.resultsVisible);
+        const currentResultsVisible = stateData.session.visibility.participant.showResults;
+        setResultsVisible(currentResultsVisible);
+        setActiveFilter(stateData.session.activeFilter);
 
-        let currentResultsVisible = serverVisibility;
-
-        const sessionRes = await fetch(`/api/sessions/${code}`, { cache: 'no-store' });
-        if (sessionRes.ok) {
-          const sessionPayload = (await sessionRes.json()) as {
-            session?: {
-              resultsVisible?: boolean;
-              active_filter?: 'alle' | 'uenighet' | 'usikker' | 'konsensus';
-            };
-            resultsVisible?: boolean;
-            active_filter?: 'alle' | 'uenighet' | 'usikker' | 'konsensus';
-          };
-          const filter =
-            sessionPayload.session?.active_filter ??
-            sessionPayload.active_filter ??
-            'alle';
-          setActiveFilter(filter);
-          console.log('[debug] active_filter from session:', filter);
-          const visible =
-            sessionPayload.session?.resultsVisible ??
-            sessionPayload.resultsVisible ??
-            false;
-          currentResultsVisible = visible;
-          setResultsVisible(visible);
-        } else {
-          setResultsVisible(serverVisibility);
-        }
-
-        if (sessionData.session.status === 'active' && sessionData.session.phase === 'stemming') {
+        if (stateData.session.status === 'active' && stateData.session.moduleType === 'stemming') {
           const stemmingKey = `samen_stemming_done_${code}`;
           const alreadyVoted = localStorage.getItem(stemmingKey) === 'true';
 
@@ -224,11 +196,11 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           }
         }
 
-        setTitle(sessionData.session.title);
-        setSessionStatus(sessionData.session.status);
-        setSessionMode(sessionData.session.mode);
-        setTimerEndsAt(sessionData.session.timerEndsAt ?? null);
-        setTimerLabel(sessionData.session.timerLabel ?? null);
+        setTitle(stateData.session.title);
+        setSessionStatus(stateData.session.status);
+        setSessionMode(stateData.session.moduleType);
+        setTimerEndsAt(stateData.session.timerEndsAt ?? null);
+        setTimerLabel(stateData.session.timerLabel ?? null);
 
         if (!currentResultsVisible) {
           setResults(null);
@@ -236,7 +208,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           return;
         }
 
-        if (sessionData.session.mode === 'aapne-innspill') {
+        if (stateData.session.moduleType === 'aapne-innspill') {
           const themesResponse = await fetch(`/api/delta/${code}/themes`, { cache: 'no-store' });
           const themesData = (await themesResponse.json()) as ThemeResponse | { error: string };
 
@@ -274,12 +246,23 @@ export default function ParticipantResultsPage({ params }: PageProps) {
           if (summaryData.items.length === 0 && previous && previous.items.length > 0) {
             return previous;
           }
+          const normalizedItems = summaryData.items.map((item) => {
+            if (!('tagCounts' in item)) {
+              return item;
+            }
+
+            return {
+              ...item,
+              finalTag: item.final_tag ?? null,
+            } satisfies KartleggingSummaryItem;
+          });
+
           return {
-            mode: sessionData.session.mode,
-            phase: summaryData.phase ?? sessionData.session.phase ?? 'kartlegging',
-            votingType: summaryData.votingType ?? sessionData.session.votingType,
+            mode: stateData.session.moduleType,
+            phase: summaryData.phase ?? 'kartlegging',
+            votingType: summaryData.votingType ?? stateData.session.votingType,
             participantCount: summaryData.participantCount,
-            items: summaryData.items,
+            items: normalizedItems,
             themes: summaryData.themes,
           };
         });
@@ -296,7 +279,7 @@ export default function ParticipantResultsPage({ params }: PageProps) {
     void fetchData();
     const timer = setInterval(() => {
       void fetchData();
-    }, 3_000);
+    }, 5_000);
 
     return () => {
       isMounted = false;
