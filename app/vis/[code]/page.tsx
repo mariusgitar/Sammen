@@ -14,6 +14,7 @@ type SessionResponse = {
     votingType: 'scale' | 'dots';
     phase: 'kartlegging' | 'stemming' | 'innspill' | 'rangering';
     status: 'setup' | 'active' | 'paused' | 'closed';
+    anonymousInnspill?: boolean;
   };
   items: Array<{
     id: string;

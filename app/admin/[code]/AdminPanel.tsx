@@ -24,6 +24,7 @@ type SessionView = {
   showTagHeaders: boolean | null;
   showOthersInnspill: boolean;
   innspillMaxChars: number;
+  anonymousInnspill?: boolean;
   tags: string[];
   timerEndsAt: string | Date | null;
   timerLabel: string | null;
