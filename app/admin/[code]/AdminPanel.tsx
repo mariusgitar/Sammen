@@ -1019,6 +1019,7 @@ export function AdminPanel({ session, items }: AdminPanelProps) {
         showTagHeaders: Boolean(currentSession.showTagHeaders),
         innspillMode: 'enkel',
         innspillMaxChars: currentSession.innspillMaxChars,
+        anonymousInnspill: Boolean(currentSession.anonymousInnspill),
         includesStemming: false,
         votingTarget: null,
         activeFilter: activeKartleggingFilter,
