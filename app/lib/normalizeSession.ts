@@ -19,6 +19,7 @@ export type NormalizedSession = {
   showTagHeaders: boolean
   innspillMode: string
   innspillMaxChars: number
+  anonymousInnspill: boolean
   includesStemming: boolean
   votingTarget: string | null
   activeFilter: 'alle' | 'uenighet' | 'usikker' | 'konsensus'
@@ -84,6 +85,7 @@ export function normalizeSession(raw: Record<string, unknown>): NormalizedSessio
     showTagHeaders: Boolean(raw.show_tag_headers ?? raw.showTagHeaders ?? false),
     innspillMode: String(raw.innspill_mode ?? raw.innspillMode ?? 'enkel'),
     innspillMaxChars: Number(raw.innspill_max_chars ?? raw.innspillMaxChars ?? 200),
+    anonymousInnspill: Boolean(raw.anonymous_innspill ?? raw.anonymousInnspill ?? false),
     includesStemming: Boolean(raw.includes_stemming ?? raw.includesStemming ?? false),
     votingTarget: (raw.voting_target ?? raw.votingTarget ?? null) as string | null,
     activeFilter: (raw.active_filter ?? raw.activeFilter ?? 'alle') as NormalizedSession['activeFilter'],

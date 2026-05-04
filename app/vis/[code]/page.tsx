@@ -3,6 +3,7 @@
 import { Inter } from 'next/font/google';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { QRCodeSVG as QRCode } from 'qrcode.react';
+import InnspillKortvisning from '@/app/components/InnspillKortvisning';
 
 type SessionResponse = {
   session: {
@@ -664,29 +665,17 @@ export default function PresentationPage({ params }: { params: { code: string } 
                     ) : null}
                   </>
                 ) : (
-                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                    {(innspillData?.questions ?? [])
+                  <InnspillKortvisning
+                    colorScheme="dark"
+                    showNicknames={!sessionData?.session.anonymousInnspill}
+                    questions={(innspillData?.questions ?? [])
                       .filter((question) => question.question_status === 'active')
-                      .map((question) => {
-                        const latest = [...question.innspill]
-                          .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                          .slice(0, 6);
-                        return (
-                          <div key={question.id} className="flex flex-col rounded-3xl border border-white/10 bg-white/[0.03] p-5">
-                            <h3 className="mb-4 text-xl font-bold">{question.text}</h3>
-                            <div className="space-y-3">
-                              {latest.map((entry, idx) => (
-                                <article key={entry.id} className="rounded-2xl border border-[#818cf8]/20 bg-[#818cf8]/10 p-3 transition-all duration-700 ease-out" style={{ transitionDelay: `${idx * 80}ms` }}>
-                                  <p className="text-base text-white/90">{entry.text}</p>
-                                  <p className="mt-2 text-sm text-white/50">♥ {entry.likes}</p>
-                                </article>
-                              ))}
-                              {question.innspill.length > 6 ? <p className="text-sm text-white/40">og {question.innspill.length - 6} til...</p> : null}
-                            </div>
-                          </div>
-                        );
-                      })}
-                  </div>
+                      .map((question) => ({
+                        id: question.id,
+                        text: question.text,
+                        innspill: question.innspill.map((entry) => ({ id: entry.id, text: entry.text, nickname: entry.nickname })),
+                      }))}
+                  />
                 )}
               </>
             ) : null}

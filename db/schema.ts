@@ -149,6 +149,7 @@ export const sessions = pgTable('sessions', {
   showOthersInnspill: boolean('show_others_innspill').notNull().default(true),
   innspillMode: text('innspill_mode').$type<InnspillMode>().notNull().default('enkel'),
   innspillMaxChars: integer('innspill_max_chars').notNull().default(100),
+  anonymousInnspill: boolean('anonymous_innspill').notNull().default(false),
   includesStemming: boolean('includes_stemming').notNull().default(false),
   maxRankItems: integer('max_rank_items'),
   timerEndsAt: timestamp('timer_ends_at', { withTimezone: true }),
