@@ -101,6 +101,7 @@ const defaults = {
   showOthersInnspill: true,
   innspillMode: "enkel" as InnspillMode,
   innspillMaxChars: 100,
+  anonymousInnspill: false,
   votingType: "dots" as VotingType,
   allowMultipleDots: true,
   dotBudget: 5,
@@ -144,6 +145,7 @@ export default function NewSessionPage() {
   const [innspillMaxChars, setInnspillMaxChars] = useState(
     defaults.innspillMaxChars,
   );
+  const [anonymousInnspill, setAnonymousInnspill] = useState(defaults.anonymousInnspill);
 
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [advancedReady, setAdvancedReady] = useState(false);
@@ -191,6 +193,10 @@ export default function NewSessionPage() {
       if (innspillMaxChars !== defaults.innspillMaxChars) {
         changes += 1;
       }
+
+      if (anonymousInnspill !== defaults.anonymousInnspill) {
+        changes += 1;
+      }
     }
 
     if (hasStemming) {
@@ -228,6 +234,7 @@ export default function NewSessionPage() {
     dotBudget,
     hasStemming,
     innspillMaxChars,
+    anonymousInnspill,
     innspillMode,
     isInnspillMode,
     isKartlegging,

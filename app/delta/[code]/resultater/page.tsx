@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { TimerBanner } from '@/app/components/TimerBanner';
+import InnspillKortvisning from '@/app/components/InnspillKortvisning';
 import { type NormalizedSession } from '@/app/lib/normalizeSession';
 
 type PageProps = {
@@ -462,23 +463,11 @@ export default function ParticipantResultsPage({ params }: PageProps) {
 
           {hasThemes && viewMode === 'temaer' ? (
             <>
-              <div className={themeResults.themes.length > 2 ? 'grid grid-cols-1 gap-4 md:grid-cols-2' : 'space-y-4'}>
-                {themeResults.themes.map((theme) => (
-                  <section key={theme.id} className="rounded-2xl border border-slate-100 bg-white p-4 shadow-sm" style={{ borderLeft: `4px solid ${theme.color}` }}>
-                    <h3 style={{ color: theme.color }} className="text-lg font-semibold">{theme.name}</h3>
-                    {theme.description ? <p className="text-sm text-slate-500">{theme.description}</p> : null}
-                    <div className="mt-3 space-y-2">
-                      {theme.innspill.map((entry) => (
-                        <div key={entry.id} className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                          <p className="font-medium text-slate-800">{entry.text}</p>
-                          {entry.detaljer ? <p className="mt-1 text-sm text-slate-500">{entry.detaljer}</p> : null}
-                          <p className="mt-2 text-right text-xs text-slate-400">♥ {entry.likes ?? 0}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                ))}
-              </div>
+              <InnspillKortvisning
+                colorScheme="light"
+                showNicknames={!session?.anonymousInnspill}
+                questions={themeResults.themes.map((theme) => ({ id: theme.id, text: theme.name, innspill: theme.innspill.map((entry) => ({ id: entry.id, text: entry.text })) }))}
+              />
               {themeResults.ungrouped.length > 0 ? (
                 <div className="mt-6 border-t border-slate-100 pt-4">
                   <h3 className="mb-3 text-sm font-medium text-slate-400">Andre innspill ({themeResults.ungrouped.length})</h3>
@@ -493,16 +482,12 @@ export default function ParticipantResultsPage({ params }: PageProps) {
               ) : null}
             </>
           ) : (
-            <section>
-              <div className="mt-3 space-y-2">
-                {allInnspill.map((entry) => (
-                  <div key={entry.id} className="rounded-xl border border-slate-100 bg-white p-3 shadow-sm">
-                    <p className="font-medium text-slate-800">{entry.text}</p>
-                    {entry.detaljer ? <p className="mt-1 text-sm text-slate-500">{entry.detaljer}</p> : null}
-                    <p className="mt-2 text-right text-xs text-slate-400">♥ {entry.likes ?? 0}</p>
-                  </div>
-                ))}
-              </div>
+            <section className="mt-3">
+              <InnspillKortvisning
+                colorScheme="light"
+                showNicknames={!session?.anonymousInnspill}
+                questions={[{ id: 'alle', text: 'Alle innspill', innspill: allInnspill.map((entry) => ({ id: entry.id, text: entry.text })) }]}
+              />
             </section>
           )}
         </div>

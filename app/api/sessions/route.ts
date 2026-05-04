@@ -18,6 +18,7 @@ type CreateSessionBody = {
   show_others_innspill?: boolean;
   innspill_mode?: (typeof innspillModes)[number];
   innspill_max_chars?: number;
+  anonymous_innspill?: boolean;
   max_rank_items?: number | null;
   items: CreateSessionItem[];
   tags: string[];
@@ -72,6 +73,7 @@ function isCreateSessionBody(body: unknown): body is CreateSessionBody {
     (typeof candidate.innspill_mode === 'undefined' ||
       innspillModes.includes(candidate.innspill_mode as (typeof innspillModes)[number])) &&
     (typeof candidate.innspill_max_chars === 'undefined' || Number.isInteger(candidate.innspill_max_chars)) &&
+    (typeof candidate.anonymous_innspill === 'undefined' || typeof candidate.anonymous_innspill === 'boolean') &&
     (typeof candidate.max_rank_items === 'undefined' || candidate.max_rank_items === null || Number.isInteger(candidate.max_rank_items)) &&
     (typeof candidate.show_tag_headers === 'undefined' || typeof candidate.show_tag_headers === 'boolean') &&
     Array.isArray(candidate.items) &&
@@ -160,6 +162,7 @@ export async function POST(request: NextRequest) {
     const showOthersInnspill = body.show_others_innspill ?? true;
     const innspillMode = body.innspill_mode ?? 'enkel';
     const innspillMaxChars = [60, 100, 200].includes(body.innspill_max_chars ?? 100) ? (body.innspill_max_chars ?? 100) : 100;
+    const anonymousInnspill = body.anonymous_innspill ?? false;
 
     const [createdSession] = await db
       .insert(sessions)
@@ -182,6 +185,7 @@ export async function POST(request: NextRequest) {
         showOthersInnspill,
         innspillMode: normalizedMode === 'aapne-innspill' ? innspillMode : 'enkel',
         innspillMaxChars: normalizedMode === 'aapne-innspill' ? innspillMaxChars : 100,
+        anonymousInnspill: normalizedMode === 'aapne-innspill' ? anonymousInnspill : false,
         maxRankItems: normalizedMaxRankItems,
         tags: normalizedMode === 'aapne-innspill' || normalizedMode === 'rangering' ? [] : tags,
         allowNewItems: normalizedMode === 'aapne-innspill' || normalizedMode === 'rangering' ? true : body.allow_new_items,

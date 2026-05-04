@@ -491,7 +491,7 @@ export function InnspillView({
                           {renderEntryText(entry)}
                           <div className="mt-1 flex items-center justify-between">
                             <span className="text-xs text-[#64748b]">
-                              {entry.nickname}
+                              {session.anonymousInnspill ? "Anonym" : entry.nickname}
                             </span>
                             <button
                               type="button"
